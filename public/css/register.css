@@ -1,0 +1,138 @@
+/* register.css - Página de registro estilo clásico */
+.register-section {
+    min-height: calc(100vh - 200px);
+    padding: 4rem 0;
+    background-color: var(--light-color);
+}
+
+.register-card {
+    background-color: #fffef9;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-medium);
+    max-width: 850px;
+    margin: 0 auto;
+    position: relative;
+    border-top: 4px solid var(--gold-color);
+}
+
+.register-header {
+    background-color: var(--primary-color);
+    color: #e0d6c2;
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    font-family: var(--font-cursive);
+}
+
+.register-header h2 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: var(--gold-color);
+}
+
+.register-body {
+    padding: 2.5rem;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3rem;
+    position: relative;
+}
+
+.step-indicator::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--border-color);
+    z-index: 1;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--light-color);
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    border: 2px solid var(--border-color);
+    font-family: var(--font-cursive);
+    font-size: 1.1rem;
+}
+
+.step.active .step-number {
+    background-color: var(--gold-color);
+    border-color: var(--gold-color);
+    color: var(--primary-color);
+}
+
+.step.completed .step-number {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.step-label {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    font-weight: 500;
+    font-family: var(--font-serif);
+    text-align: center;
+}
+
+.form-section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(141, 110, 99, 0.2);
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.password-requirements {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background-color: rgba(141, 110, 99, 0.05);
+    border-left: 3px solid var(--gold-color);
+    font-family: var(--font-serif);
+}
+
+.requirement {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-serif);
+}
+
+.requirement i {
+    margin-right: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.requirement.met {
+    color: var(--success-color);
+}
+
+.requirement.unmet {
+    color: #8d6e63;
+}

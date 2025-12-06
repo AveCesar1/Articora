@@ -1,0 +1,112 @@
+<%- include('partials/header', { title: 'Perfil de usuario', pageStyles: '/css/profile.css', isAuthenticated: true }) %>
+
+    <div class="profile-header">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center">
+                <img src="https://placehold.co/150" alt="Foto de perfil" class="profile-picture mb-3">
+                <h5>Leonardo Serna Sánchez</h5>
+                <p class="text-muted">@leonardo_ss</p>
+                <span class="badge bg-success">Usuario Validado</span>
+                <div class="mt-3">
+                    <button class="btn btn-outline-primary btn-sm">Editar perfil</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Información personal</h6>
+                        <p><strong>Correo:</strong> leonardo.serna@ejemplo.com</p>
+                        <p><strong>Grado académico:</strong> Maestría en Ciencias Computacionales</p>
+                        <p><strong>Disponible para mensajes:</strong> Sí</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Estadísticas</h6>
+                        <p><strong>Fuentes subidas:</strong> 15</p>
+                        <p><strong>Calificaciones realizadas:</strong> 42</p>
+                        <p><strong>Listas creadas:</strong> 3</p>
+                        <p><strong>Miembro desde:</strong> Enero 2024</p>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h6>Biografía</h6>
+                    <p>Investigador apasionado por las ciencias computacionales y la inteligencia artificial. Me especializo en procesamiento de lenguaje natural y sistemas de recomendación. Siempre interesado en colaborar en proyectos innovadores.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Actividad reciente</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-star text-warning"></i> Calificaste la fuente "Deep Learning for NLP" con 4.5 estrellas
+                            <span class="text-muted float-end">Hace 2 horas</span>
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-book text-primary"></i> Marcaste como leída "Attention Is All You Need"
+                            <span class="text-muted float-end">Ayer</span>
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-comment text-info"></i> Comentaste en "Transformers in Computer Vision"
+                            <span class="text-muted float-end">Hace 3 días</span>
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-upload text-success"></i> Subiste la fuente "BERT: Pre-training of Deep Bidirectional Transformers"
+                            <span class="text-muted float-end">Hace 1 semana</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Distribución de lecturas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="radar-chart">
+                        <p>Gráfico de radar de categorías de lectura</p>
+                        <!-- En el futuro aquí irá un gráfico real -->
+                    </div>
+                    <p class="text-center mt-3"><small>Basado en 50 lecturas registradas</small></p>
+                </div>
+            </div>
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Listas curatoriales</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Fundamentos de NLP</h6>
+                                <span class="badge bg-primary rounded-pill">12</span>
+                            </div>
+                            <p class="mb-1">Recopilación de los papers más importantes en Procesamiento de Lenguaje Natural.</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">IA Explicable</h6>
+                                <span class="badge bg-primary rounded-pill">8</span>
+                            </div>
+                            <p class="mb-1">Fuentes sobre transparencia e interpretabilidad en modelos de IA.</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Recomendación Colaborativa</h6>
+                                <span class="badge bg-primary rounded-pill">5</span>
+                            </div>
+                            <p class="mb-1">Artículos clave sobre sistemas de recomendación basados en filtrado colaborativo.</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<%- include('partials/footer', { pageScripts: '/js/profile.js' }) %>

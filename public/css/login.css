@@ -1,0 +1,84 @@
+/* login.css - Página de login estilo clásico */
+.login-section {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    padding: 4rem 0;
+    background-color: var(--light-color);
+}
+
+.login-card {
+    background-color: #fffef9;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-medium);
+    max-width: 500px;
+    margin: 0 auto;
+    position: relative;
+    border-top: 4px solid var(--gold-color);
+}
+
+.login-header {
+    background-color: var(--primary-color);
+    color: #e0d6c2;
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    font-family: var(--font-cursive);
+}
+
+.login-header h2 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: var(--gold-color);
+}
+
+.login-body {
+    padding: 2.5rem;
+}
+
+.login-icon {
+    width: 70px;
+    height: 70px;
+    background-color: rgba(183, 147, 76, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--gold-color);
+    font-size: 1.8rem;
+    border: 2px solid var(--gold-color);
+}
+
+.form-check-input:checked {
+    background-color: var(--gold-color);
+    border-color: var(--gold-color);
+}
+
+.auth-links {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-family: var(--font-serif);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.divider span {
+    padding: 0 1rem;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    font-family: var(--font-serif);
+}

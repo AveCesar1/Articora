@@ -1,0 +1,45 @@
+<%- include('partials/header', { title: 'Iniciar sesión', pageStyles: '/css/login.css', isAuthenticated: false }) %>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-header text-center">
+                    <h4 class="mb-0">Iniciar sesión en Artícora</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Nombre de usuario o correo</label>
+                            <input type="text" class="form-control" id="username" placeholder="Ingresa tu usuario o correo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" placeholder="Ingresa tu contraseña" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('password')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">Recordarme</label>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Iniciar sesión</button>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="/forgot-password">¿Olvidaste tu contraseña?</a>
+                        </div>
+                        <hr class="my-4">
+                        <p class="text-center mb-0">¿No tienes una cuenta? <a href="/register">Regístrate aquí</a></p>
+                    </form>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <p>Al iniciar sesión, aceptas nuestros <a href="/terms">Términos de servicio</a> y <a href="/privacy">Política de privacidad</a>.</p>
+            </div>
+        </div>
+    </div>
+
+<%- include('partials/footer', { pageScripts: '/js/login.js' }) %>

@@ -1,0 +1,243 @@
+/* styles.css - Estilo clásico de academia tradicional */
+:root {
+    /* Paleta de colores de biblioteca antigua */
+    --primary-color: #2c1810;       /* Marrón oscuro casi negro */
+    --secondary-color: #5d4037;     /* Marrón madera */
+    --accent-color: #8d6e63;        /* Marrón claro */
+    --light-color: #f5f1e6;         /* Beige papel antiguo */
+    --dark-color: #1b120b;          /* Marrón muy oscuro */
+    --text-color: #3e2723;          /* Marrón oscuro para texto */
+    --border-color: #a1887f;        /* Marrón medio */
+    --success-color: #2e7d32;       /* Verde forestal */
+    --warning-color: #ef6c00;       /* Ámbar oscuro */
+    --danger-color: #c62828;        /* Rojo vino */
+    --gold-color: #b7934c;          /* Dorado envejecido */
+    --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.12);
+    --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --font-serif: 'Georgia', 'Times New Roman', serif;
+    --font-cursive: 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+/* Estilo general que evoca papel antiguo */
+body {
+    font-family: var(--font-serif);
+    color: var(--text-color);
+    background-color: var(--light-color);
+    line-height: 1.7;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%238d6e63' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+/* Navegación estilo barra de madera */
+.navbar {
+    background: linear-gradient(to bottom, var(--primary-color), var(--dark-color));
+    border-bottom: 3px solid var(--gold-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    padding: 0.5rem 0;
+    font-family: var(--font-serif);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: var(--gold-color) !important;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 0;
+}
+
+.navbar-brand span {
+    color: #e0d6c2;
+}
+
+.navbar-nav .nav-link {
+    color: #e0d6c2 !important;
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    margin: 0 3px;
+    transition: all 0.3s;
+    border-radius: 2px;
+    font-size: 1rem;
+    position: relative;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(183, 147, 76, 0.2);
+    color: var(--gold-color) !important;
+}
+
+.navbar-nav .nav-link.active {
+    background-color: rgba(183, 147, 76, 0.3);
+    color: var(--gold-color) !important;
+    border-bottom: 2px solid var(--gold-color);
+}
+
+/* Botones estilo antiguo */
+.btn {
+    border-radius: 2px;
+    padding: 0.75rem 1.75rem;
+    font-weight: 600;
+    transition: all 0.3s;
+    border: 1px solid;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+}
+
+.btn-primary {
+    background: linear-gradient(to bottom, var(--secondary-color), var(--primary-color));
+    border-color: var(--primary-color);
+    color: #e0d6c2;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(to bottom, var(--accent-color), var(--secondary-color));
+    border-color: var(--accent-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn-outline-primary {
+    background-color: transparent;
+    border-color: var(--gold-color);
+    color: var(--text-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: rgba(183, 147, 76, 0.1);
+    border-color: var(--accent-color);
+    color: var(--text-color);
+}
+
+/* Tarjetas estilo papel envejecido con borde */
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+    box-shadow: var(--shadow-light);
+    transition: transform 0.3s, box-shadow 0.3s;
+    margin-bottom: 2rem;
+    background-color: #fffef9;
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to right, var(--gold-color), var(--accent-color));
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-medium);
+}
+
+.card-header {
+    background-color: var(--primary-color);
+    color: #e0d6c2;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 700;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--font-cursive);
+    font-size: 1.3rem;
+    letter-spacing: 0.5px;
+}
+
+.card-body {
+    padding: 1.75rem;
+    background-color: #fffef9;
+}
+
+/* Formularios con estilo clásico */
+.form-control, .form-select {
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+    padding: 0.85rem 1rem;
+    font-size: 1rem;
+    transition: border 0.3s;
+    font-family: var(--font-serif);
+    background-color: #fffef9;
+    color: var(--text-color);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--gold-color);
+    box-shadow: 0 0 0 0.25rem rgba(141, 110, 99, 0.25);
+    outline: none;
+    background-color: #fffef9;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+    font-family: var(--font-cursive);
+    font-size: 1.1rem;
+}
+
+/* Footer estilo pesado */
+.footer {
+    background: linear-gradient(to bottom, var(--primary-color), var(--dark-color));
+    color: #d4c6b8;
+    padding: 2.5rem 0 1.5rem;
+    margin-top: 4rem;
+    border-top: 3px solid var(--gold-color);
+    font-family: var(--font-serif);
+}
+
+.footer a {
+    color: #e0d6c2;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.footer a:hover {
+    color: var(--gold-color);
+    text-decoration: underline;
+}
+
+.footer-heading {
+    color: var(--gold-color);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    font-family: var(--font-cursive);
+}
+
+/* Utilidades */
+.bg-light-accent {
+    background-color: rgba(141, 110, 99, 0.1);
+}
+
+.border-left-accent {
+    border-left: 4px solid var(--gold-color);
+    padding-left: 1rem;
+}
+
+.text-gold {
+    color: var(--gold-color);
+}
+
+/* Separadores decorativos */
+hr {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold-color), transparent);
+    margin: 2rem 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar-nav .nav-link {
+        margin: 2px 0;
+    }
+    
+    .card {
+        margin-bottom: 1.5rem;
+    }
+}
