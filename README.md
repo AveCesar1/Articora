@@ -24,6 +24,8 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 
 - `/` - Landing page
 - `/login` - Página de inicio de sesión
+- `/verify-email` - Página de confirmación de email
+- `/forgot-password` - Perfil de usuario
 - `/register` - Página de registro
 - `/profile` - Perfil de usuario
 
