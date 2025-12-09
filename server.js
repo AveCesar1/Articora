@@ -48,7 +48,6 @@ app.get('/register', (req, res) => {
 });
 
 app.get('/profile', (req, res) => {
-    // Datos de ejemplo para el perfil
     const userData = {
         username: 'leonardo.serna',
         fullName: 'Leonardo Serna Sánchez',
@@ -110,6 +109,24 @@ app.get('/profile', (req, res) => {
         cssFile: 'profile.css',
         jsFile: 'profile.js',
         user: userData
+    });
+});
+
+app.get('/verify-email', (req, res) => {
+    res.render('verify-email', {
+        title: 'Verificación de Correo - Artícora',
+        currentPage: 'verify-email',
+        cssFile: 'verify-email.css',
+        jsFile: 'verify-email.js'
+    });
+});
+
+app.get('/forgot-password', (req, res) => {
+    res.render('forgot-password', {
+        title: 'Recuperación de Contraseña - Artícora',
+        currentPage: 'forgot-password',
+        cssFile: 'forgot-password.css',
+        jsFile: 'forgot-password.js'
     });
 });
 

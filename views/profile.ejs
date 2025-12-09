@@ -1,112 +1,345 @@
-<%- include('partials/header', { title: 'Perfil de usuario', pageStyles: '/css/profile.css', isAuthenticated: true }) %>
+<%- include('partials/header', { title: 'Perfil - Artícora', currentPage: 'profile', cssFile: 'profile.css' }) %>
 
-    <div class="profile-header">
-        <div class="row align-items-center">
-            <div class="col-md-3 text-center">
-                <img src="https://placehold.co/150" alt="Foto de perfil" class="profile-picture mb-3">
-                <h5>Leonardo Serna Sánchez</h5>
-                <p class="text-muted">@leonardo_ss</p>
-                <span class="badge bg-success">Usuario Validado</span>
-                <div class="mt-3">
-                    <button class="btn btn-outline-primary btn-sm">Editar perfil</button>
-                </div>
-            </div>
-            <div class="col-md-9">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Información personal</h6>
-                        <p><strong>Correo:</strong> leonardo.serna@ejemplo.com</p>
-                        <p><strong>Grado académico:</strong> Maestría en Ciencias Computacionales</p>
-                        <p><strong>Disponible para mensajes:</strong> Sí</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Estadísticas</h6>
-                        <p><strong>Fuentes subidas:</strong> 15</p>
-                        <p><strong>Calificaciones realizadas:</strong> 42</p>
-                        <p><strong>Listas creadas:</strong> 3</p>
-                        <p><strong>Miembro desde:</strong> Enero 2024</p>
+<div class="container py-5">
+    <!-- Tarjeta principal del perfil -->
+    <div class="card profile-header-card shadow-lg mb-5">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <!-- Columna izquierda: Avatar y datos básicos -->
+                <div class="col-md-4 text-center mb-4 mb-md-0">
+                    <img src="https://placehold.co/200x200/2c1810/e0d6c2?text=<%= user.fullName.charAt(0) %>" 
+                         alt="Foto de perfil" class="profile-avatar mb-4">
+                    
+                    <h2 class="profile-name mb-2"><%= user.fullName %></h2>
+                    <p class="text-muted mb-2">@<%= user.username %></p>
+                    
+                    <span class="status-badge validated mb-3">
+                        <i class="fas fa-check-circle me-1"></i> <%= user.academicStatus %>
+                    </span>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-primary">
+                            <i class="fas fa-edit me-2"></i> Editar perfil
+                        </button>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <h6>Biografía</h6>
-                    <p>Investigador apasionado por las ciencias computacionales y la inteligencia artificial. Me especializo en procesamiento de lenguaje natural y sistemas de recomendación. Siempre interesado en colaborar en proyectos innovadores.</p>
+                
+                <!-- Columna derecha: Información detallada -->
+                <div class="col-md-8">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5 class="section-title mb-3">
+                                <i class="fas fa-graduation-cap me-2"></i>Información académica
+                            </h5>
+                            <div class="info-item mb-2">
+                                <strong>Grado:</strong> <%= user.academicDegree %>
+                            </div>
+                            <div class="info-item mb-2">
+                                <strong>Institución:</strong> <%= user.institution %>
+                            </div>
+                            <div class="info-item mb-2">
+                                <strong>Correo:</strong> <%= user.email %>
+                            </div>
+                            <div class="info-item mb-2">
+                                <strong>Miembro desde:</strong> <%= user.joinDate %>
+                            </div>
+                            <div class="info-item">
+                                <strong>Disponible para mensajes:</strong>
+                                <% if (user.availableForMessages) { %>
+                                    <span class="text-success">Sí</span>
+                                <% } else { %>
+                                    <span class="text-danger">No</span>
+                                <% } %>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="section-title mb-3">
+                                <i class="fas fa-chart-bar me-2"></i>Estadísticas
+                            </h5>
+                            <div class="profile-stats">
+                                <div class="stat">
+                                    <span class="stat-value"><%= user.stats.sourcesAdded %></span>
+                                    <span class="stat-label">Fuentes subidas</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value"><%= user.stats.reviewsWritten %></span>
+                                    <span class="stat-label">Reseñas escritas</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value"><%= user.stats.readingLists %></span>
+                                    <span class="stat-label">Listas creadas</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value"><%= user.stats.collaborations %></span>
+                                    <span class="stat-label">Colaboraciones</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Biografía -->
+                    <div class="mb-4">
+                        <h5 class="section-title mb-3">
+                            <i class="fas fa-book-open me-2"></i>Biografía
+                        </h5>
+                        <div class="profile-bio p-3 border-left-accent">
+                            <%= user.bio %>
+                        </div>
+                    </div>
+                    
+                    <!-- Intereses -->
+                    <div>
+                        <h5 class="section-title mb-3">
+                            <i class="fas fa-tags me-2"></i>Intereses de investigación
+                        </h5>
+                        <div class="interests-container">
+                            <% user.interests.forEach(interest => { %>
+                                <span class="category-badge">
+                                    <i class="fas fa-hashtag me-1"></i><%= interest %>
+                                </span>
+                            <% }) %>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
+    
+    <!-- Segunda fila: Gráfica de radar y actividad -->
     <div class="row">
-        <div class="col-md-8">
-            <div class="card shadow mb-4">
+        <!-- Columna izquierda: Actividad reciente -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Actividad reciente</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Actividad reciente
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item">
-                            <i class="fas fa-star text-warning"></i> Calificaste la fuente "Deep Learning for NLP" con 4.5 estrellas
-                            <span class="text-muted float-end">Hace 2 horas</span>
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-book text-primary"></i> Marcaste como leída "Attention Is All You Need"
-                            <span class="text-muted float-end">Ayer</span>
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-comment text-info"></i> Comentaste en "Transformers in Computer Vision"
-                            <span class="text-muted float-end">Hace 3 días</span>
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-upload text-success"></i> Subiste la fuente "BERT: Pre-training of Deep Bidirectional Transformers"
-                            <span class="text-muted float-end">Hace 1 semana</span>
-                        </li>
-                    </ul>
+                    <div class="activity-list">
+                        <% user.recentActivity.forEach(activity => { %>
+                            <div class="activity-item">
+                                <div class="activity-icon">
+                                    <i class="<%= activity.icon %>"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <h6 class="activity-title"><%= activity.title %></h6>
+                                    <p class="activity-description"><%= activity.description %></p>
+                                    <span class="activity-time">
+                                        <i class="far fa-clock me-1"></i><%= activity.time %>
+                                    </span>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card shadow mb-4">
+        
+        <!-- Columna derecha: Gráfica de radar -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Distribución de lecturas</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-radar me-2"></i>Distribución de lecturas
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="radar-chart">
-                        <p>Gráfico de radar de categorías de lectura</p>
-                        <!-- En el futuro aquí irá un gráfico real -->
+                    <div class="radar-container">
+                        <canvas id="readingRadarChart" height="300"></canvas>
                     </div>
-                    <p class="text-center mt-3"><small>Basado en 50 lecturas registradas</small></p>
+                    <div class="text-center mt-3">
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Gráfico de radar basado en lecturas registradas
+                        </p>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Tercera fila: Listas curatoriales -->
+    <div class="row mt-4">
+        <div class="col-12">
             <div class="card shadow">
                 <div class="card-header">
-                    <h5 class="mb-0">Listas curatoriales</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-list-ul me-2"></i>Listas curatoriales
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="list-group">
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">Fundamentos de NLP</h6>
-                                <span class="badge bg-primary rounded-pill">12</span>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card list-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="card-title mb-0">Fundamentos de NLP</h6>
+                                        <span class="badge bg-primary">12 fuentes</span>
+                                    </div>
+                                    <p class="card-text small">
+                                        Recopilación de los papers más importantes en Procesamiento de Lenguaje Natural.
+                                    </p>
+                                    <div class="mt-3">
+                                        <span class="badge bg-light text-dark me-1">Computacionales</span>
+                                        <span class="badge bg-light text-dark">IA</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-top-0">
+                                    <small class="text-muted">
+                                        <i class="far fa-eye me-1"></i> 245 visualizaciones
+                                    </small>
+                                </div>
                             </div>
-                            <p class="mb-1">Recopilación de los papers más importantes en Procesamiento de Lenguaje Natural.</p>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">IA Explicable</h6>
-                                <span class="badge bg-primary rounded-pill">8</span>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <div class="card list-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="card-title mb-0">IA Explicable</h6>
+                                        <span class="badge bg-primary">8 fuentes</span>
+                                    </div>
+                                    <p class="card-text small">
+                                        Fuentes sobre transparencia e interpretabilidad en modelos de IA.
+                                    </p>
+                                    <div class="mt-3">
+                                        <span class="badge bg-light text-dark me-1">Ética</span>
+                                        <span class="badge bg-light text-dark">IA</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-top-0">
+                                    <small class="text-muted">
+                                        <i class="far fa-eye me-1"></i> 189 visualizaciones
+                                    </small>
+                                </div>
                             </div>
-                            <p class="mb-1">Fuentes sobre transparencia e interpretabilidad en modelos de IA.</p>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">Recomendación Colaborativa</h6>
-                                <span class="badge bg-primary rounded-pill">5</span>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <div class="card list-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="card-title mb-0">Recomendación Colaborativa</h6>
+                                        <span class="badge bg-primary">5 fuentes</span>
+                                    </div>
+                                    <p class="card-text small">
+                                        Artículos clave sobre sistemas de recomendación basados en filtrado colaborativo.
+                                    </p>
+                                    <div class="mt-3">
+                                        <span class="badge bg-light text-dark me-1">Computacionales</span>
+                                        <span class="badge bg-light text-dark">Sistemas</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-top-0">
+                                    <small class="text-muted">
+                                        <i class="far fa-eye me-1"></i> 142 visualizaciones
+                                    </small>
+                                </div>
                             </div>
-                            <p class="mb-1">Artículos clave sobre sistemas de recomendación basados en filtrado colaborativo.</p>
-                        </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-<%- include('partials/footer', { pageScripts: '/js/profile.js' }) %>
+<!-- Script para Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Script para pasar datos del servidor al frontend -->
+<script>
+    // Datos de lectura del servidor
+    const readingStats = <%- JSON.stringify(user.readingStats) %>;
+    
+    // Configuración para la gráfica de radar
+    const radarData = {
+        labels: [
+            'Ciencias Cognitivas',
+            'Ciencias Sociales', 
+            'Ciencias Humanistas',
+            'Disciplinas Creativas',
+            'Ciencias Computacionales',
+            'Ciencias Exactas',
+            'Ciencias Naturales',
+            'Ciencias Aplicadas'
+        ],
+        datasets: [{
+            label: 'Lecturas por categoría',
+            data: [
+                readingStats.cognitiveSciences,
+                readingStats.socialSciences,
+                readingStats.humanities,
+                readingStats.creativeDisciplines,
+                readingStats.computationalSciences,
+                readingStats.exactSciences,
+                readingStats.naturalSciences,
+                readingStats.appliedSciences
+            ],
+            backgroundColor: 'rgba(183, 147, 76, 0.2)',
+            borderColor: 'rgba(183, 147, 76, 1)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(183, 147, 76, 1)',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: 'rgba(183, 147, 76, 1)',
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    };
+    
+    const radarConfig = {
+        type: 'radar',
+        data: radarData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: {
+                        color: 'rgba(141, 110, 99, 0.3)'
+                    },
+                    grid: {
+                        color: 'rgba(141, 110, 99, 0.1)'
+                    },
+                    pointLabels: {
+                        color: '#3e2723',
+                        font: {
+                            family: "'Palatino Linotype', 'Book Antiqua', serif",
+                            size: 11
+                        }
+                    },
+                    ticks: {
+                        backdropColor: 'transparent',
+                        color: '#3e2723',
+                        font: {
+                            family: "'Georgia', 'Times New Roman', serif",
+                            size: 10
+                        },
+                        stepSize: 5
+                    },
+                    beginAtZero: true,
+                    suggestedMin: 0,
+                    suggestedMax: 30
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#3e2723',
+                        font: {
+                            family: "'Palatino Linotype', 'Book Antiqua', serif",
+                            size: 12
+                        },
+                        padding: 20
+                    }
+                }
+            }
+        }
+    };
+</script>
+
+<%- include('partials/footer', { jsFile: 'profile.js' }) %>

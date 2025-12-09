@@ -1,0 +1,69 @@
+<%- include('partials/header', { title: 'Verificación de Correo', currentPage: 'verify-email', cssFile: 'verify-email.css', jsFile: 'verify-email.js' }) %>
+
+<div class="row justify-content-center align-items-center min-vh-75 py-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card verify-card" style="padding: 1em; padding-left: 2em; padding-right: 2em;">
+            <div class="verify-header text-center">
+                <h2 class="mb-3">Verificación de Correo</h2>
+                <p class="mb-0">Ingresa el código enviado a tu correo electrónico</p>
+            </div>
+            <div class="verify-body">
+                <div class="text-center mb-4">
+                    <div class="verify-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h4 class="mb-2">Verifica tu cuenta</h4>
+                    <p class="text-muted">
+                        Hemos enviado un código de 6 dígitos a:<br>
+                        <strong>leonardo.serna@ejemplo.com</strong>
+                    </p>
+                </div>
+
+                <form id="verifyForm">
+                    <div class="mb-4">
+                        <label for="otpCode" class="form-label">Código de Verificación (OTP)</label>
+                        <div class="otp-input-container text-center">
+                            <div class="d-flex justify-content-center gap-2 mb-3">
+                                <input type="text" class="form-control otp-digit text-center" maxlength="1" required>
+                                <input type="text" class="form-control otp-digit text-center" maxlength="1" required>
+                                <input type="text" class="form-control otp-digit text-center" maxlength="1" required>
+                                <input type="text" class="form-control otp-digit text-center" maxlength="1" required>
+                                <input type="text" class="form-control otp-digit text-center" maxlength="1" required>
+                                <input type="text" class="form-control otp-digit text-center" maxlength="1" required>
+                            </div>
+                            <input type="hidden" id="otpCode" name="otpCode">
+                        </div>
+                    </div>
+
+                    <div class="mb-4 text-center">
+                        <div id="otpTimer" class="timer mb-2">
+                            El código expira en: <span id="timerCount">10:00</span>
+                        </div>
+                        <button type="button" id="resendOtpBtn" class="btn btn-link text-gold" disabled>
+                            <i class="fas fa-redo me-1"></i> Reenviar código
+                        </button>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check-circle me-2"></i> Verificar Cuenta
+                        </button>
+                        <a href="/login" class="btn btn-outline-secondary">
+                            <i class="fas fa-sign-in-alt me-2"></i> Volver al inicio de sesión
+                        </a>
+                    </div>
+                </form>
+
+                <div class="mt-4 pt-3 border-top text-center">
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Si no recibes el código, revisa tu carpeta de spam o 
+                        <a href="#" class="text-gold">solicita un nuevo código</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
