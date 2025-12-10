@@ -1,0 +1,819 @@
+<%- include('partials/header', { 
+    title: 'Configuración del Perfil - Artícora', 
+    currentPage: 'profile-config', 
+    cssFile: 'profile-config.css' 
+}) %>
+
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/profile">Mi Perfil</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Configuración</li>
+                </ol>
+            </nav>
+            <h1 class="page-title mb-4">
+                <i class="fas fa-cog me-3"></i>Configuración del Perfil
+            </h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Menú lateral -->
+        <div class="col-lg-3 mb-4">
+            <div class="card config-sidebar shadow-sm">
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <a href="#edit-profile" class="list-group-item list-group-item-action config-menu-item active" 
+                           data-bs-toggle="tab">
+                            <i class="fas fa-user-edit me-2"></i> Editar Perfil
+                        </a>
+                        <a href="#academic-verification" class="list-group-item list-group-item-action config-menu-item" 
+                           data-bs-toggle="tab">
+                            <i class="fas fa-graduation-cap me-2"></i> Verificación Académica
+                        </a>
+                        <a href="#change-password" class="list-group-item list-group-item-action config-menu-item" 
+                           data-bs-toggle="tab">
+                            <i class="fas fa-lock me-2"></i> Cambiar Contraseña
+                        </a>
+                        <a href="#privacy-settings" class="list-group-item list-group-item-action config-menu-item" 
+                           data-bs-toggle="tab">
+                            <i class="fas fa-shield-alt me-2"></i> Privacidad
+                        </a>
+                        <a href="#dashboard-settings" class="list-group-item list-group-item-action config-menu-item" 
+                           data-bs-toggle="tab">
+                            <i class="fas fa-chart-line me-2"></i> Dashboard
+                        </a>
+                        <a href="#notification-settings" class="list-group-item list-group-item-action config-menu-item" 
+                           data-bs-toggle="tab">
+                            <i class="fas fa-bell me-2"></i> Notificaciones
+                        </a>
+                        <a href="/profile" class="list-group-item list-group-item-action config-menu-item text-danger">
+                            <i class="fas fa-arrow-left me-2"></i> Volver al Perfil
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Estado de la cuenta</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="status-indicator <%= user.academicStatus === 'Validado' ? 'validated' : 'pending' %> me-3"></div>
+                        <div>
+                            <p class="mb-0"><strong>Estado:</strong> <%= user.academicStatus %></p>
+                            <small class="text-muted">
+                                <% if (user.academicStatus === 'Validado') { %>
+                                    Verificado el 20/08/2023
+                                <% } else { %>
+                                    Pendiente de verificación
+                                <% } %>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <a href="#academic-verification" class="btn btn-outline-primary btn-sm" data-bs-toggle="tab">
+                            <i class="fas fa-info-circle me-1"></i> Más información
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido principal -->
+        <div class="col-lg-9">
+            <div class="tab-content">
+                <!-- Pestaña 1: Editar Perfil -->
+                <div class="tab-pane fade show active" id="edit-profile">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-edit me-2"></i>Información Personal
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="editProfileForm">
+                                <div class="row mb-4">
+                                    <div class="col-md-4 text-center">
+                                        <div class="profile-picture-container mb-3">
+                                            <img src="https://placehold.co/200x200/2c1810/e0d6c2?text=<%= user.fullName.charAt(0) %>" 
+                                                 alt="Foto de perfil" class="profile-avatar-edit mb-3">
+                                            <div class="mt-3">
+                                                <label for="profilePicture" class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-camera me-1"></i> Cambiar foto
+                                                </label>
+                                                <input type="file" id="profilePicture" accept="image/*" style="display: none;">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" id="removePicture">
+                                                    <i class="fas fa-trash me-1"></i> Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="firstName" class="form-label">Nombre(s)</label>
+                                                <input type="text" class="form-control" id="firstName" 
+                                                       value="<%= user.fullName.split(' ')[0] %>" required>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="lastName" class="form-label">Apellidos</label>
+                                                <input type="text" class="form-control" id="lastName" 
+                                                       value="<%= user.fullName.split(' ').slice(1).join(' ') %>" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="username" class="form-label">Nombre de usuario</label>
+                                            <input type="text" class="form-control" id="username" 
+                                                   value="<%= user.username %>" required readonly>
+                                            <div class="form-text">El nombre de usuario no se puede cambiar.</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="email" class="form-label">Correo electrónico</label>
+                                            <input type="email" class="form-control" id="email" 
+                                                   value="<%= user.email %>" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="bio" class="form-label">Biografía</label>
+                                    <textarea class="form-control" id="bio" rows="4" 
+                                              placeholder="Describe tus intereses de investigación, áreas de especialización, etc." 
+                                              maxlength="500"><%= user.bio %></textarea>
+                                    <div class="form-text">
+                                        <span id="bioCounter">0</span>/500 caracteres
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Intereses de investigación</label>
+                                    <div class="interests-edit-container">
+                                        <% user.interests.forEach(interest => { %>
+                                            <span class="interest-tag">
+                                                <%= interest %>
+                                                <button type="button" class="btn-close btn-close-white" aria-label="Eliminar"></button>
+                                            </span>
+                                        <% }) %>
+                                        <div class="input-group mt-2">
+                                            <input type="text" class="form-control" id="newInterest" 
+                                                   placeholder="Añadir nuevo interés">
+                                            <button class="btn btn-outline-secondary" type="button" id="addInterestBtn">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label">Información académica</label>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="academicDegree" class="form-label">Grado académico</label>
+                                            <select class="form-select" id="academicDegree" required>
+                                                <option value="" disabled>Seleccionar grado</option>
+                                                <option value="Licenciatura" <%= user.academicDegree.includes('Licenciatura') ? 'selected' : '' %>>Licenciatura</option>
+                                                <option value="Maestría" <%= user.academicDegree.includes('Maestría') ? 'selected' : '' %>>Maestría</option>
+                                                <option value="Doctorado" <%= user.academicDegree.includes('Doctorado') ? 'selected' : '' %>>Doctorado</option>
+                                                <option value="Postdoctorado">Postdoctorado</option>
+                                                <option value="Investigador">Investigador</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="institution" class="form-label">Institución</label>
+                                            <input type="text" class="form-control" id="institution" 
+                                                   value="<%= user.institution %>" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="/profile" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i> Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i> Guardar cambios
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 2: Verificación Académica -->
+                <div class="tab-pane fade" id="academic-verification">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-graduation-cap me-2"></i>Verificación Académica
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <% if (user.academicStatus === 'Validado') { %>
+                                <div class="alert alert-success">
+                                    <h5 class="alert-heading">
+                                        <i class="fas fa-check-circle me-2"></i>¡Cuenta Verificada!
+                                    </h5>
+                                    <p class="mb-2">Tu cuenta ha sido verificada exitosamente. Disfruta de todas las funcionalidades de Artícora:</p>
+                                    <ul>
+                                        <li>Subir fuentes bibliográficas</li>
+                                        <li>Crear grupos de chat (hasta 5 grupos)</li>
+                                        <li>Calificaciones multidimensionales</li>
+                                        <li>Participación en discusiones avanzadas</li>
+                                    </ul>
+                                    <hr>
+                                    <p class="mb-0">
+                                        <strong>Fecha de verificación:</strong> 20 de agosto de 2023<br>
+                                        <strong>Método:</strong> Cédula profesional #12345678
+                                    </p>
+                                </div>
+                            <% } else { %>
+                                <div class="verification-process">
+                                    <div class="alert alert-info mb-4">
+                                        <h5 class="alert-heading">
+                                            <i class="fas fa-info-circle me-2"></i>¿Por qué verificarse?
+                                        </h5>
+                                        <p class="mb-0">
+                                            Los usuarios verificados tienen acceso a funcionalidades avanzadas como subir fuentes, 
+                                            crear grupos de chat y participar en evaluaciones multidimensionales.
+                                        </p>
+                                    </div>
+
+                                    <div class="verification-options mb-5">
+                                        <h6 class="mb-3">Selecciona tu método de verificación:</h6>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <div class="card verification-option-card <%= user.academicDegree.includes('Maestría') || user.academicDegree.includes('Doctorado') ? 'recommended' : '' %>">
+                                                    <div class="card-body text-center">
+                                                        <div class="verification-icon mb-3">
+                                                            <i class="fas fa-id-card"></i>
+                                                        </div>
+                                                        <h5 class="card-title">Cédula Profesional</h5>
+                                                        <p class="card-text small">
+                                                            Para profesionales titulados en México. 
+                                                            <strong>Proceso: 72 horas máximo.</strong>
+                                                        </p>
+                                                        <div class="verification-badges mb-3">
+                                                            <span class="badge bg-primary">Rápido</span>
+                                                            <span class="badge bg-success">Prioritario</span>
+                                                        </div>
+                                                        <button class="btn btn-primary w-100" data-verification-type="cedula">
+                                                            <i class="fas fa-upload me-2"></i> Verificar con cédula
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <div class="card verification-option-card">
+                                                    <div class="card-body text-center">
+                                                        <div class="verification-icon mb-3">
+                                                            <i class="fas fa-file-certificate"></i>
+                                                        </div>
+                                                        <h5 class="card-title">Certificados Académicos</h5>
+                                                        <p class="card-text small">
+                                                            Para estudiantes, investigadores extranjeros o sin cédula.
+                                                            <strong>Proceso: 7 días máximo.</strong>
+                                                        </p>
+                                                        <div class="verification-badges mb-3">
+                                                            <span class="badge bg-warning">Extendido</span>
+                                                            <span class="badge bg-info">Revisión manual</span>
+                                                        </div>
+                                                        <button class="btn btn-outline-primary w-100" data-verification-type="certificados">
+                                                            <i class="fas fa-upload me-2"></i> Verificar con certificados
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Formulario de verificación (inicialmente oculto) -->
+                                    <div id="verificationFormContainer" style="display: none;">
+                                        <div class="card border-primary">
+                                            <div class="card-header bg-primary text-white">
+                                                <h6 class="mb-0" id="verificationFormTitle">Verificación con Cédula Profesional</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <form id="academicVerificationForm">
+                                                    <input type="hidden" id="verificationType" name="verificationType">
+                                                    
+                                                    <!-- Para cédula profesional -->
+                                                    <div id="cedulaFields" style="display: none;">
+                                                        <div class="mb-3">
+                                                            <label for="cedulaNumber" class="form-label">Número de Cédula Profesional</label>
+                                                            <input type="text" class="form-control" id="cedulaNumber" 
+                                                                   placeholder="Ej: 12345678" pattern="[0-9]+" maxlength="20">
+                                                            <div class="form-text">
+                                                                Si proporcionas el número de cédula, el sistema verificará automáticamente 
+                                                                con los registros oficiales.
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Para certificados académicos -->
+                                                    <div id="certificadosFields" style="display: none;">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Tipo de documento</label>
+                                                            <select class="form-select" id="documentType">
+                                                                <option value="">Seleccionar tipo de documento</option>
+                                                                <option value="titulo">Título profesional</option>
+                                                                <option value="certificado_estudios">Certificado de estudios</option>
+                                                                <option value="cedula_estudiante">Cédula de estudiante</option>
+                                                                <option value="constancia">Constancia institucional</option>
+                                                                <option value="otro">Otro documento académico</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="institutionName" class="form-label">Institución emisora</label>
+                                                            <input type="text" class="form-control" id="institutionName" 
+                                                                   placeholder="Nombre completo de la institución">
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Campos comunes -->
+                                                    <div class="mb-3">
+                                                        <label for="documentFile" class="form-label">Documento de identificación</label>
+                                                        <input type="file" class="form-control" id="documentFile" 
+                                                               accept=".pdf,.jpg,.jpeg,.png" required>
+                                                        <div class="form-text">
+                                                            Sube una copia de tu identificación oficial (INE/IFE/pasaporte). 
+                                                            Máximo 5MB. Formatos: PDF, JPG, PNG.
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-4">
+                                                        <label for="academicDocumentFile" class="form-label">Documento académico</label>
+                                                        <input type="file" class="form-control" id="academicDocumentFile" 
+                                                               accept=".pdf,.jpg,.jpeg,.png" required>
+                                                        <div class="form-text">
+                                                            Sube una copia de tu cédula profesional o certificado académico. 
+                                                            Máximo 5MB. Formatos: PDF, JPG, PNG.
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="alert alert-warning">
+                                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                                        <strong>Información importante:</strong>
+                                                        <ul class="mb-0 mt-2">
+                                                            <li>Los documentos se eliminarán automáticamente después de 72 horas (cédula) o 7 días (certificados) si no son procesados.</li>
+                                                            <li>Recibirás notificaciones sobre el estado de tu verificación en el canal oficial "Artícora".</li>
+                                                            <li>La información proporcionada se manejará con estricta confidencialidad.</li>
+                                                        </ul>
+                                                    </div>
+
+                                                    <div class="form-check mb-4">
+                                                        <input class="form-check-input" type="checkbox" id="verificationTerms" required>
+                                                        <label class="form-check-label" for="verificationTerms">
+                                                            Acepto que Artícora verifique la autenticidad de mis documentos 
+                                                            y los elimine después del plazo establecido.
+                                                        </label>
+                                                    </div>
+
+                                                    <div class="d-flex justify-content-between">
+                                                        <button type="button" id="cancelVerification" class="btn btn-outline-secondary">
+                                                            <i class="fas fa-times me-2"></i> Cancelar
+                                                        </button>
+                                                        <button type="submit" class="btn btn-primary">
+                                                            <i class="fas fa-paper-plane me-2"></i> Enviar para verificación
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 3: Cambiar Contraseña -->
+                <div class="tab-pane fade" id="change-password">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-lock me-2"></i>Cambiar Contraseña
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="changePasswordForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="currentPassword" class="form-label">Contraseña actual</label>
+                                            <div class="input-group">
+                                                <input type="password" class="form-control" id="currentPassword" required>
+                                                <button class="btn btn-outline-secondary" type="button" id="toggleCurrentPassword">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="newPassword" class="form-label">Nueva contraseña</label>
+                                            <div class="input-group">
+                                                <input type="password" class="form-control" id="newPassword" required 
+                                                       minlength="8" maxlength="22">
+                                                <button class="btn btn-outline-secondary" type="button" id="toggleNewPassword">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                            <div class="form-text">
+                                                Entre 8 y 22 caracteres. Puede incluir letras, números y símbolos.
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-4">
+                                            <label for="confirmPassword" class="form-label">Confirmar nueva contraseña</label>
+                                            <div class="input-group">
+                                                <input type="password" class="form-control" id="confirmPassword" required>
+                                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="password-strength-container">
+                                            <h6 class="mb-3">Requisitos de seguridad:</h6>
+                                            <div class="password-requirements">
+                                                <div class="requirement" id="reqLength">
+                                                    <i class="fas fa-circle text-muted me-2"></i>
+                                                    <span>Mínimo 8 caracteres</span>
+                                                </div>
+                                                <div class="requirement" id="reqUppercase">
+                                                    <i class="fas fa-circle text-muted me-2"></i>
+                                                    <span>Al menos una mayúscula</span>
+                                                </div>
+                                                <div class="requirement" id="reqLowercase">
+                                                    <i class="fas fa-circle text-muted me-2"></i>
+                                                    <span>Al menos una minúscula</span>
+                                                </div>
+                                                <div class="requirement" id="reqNumber">
+                                                    <i class="fas fa-circle text-muted me-2"></i>
+                                                    <span>Al menos un número</span>
+                                                </div>
+                                                <div class="requirement" id="reqSpecial">
+                                                    <i class="fas fa-circle text-muted me-2"></i>
+                                                    <span>Al menos un símbolo</span>
+                                                </div>
+                                            </div>
+                                            <div class="password-strength-meter mt-4">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Fortaleza:</span>
+                                                    <span id="strengthText">Débil</span>
+                                                </div>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar" id="strengthBar" style="width: 0%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between mt-4">
+                                    <a href="/profile" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i> Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-key me-2"></i> Cambiar contraseña
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 4: Configuración de Privacidad -->
+                <div class="tab-pane fade" id="privacy-settings">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-shield-alt me-2"></i>Configuración de Privacidad
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="privacySettingsForm">
+                                <div class="privacy-section mb-5">
+                                    <h6 class="mb-3">Visibilidad del perfil</h6>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="profileVisibility" 
+                                               id="visibilityPublic" value="public" checked>
+                                        <label class="form-check-label" for="visibilityPublic">
+                                            <strong>Público</strong> - Cualquier usuario puede ver tu perfil completo
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="profileVisibility" 
+                                               id="visibilityRegistered" value="registered">
+                                        <label class="form-check-label" for="visibilityRegistered">
+                                            <strong>Solo usuarios registrados</strong> - Solo usuarios con cuenta pueden ver tu perfil
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="profileVisibility" 
+                                               id="visibilityContacts" value="contacts">
+                                        <label class="form-check-label" for="visibilityContacts">
+                                            <strong>Solo mis contactos</strong> - Solo usuarios que tengas como contactos pueden ver tu perfil
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="privacy-section mb-5">
+                                    <h6 class="mb-3">Control de mensajes</h6>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="availableForMessages" 
+                                               <%= user.availableForMessages ? 'checked' : '' %>>
+                                        <label class="form-check-label" for="availableForMessages">
+                                            Disponible para recibir mensajes de otros usuarios
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="allowGroupInvites" checked>
+                                        <label class="form-check-label" for="allowGroupInvites">
+                                            Permitir invitaciones a grupos de chat
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="filterMessages" checked>
+                                        <label class="form-check-label" for="filterMessages">
+                                            Filtrar mensajes de usuarios no verificados
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="privacy-section mb-5">
+                                    <h6 class="mb-3">Visibilidad de actividad</h6>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="showReadingStats" checked>
+                                        <label class="form-check-label" for="showReadingStats">
+                                            Mostrar mi gráfico de radar de lecturas
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="showRecentActivity" checked>
+                                        <label class="form-check-label" for="showRecentActivity">
+                                            Mostrar mi actividad reciente
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showListsPublic" checked>
+                                        <label class="form-check-label" for="showListsPublic">
+                                            Hacer públicas mis listas curatoriales
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="privacy-section mb-5">
+                                    <h6 class="mb-3">Datos personales</h6>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="showEmail" checked>
+                                        <label class="form-check-label" for="showEmail">
+                                            Mostrar mi correo electrónico en el perfil
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="showInstitution" checked>
+                                        <label class="form-check-label" for="showInstitution">
+                                            Mostrar mi institución académica
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showJoinDate" checked>
+                                        <label class="form-check-label" for="showJoinDate">
+                                            Mostrar fecha de ingreso a la plataforma
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="/profile" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i> Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i> Guardar configuración
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 5: Configuración del Dashboard -->
+                <div class="tab-pane fade" id="dashboard-settings">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Configuración del Dashboard
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="dashboardSettingsForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-4">
+                                            <h6 class="mb-3">Elementos del dashboard</h6>
+                                            <div class="form-check mb-3">
+                                                <input class="form-check-input" type="checkbox" id="showReadingStatsDashboard" checked>
+                                                <label class="form-check-label" for="showReadingStatsDashboard">
+                                                    Mostrar estadísticas de lectura
+                                                </label>
+                                            </div>
+                                            <div class="form-check mb-3">
+                                                <input class="form-check-input" type="checkbox" id="showRecentActivityDashboard" checked>
+                                                <label class="form-check-label" for="showRecentActivityDashboard">
+                                                    Mostrar actividad reciente
+                                                </label>
+                                            </div>
+                                            <div class="form-check mb-3">
+                                                <input class="form-check-input" type="checkbox" id="showTrendingSources" checked>
+                                                <label class="form-check-label" for="showTrendingSources">
+                                                    Mostrar fuentes en tendencia
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="showPersonalRecommendations" checked>
+                                                <label class="form-check-label" for="showPersonalRecommendations">
+                                                    Mostrar recomendaciones personalizadas
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-4">
+                                            <h6 class="mb-3">Preferencias de visualización</h6>
+                                            <div class="mb-3">
+                                                <label for="defaultSort" class="form-label">Orden por defecto</label>
+                                                <select class="form-select" id="defaultSort">
+                                                    <option value="recent">Más recientes primero</option>
+                                                    <option value="rating">Mejor calificados primero</option>
+                                                    <option value="relevance">Más relevantes para mí</option>
+                                                    <option value="popular">Más populares primero</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="resultsPerPage" class="form-label">Resultados por página</label>
+                                                <select class="form-select" id="resultsPerPage">
+                                                    <option value="10">10 resultados</option>
+                                                    <option value="20" selected>20 resultados</option>
+                                                    <option value="30">30 resultados</option>
+                                                    <option value="50">50 resultados</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <h6 class="mb-3">Categorías preferidas</h6>
+                                    <p class="text-muted mb-3">Selecciona las categorías que quieres ver con más frecuencia:</p>
+                                    <div class="row">
+                                        <% const categories = [
+                                            { id: 'cognitive', name: 'Ciencias Cognitivas', color: 'primary' },
+                                            { id: 'social', name: 'Ciencias Sociales', color: 'success' },
+                                            { id: 'humanities', name: 'Ciencias Humanistas', color: 'info' },
+                                            { id: 'creative', name: 'Disciplinas Creativas', color: 'warning' },
+                                            { id: 'computational', name: 'Ciencias Computacionales', color: 'danger' },
+                                            { id: 'exact', name: 'Ciencias Exactas', color: 'dark' },
+                                            { id: 'natural', name: 'Ciencias Naturales', color: 'secondary' },
+                                            { id: 'applied', name: 'Ciencias Aplicadas', color: 'purple' }
+                                        ]; %>
+                                        <% categories.forEach(category => { %>
+                                            <div class="col-md-3 mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           id="cat_<%= category.id %>" 
+                                                           <%= category.id === 'computational' || category.id === 'applied' ? 'checked' : '' %>>
+                                                    <label class="form-check-label" for="cat_<%= category.id %>">
+                                                        <span class="badge bg-<%= category.color %> me-1">●</span>
+                                                        <%= category.name %>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="/profile" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i> Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i> Guardar preferencias
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 6: Configuración de Notificaciones -->
+                <div class="tab-pane fade" id="notification-settings">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-bell me-2"></i>Configuración de Notificaciones
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="notificationSettingsForm">
+                                <div class="notification-section mb-5">
+                                    <h6 class="mb-3">Notificaciones por correo</h6>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="emailMessages" checked>
+                                        <label class="form-check-label" for="emailMessages">
+                                            Nuevos mensajes y solicitudes de contacto
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="emailComments" checked>
+                                        <label class="form-check-label" for="emailComments">
+                                            Comentarios en mis fuentes y reseñas
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="emailVerification" checked>
+                                        <label class="form-check-label" for="emailVerification">
+                                            Estado de la verificación académica
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="emailNewsletter">
+                                        <label class="form-check-label" for="emailNewsletter">
+                                            Boletín semanal de Artícora
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="notification-section mb-5">
+                                    <h6 class="mb-3">Notificaciones en la plataforma</h6>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="platformMessages" checked>
+                                        <label class="form-check-label" for="platformMessages">
+                                            Nuevos mensajes
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="platformComments" checked>
+                                        <label class="form-check-label" for="platformComments">
+                                            Comentarios y respuestas
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="platformRatings" checked>
+                                        <label class="form-check-label" for="platformRatings">
+                                            Nuevas calificaciones en mis fuentes
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="platformSystem" checked>
+                                        <label class="form-check-label" for="platformSystem">
+                                            Anuncios del sistema
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="notification-section mb-5">
+                                    <h6 class="mb-3">Frecuencia de notificaciones</h6>
+                                    <div class="mb-3">
+                                        <label for="notificationFrequency" class="form-label">Resumen por correo</label>
+                                        <select class="form-select" id="notificationFrequency">
+                                            <option value="daily">Diario</option>
+                                            <option value="weekly" selected>Semanal</option>
+                                            <option value="monthly">Mensual</option>
+                                            <option value="never">Nunca</option>
+                                        </select>
+                                        <div class="form-text">
+                                            Recibe un resumen de tu actividad en Artícora.
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="urgentNotifications" checked>
+                                        <label class="form-check-label" for="urgentNotifications">
+                                            Notificaciones urgentes siempre activas
+                                        </label>
+                                        <div class="form-text">
+                                            Incluyen: verificación completada, reportes resueltos, cambios de seguridad.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="/profile" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i> Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i> Guardar configuración
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: 'profile-config.js' }) %>

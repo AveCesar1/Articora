@@ -17,10 +17,10 @@
                         <i class="fas fa-check-circle me-1"></i> <%= user.academicStatus %>
                     </span>
                     
-                    <div class="mt-4">
-                        <button class="btn btn-primary">
+                    <div class="mt-3">
+                        <a href="/profile/config" class="btn btn-primary">
                             <i class="fas fa-edit me-2"></i> Editar perfil
-                        </button>
+                        </a>
                     </div>
                 </div>
                 
@@ -249,11 +249,17 @@
 <!-- Script para Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<!-- Datos de lectura para el servidor -->
+<script id="readingStatsData" type="application/json">
+    <%- JSON.stringify(user.readingStats) %>
+</script>
+
 <!-- Script para pasar datos del servidor al frontend -->
 <script>
-    // Datos de lectura del servidor
-    const readingStats = <%- JSON.stringify(user.readingStats) %>;
-    
+    // Leer datos del elemento HTML (evita error de sintaxis)
+    const readingStatsElement = document.getElementById('readingStatsData');
+    const readingStats = JSON.parse(readingStatsElement.textContent);
+
     // Configuración para la gráfica de radar
     const radarData = {
         labels: [

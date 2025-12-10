@@ -1,0 +1,293 @@
+/* profile-config.css */
+:root {
+    --primary-color: #2c1810;
+    --secondary-color: #5d4037;
+    --accent-color: #8d6e63;
+    --light-color: #f5f1e6;
+    --dark-color: #1b120b;
+    --text-color: #3e2723;
+    --border-color: #a1887f;
+    --gold-color: #b7934c;
+    --font-serif: 'Georgia', 'Times New Roman', serif;
+    --font-cursive: 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+/* Navegación */
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+    font-family: var(--font-serif);
+}
+
+.breadcrumb-item a {
+    color: var(--gold-color);
+    text-decoration: none;
+}
+
+.breadcrumb-item.active {
+    color: var(--text-color);
+}
+
+.page-title {
+    font-family: var(--font-cursive);
+    color: var(--primary-color);
+    font-weight: 700;
+    border-bottom: 3px solid var(--gold-color);
+    padding-bottom: 1rem;
+}
+
+/* Menú lateral */
+.config-sidebar {
+    background-color: #fffef9;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.config-menu-item {
+    border: none;
+    border-left: 4px solid transparent;
+    padding: 1rem 1.5rem;
+    color: var(--text-color);
+    font-family: var(--font-serif);
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.config-menu-item:hover {
+    background-color: rgba(183, 147, 76, 0.1);
+    border-left-color: var(--gold-color);
+    color: var(--primary-color);
+}
+
+.config-menu-item.active {
+    background-color: rgba(183, 147, 76, 0.15);
+    border-left-color: var(--gold-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.config-menu-item.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left-color: #dc3545;
+}
+
+/* Indicador de estado */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-indicator.validated {
+    background-color: var(--success-color);
+    box-shadow: 0 0 8px rgba(46, 125, 50, 0.5);
+}
+
+.status-indicator.pending {
+    background-color: var(--warning-color);
+    box-shadow: 0 0 8px rgba(239, 108, 0, 0.5);
+}
+
+/* Pestañas de contenido */
+.tab-content {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Avatar en edición */
+.profile-avatar-edit {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 8px solid #fffef9;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    outline: 3px solid var(--gold-color);
+}
+
+.profile-picture-container {
+    position: relative;
+}
+
+/* Etiquetas de intereses */
+.interest-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--primary-color);
+    color: #e0d6c2;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+}
+
+.interest-tag .btn-close {
+    font-size: 0.6rem;
+    margin-left: 0.5rem;
+    filter: invert(1);
+    opacity: 0.7;
+}
+
+.interest-tag .btn-close:hover {
+    opacity: 1;
+}
+
+/* Opciones de verificación */
+.verification-option-card {
+    border: 2px solid transparent;
+    transition: all 0.3s;
+    height: 100%;
+}
+
+.verification-option-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-color: var(--gold-color);
+}
+
+.verification-option-card.recommended {
+    border-color: var(--gold-color);
+    position: relative;
+}
+
+.verification-option-card.recommended::before {
+    content: 'Recomendado';
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    background-color: var(--gold-color);
+    color: white;
+    padding: 0.2rem 0.8rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.verification-icon {
+    width: 60px;
+    height: 60px;
+    background-color: rgba(183, 147, 76, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    color: var(--gold-color);
+    font-size: 1.5rem;
+}
+
+.verification-badges .badge {
+    margin-right: 0.3rem;
+    font-size: 0.75rem;
+}
+
+/* Requisitos de contraseña */
+.password-requirements .requirement {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.password-requirements .requirement.met {
+    color: var(--success-color);
+}
+
+.password-requirements .requirement.met i {
+    color: var(--success-color);
+}
+
+.password-requirements .requirement.unmet {
+    color: var(--text-color);
+    opacity: 0.6;
+}
+
+.password-strength-meter .progress {
+    background-color: rgba(141, 110, 99, 0.2);
+}
+
+.password-strength-meter .progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Secciones de privacidad */
+.privacy-section {
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(141, 110, 99, 0.2);
+}
+
+.privacy-section:last-child {
+    border-bottom: none;
+}
+
+/* Switches personalizados */
+.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    background-color: rgba(141, 110, 99, 0.3);
+    border: none;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: var(--gold-color);
+}
+
+.form-switch .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(183, 147, 76, 0.25);
+}
+
+/* Alertas personalizadas */
+.alert {
+    border: 1px solid;
+    border-radius: 4px;
+    font-family: var(--font-serif);
+}
+
+.alert-success {
+    background-color: rgba(46, 125, 50, 0.1);
+    border-color: rgba(46, 125, 50, 0.3);
+    color: var(--success-color);
+}
+
+.alert-info {
+    background-color: rgba(33, 150, 243, 0.1);
+    border-color: rgba(33, 150, 243, 0.3);
+    color: #2196f3;
+}
+
+.alert-warning {
+    background-color: rgba(239, 108, 0, 0.1);
+    border-color: rgba(239, 108, 0, 0.3);
+    color: var(--warning-color);
+}
+
+/* Badges de colores */
+.badge.bg-purple {
+    background-color: #6f42c1 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .config-sidebar {
+        margin-bottom: 2rem;
+    }
+    
+    .profile-avatar-edit {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .verification-option-card {
+        margin-bottom: 1.5rem;
+    }
+    
+    .config-menu-item {
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+    }
+}

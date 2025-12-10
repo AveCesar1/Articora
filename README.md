@@ -28,6 +28,7 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 - `/forgot-password` - Perfil de usuario
 - `/register` - Página de registro
 - `/profile` - Perfil de usuario
+- `/profile/config` - Configuración del perfil de usuario
 
 ## 🎨 Diseño
 
