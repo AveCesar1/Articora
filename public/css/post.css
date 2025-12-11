@@ -1,0 +1,173 @@
+/* post.css */
+
+/* Estilos para la página de post */
+
+/* Rating stars */
+.rating-stars {
+    color: #ffc107;
+}
+
+.rating-stars .far,
+.rating-stars .fas.fa-star-half-alt {
+    color: #ffc107;
+}
+
+.rating-stars .far.text-muted {
+    color: #e4e7ea !important;
+}
+
+/* Estadísticas */
+.stats-grid .stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.stats-grid .stat-label {
+    font-size: 0.9rem;
+    color: #7b8a8b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Slider de fuentes relacionadas */
+.related-slider-container {
+    position: relative;
+    overflow: hidden;
+    padding: 10px 0;
+}
+
+.related-slider {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 10px 5px;
+    scrollbar-width: thin;
+}
+
+.related-slider::-webkit-scrollbar {
+    height: 6px;
+}
+
+.related-slider::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.related-slider::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.related-slider::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.related-source-card {
+    min-width: 250px;
+    flex-shrink: 0;
+}
+
+.related-source-card .card {
+    transition: transform 0.2s;
+    height: 100%;
+}
+
+.related-source-card .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.slider-controls {
+    display: none;
+}
+
+.related-slider-container:hover .slider-controls {
+    display: block;
+}
+
+/* Comentarios */
+.comment {
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.comment:last-child {
+    border-bottom: none;
+}
+
+.comment-form .rating-input {
+    font-size: 1.5rem;
+    color: #ffc107;
+    cursor: pointer;
+}
+
+.comment-form .rating-input .rating-star:hover,
+.comment-form .rating-input .rating-star:hover ~ .rating-star {
+    color: #ffc107;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stats-grid .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .related-source-card {
+        min-width: 200px;
+    }
+    
+    .slider-controls {
+        display: block;
+    }
+}
+
+/* Desglose de calificaciones */
+.rating-breakdown {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    border-left: 4px solid #3498db;
+}
+
+/* Estilos para la portada */
+.cover-image-container {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.cover-image-container img {
+    max-height: 350px;
+    width: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background-color: #f8f9fa;
+    padding: 1rem;
+}
+
+/* Asegurar que el desglose de calificaciones no mueva la portada */
+.rating-summary {
+    position: relative;
+    z-index: 1;
+}
+
+/* Botones de acción responsivos */
+.btn-group.w-100 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.btn-group.w-100 .btn {
+    flex: 1;
+    min-width: 100px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .cover-image-container img {
+        max-height: 250px;
+    }
+}

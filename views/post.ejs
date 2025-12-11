@@ -1,0 +1,417 @@
+<%- include('partials/header', { 
+    title: title, 
+    currentPage: currentPage, 
+    cssFile: cssFile,
+    searchQuery: '' 
+}) %>
+
+<div class="container py-4">
+    <!-- Ruta de navegación -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="/search">Búsqueda</a></li>
+            <li class="breadcrumb-item active" aria-current="page"><%= post.title %></li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Columna principal -->
+        <div class="col-lg-8">
+            <!-- Encabezado del documento -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <!-- Categoría y subcategoría -->
+                    <div class="mb-3">
+                        <span class="badge bg-<%= post.category.color %> me-2">
+                            <i class="<%= post.category.icon %> me-1"></i><%= post.category.name %>
+                        </span>
+                        <% if (post.subcategory) { %>
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-tag me-1"></i><%= post.subcategory %>
+                            </span>
+                        <% } %>
+                    </div>
+
+                    <!-- Título -->
+                    <h1 class="display-6 mb-3"><%= post.title %></h1>
+
+                    <!-- Autores -->
+                    <div class="mb-4">
+                        <h5 class="text-muted">
+                            <i class="fas fa-user-edit me-2"></i>
+                            <%= post.authors.join(', ') %>
+                        </h5>
+                    </div>
+
+                    <!-- Portada del documento -->
+                    <% if (post.coverImage) { %>
+                        <div class="text-center mb-4">
+                            <img src="<%= post.coverImage %>" 
+                                alt="Portada del documento" 
+                                class="img-fluid rounded shadow-sm mb-3" 
+                                style="max-height: 300px; object-fit: contain;">
+                        </div>
+                    <% } %>
+
+                    <!-- Calificación promedio -->
+                    <div class="rating-summary mb-4">
+                        <div class="d-flex align-items-center">
+                            <div class="average-rating me-4">
+                                <div class="rating-stars mb-2">
+                                    <% 
+                                        const avgRating = post.rating.average;
+                                        const fullStars = Math.floor(avgRating);
+                                        const hasHalfStar = avgRating % 1 >= 0.5;
+                                        const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                                    %>
+                                    <% for(let i = 0; i < fullStars; i++) { %>
+                                        <i class="fas fa-star text-warning fa-2x"></i>
+                                    <% } %>
+                                    <% if (hasHalfStar) { %>
+                                        <i class="fas fa-star-half-alt text-warning fa-2x"></i>
+                                    <% } %>
+                                    <% for(let i = 0; i < emptyStars; i++) { %>
+                                        <i class="far fa-star text-muted fa-2x"></i>
+                                    <% } %>
+                                </div>
+                                <h2 class="rating-value d-inline"><%= avgRating.toFixed(1) %></h2>
+                                <span class="text-muted">/5</span>
+                                <small class="d-block text-muted">
+                                    <%= post.rating.count %> calificaciones
+                                </small>
+                            </div>
+                            <button class="btn btn-outline-primary" id="showRatingBreakdown">
+                                <i class="fas fa-chart-bar me-2"></i>Ver desglose
+                            </button>
+                        </div>
+
+                        <!-- Desglose de calificaciones (oculto inicialmente) -->
+                        <div class="rating-breakdown mt-4" id="ratingBreakdown" style="display: none;">
+                            <h5 class="mb-3">Desglose por criterios</h5>
+                            <div class="row">
+                                <% post.rating.criteria.forEach(criterion => { %>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span><%= criterion.name %></span>
+                                            <div>
+                                                <span class="me-2"><%= criterion.score.toFixed(1) %></span>
+                                                <div class="d-inline-block">
+                                                    <% 
+                                                        const cFullStars = Math.floor(criterion.score);
+                                                        const cHasHalfStar = criterion.score % 1 >= 0.5;
+                                                        const cEmptyStars = 5 - cFullStars - (cHasHalfStar ? 1 : 0);
+                                                    %>
+                                                    <% for(let i = 0; i < cFullStars; i++) { %>
+                                                        <i class="fas fa-star text-warning"></i>
+                                                    <% } %>
+                                                    <% if (cHasHalfStar) { %>
+                                                        <i class="fas fa-star-half-alt text-warning"></i>
+                                                    <% } %>
+                                                    <% for(let i = 0; i < cEmptyStars; i++) { %>
+                                                        <i class="far fa-star text-muted"></i>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas -->
+                    <div class="stats-grid mb-4">
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <div class="stat-value"><%= post.stats.reads %></div>
+                                <div class="stat-label">Lecturas</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="stat-value"><%= post.stats.reviews %></div>
+                                <div class="stat-label">Reseñas</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="stat-value"><%= post.stats.citations %></div>
+                                <div class="stat-label">Citas</div>
+                            </div>
+                            <div class="col-3">
+                                <div class="stat-value"><%= post.stats.downloads %></div>
+                                <div class="stat-label">Descargas</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadatos detallados -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información detallada</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Tipo</dt>
+                                <dd class="col-sm-8"><%= post.type %></dd>
+
+                                <dt class="col-sm-4">Año</dt>
+                                <dd class="col-sm-8"><%= post.year %></dd>
+
+                                <% if (post.journal) { %>
+                                    <dt class="col-sm-4">Revista</dt>
+                                    <dd class="col-sm-8"><%= post.journal %></dd>
+                                <% } %>
+
+                                <% if (post.publisher) { %>
+                                    <dt class="col-sm-4">Editorial</dt>
+                                    <dd class="col-sm-8"><%= post.publisher %></dd>
+                                <% } %>
+
+                                <% if (post.volume) { %>
+                                    <dt class="col-sm-4">Volumen</dt>
+                                    <dd class="col-sm-8"><%= post.volume %></dd>
+                                <% } %>
+
+                                <% if (post.issue) { %>
+                                    <dt class="col-sm-4">Número</dt>
+                                    <dd class="col-sm-8"><%= post.issue %></dd>
+                                <% } %>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <% if (post.pages) { %>
+                                    <dt class="col-sm-4">Páginas</dt>
+                                    <dd class="col-sm-8"><%= post.pages %></dd>
+                                <% } %>
+
+                                <% if (post.doi) { %>
+                                    <dt class="col-sm-4">DOI</dt>
+                                    <dd class="col-sm-8"><a href="https://doi.org/<%= post.doi %>" target="_blank"><%= post.doi %></a></dd>
+                                <% } %>
+
+                                <% if (post.isbn) { %>
+                                    <dt class="col-sm-4">ISBN</dt>
+                                    <dd class="col-sm-8"><%= post.isbn %></dd>
+                                <% } %>
+
+                                <dt class="col-sm-4">Idioma</dt>
+                                <dd class="col-sm-8"><%= post.language %></dd>
+
+                                <dt class="col-sm-4">Licencia</dt>
+                                <dd class="col-sm-8"><%= post.license %></dd>
+
+                                <dt class="col-sm-4">Subido por</dt>
+                                <dd class="col-sm-8"><%= post.uploadedBy %></dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <!-- Palabras clave -->
+                    <% if (post.keywords && post.keywords.length > 0) { %>
+                        <div class="mt-3">
+                            <h6><i class="fas fa-hashtag me-2"></i>Palabras clave</h6>
+                            <div class="keywords-container">
+                                <% post.keywords.forEach(keyword => { %>
+                                    <span class="badge bg-light text-dark me-1 mb-1"><%= keyword %></span>
+                                <% }) %>
+                            </div>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Resumen/Abstract -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Resumen</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead"><%= post.abstract %></p>
+                </div>
+            </div>
+
+            <!-- Fuentes relacionadas (Slider horizontal) -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-book-open me-2"></i>Fuentes relacionadas</h5>
+                    <div class="slider-controls">
+                        <button class="btn btn-sm btn-outline-secondary prev-slider" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary next-slider">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="related-slider-container">
+                        <div class="related-slider" id="relatedSlider">
+                            <% relatedSources.forEach(source => { %>
+                                <div class="related-source-card">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title"><%= source.title %></h6>
+                                            <p class="card-text small text-muted">
+                                                <i class="fas fa-user-edit me-1"></i><%= source.authors.join(', ') %>
+                                            </p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-secondary"><%= source.year %></span>
+                                                <div class="rating">
+                                                    <i class="fas fa-star text-warning"></i>
+                                                    <span><%= source.rating %></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-footer bg-transparent">
+                                            <a href="/post/<%= source.id %>" class="btn btn-sm btn-outline-primary w-100">
+                                                Ver detalles
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comentarios -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-comments me-2"></i>Comentarios (<%= comments.length %>)</h5>
+                </div>
+                <div class="card-body">
+                    <% if (comments.length === 0) { %>
+                        <p class="text-muted text-center">No hay comentarios todavía. Sé el primero en comentar.</p>
+                    <% } else { %>
+                        <div class="comments-list">
+                            <% comments.forEach(comment => { %>
+                                <div class="comment mb-4">
+                                    <div class="d-flex">
+                                        <img src="<%= comment.avatar %>" alt="<%= comment.user %>" class="rounded-circle me-3" width="50" height="50">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between">
+                                                <h6 class="mb-1"><%= comment.user %></h6>
+                                                <small class="text-muted"><%= comment.date %></small>
+                                            </div>
+                                            <div class="rating-stars mb-2">
+                                                <% for(let i = 0; i < 5; i++) { %>
+                                                    <i class="fas fa-star <%= i < comment.rating ? 'text-warning' : 'text-muted' %>"></i>
+                                                <% } %>
+                                            </div>
+                                            <p class="mb-0"><%= comment.text %></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } %>
+                    
+                    <!-- Formulario para nuevo comentario -->
+                    <div class="comment-form mt-4">
+                        <h6>Agregar comentario</h6>
+                        <form id="newCommentForm">
+                            <div class="mb-3">
+                                <label for="commentText" class="form-label">Comentario</label>
+                                <textarea class="form-control" id="commentText" rows="3" placeholder="Escribe tu comentario aquí..."></textarea>
+                                <small class="text-muted">Solo texto plano. No se permiten imágenes ni enlaces.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Calificación</label>
+                                <div class="rating-input">
+                                    <% for(let i = 1; i <= 5; i++) { %>
+                                        <i class="far fa-star rating-star" data-value="<%= i %>"></i>
+                                    <% } %>
+                                    <input type="hidden" id="ratingValue" name="rating" value="5">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Enviar comentario</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna lateral -->
+        <div class="col-lg-4">
+            <!-- Acciones del documento -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-download me-2"></i>Acceso al documento</h5>
+                </div>
+                <div class="card-body">
+                    <% if (post.url) { %>
+                        <a href="<%= post.url %>" class="btn btn-success w-100 mb-3" target="_blank">
+                            <i class="fas fa-file-pdf me-2"></i>Ir al vínculo de Acceso
+                        </a>
+                    <% } else { %>
+                        <button class="btn btn-secondary w-100 mb-3" disabled>
+                            <i class="fas fa-file-pdf me-2"></i>Documento no disponible
+                        </button>
+                    <% } %>
+                    
+                    <div class="btn-group w-100 mb-3" role="group" style="display:flex; flex-wrap:wrap; gap: 0.5rem;">
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="shareBtn">
+                            <i class="fas fa-share-alt me-2"></i>Compartir
+                        </button>
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="saveBtn">
+                            <i class="fas fa-bookmark me-2"></i>Guardar
+                        </button>
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="reportBtn">
+                            <i class="fas fa-flag me-2"></i>Reportar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exportar cita -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-quote-right me-2"></i>Exportar cita</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="citationFormat" class="form-label">Formato</label>
+                        <select class="form-select" id="citationFormat">
+                            <option value="apa">APA (7ma edición)</option>
+                            <option value="chicago">Chicago</option>
+                            <option value="harvard">Harvard</option>
+                            <option value="mla">MLA</option>
+                            <option value="ieee">IEEE</option>
+                            <option value="vancouver">Vancouver</option>
+                            <option value="bibtex">BibTeX</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="citationText" class="form-label">Cita generada</label>
+                        <textarea class="form-control" id="citationText" rows="5" readonly><%= citationFormats.apa %></textarea>
+                    </div>
+                    <button class="btn btn-primary w-100" id="copyCitationBtn">
+                        <i class="fas fa-copy me-2"></i>Copiar al portapapeles
+                    </button>
+                </div>
+            </div>
+
+            <!-- Información de derechos -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-balance-scale me-2"></i>Derechos de uso</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">
+                        <i class="fas fa-creative-commons me-2"></i>
+                        Este documento está disponible bajo la licencia <%= post.license %>.
+                    </p>
+                    <p class="small text-muted">
+                        Para usos comerciales o modificaciones, por favor revise los términos completos de la licencia.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: jsFile }) %>

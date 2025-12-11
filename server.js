@@ -475,6 +475,122 @@ app.get('/search', (req, res) => {
     });
 });
 
+app.get('/post/:id', (req, res) => {
+    const postId = req.params.id;
+    
+    // Datos de ejemplo para un post (hardcoded)
+    const post = {
+        id: postId,
+        title: 'Inteligencia Artificial: Un Enfoque Moderno',
+        authors: ['Stuart Russell', 'Peter Norvig'],
+        year: 2020,
+        type: 'Libro',
+        journal: null,
+        publisher: 'Pearson',
+        volume: '4ta Edición',
+        issue: null,
+        pages: '1136',
+        doi: '10.1000/xyz123',
+        isbn: '978-0134610993',
+        abstract: 'Este libro ofrece el más completo y actualizado panorama de la inteligencia artificial. Desde los fundamentos teóricos hasta las aplicaciones más recientes, los autores presentan un recorrido exhaustivo por el campo.',
+        keywords: ['Inteligencia Artificial', 'Machine Learning', 'Algoritmos', 'Robótica', 'Procesamiento del Lenguaje Natural'],
+        category: {
+            id: 'computational',
+            name: 'Ciencias Computacionales',
+            icon: 'fas fa-laptop-code',
+            color: 'danger'
+        },
+        subcategory: 'Inteligencia Artificial',
+        rating: {
+            average: 4.7,
+            count: 128,
+            criteria: [
+                { name: 'Extensión', score: 4.5, count: 128 },
+                { name: 'Completitud', score: 4.8, count: 128 },
+                { name: 'Nivel de detalle', score: 4.6, count: 128 },
+                { name: 'Veracidad', score: 4.9, count: 128 },
+                { name: 'Dificultad técnica', score: 4.5, count: 128 }
+            ]
+        },
+        stats: {
+            reads: 1500,
+            reviews: 128,
+            citations: 300,
+            downloads: 750
+        },
+        uploadedBy: 'Dr. Jane Smith',
+        uploadDate: '2023-05-15',
+        language: 'Español',
+        license: 'CC BY-NC-SA 4.0',
+        url: 'https://example.com/document.pdf',
+        coverImage: 'https://placehold.co/600x800/',
+    };
+
+    // Comentarios de ejemplo
+    const comments = [
+        {
+            id: 1,
+            user: 'Juan Pérez',
+            avatar: 'https://i.pravatar.cc/150?img=1',
+            date: '2023-10-15',
+            text: 'Excelente recurso para entender los fundamentos de la IA. Muy completo y bien estructurado.',
+            rating: 5
+        },
+        {
+            id: 2,
+            user: 'María González',
+            avatar: 'https://i.pravatar.cc/150?img=2',
+            date: '2023-09-22',
+            text: 'Buen contenido, aunque algunos capítulos son demasiado técnicos para principiantes.',
+            rating: 4
+        },
+        {
+            id: 3,
+            user: 'Carlos López',
+            avatar: 'https://i.pravatar.cc/150?img=3',
+            date: '2023-08-30',
+            text: 'La sección sobre aprendizaje profundo está desactualizada. Necesita incluir transformers.',
+            rating: 3
+        }
+    ];
+
+    // Fuentes relacionadas (para el slider)
+    const relatedSources = [
+        { id: 'rel_1', title: 'Deep Learning: A Comprehensive Overview', authors: ['Ian Goodfellow', 'Yoshua Bengio'], year: 2016, rating: 4.5, category: 'Computacional' },
+        { id: 'rel_2', title: 'Pattern Recognition and Machine Learning', authors: ['Christopher Bishop'], year: 2006, rating: 4.7, category: 'Computacional' },
+        { id: 'rel_3', title: 'The Elements of Statistical Learning', authors: ['Trevor Hastie', 'Robert Tibshirani', 'Jerome Friedman'], year: 2009, rating: 4.8, category: 'Computacional' },
+        { id: 'rel_4', title: 'Reinforcement Learning: An Introduction', authors: ['Richard Sutton', 'Andrew Barto'], year: 2018, rating: 4.6, category: 'Computacional' },
+        { id: 'rel_5', title: 'Natural Language Processing with Python', authors: ['Steven Bird', 'Ewan Klein', 'Edward Loper'], year: 2009, rating: 4.3, category: 'Computacional' }
+    ];
+
+    // Formatos de citas
+    const citationFormats = {
+        apa: 'Russell, S., & Norvig, P. (2020). Inteligencia Artificial: Un Enfoque Moderno (4ta ed.). Pearson.',
+        chicago: 'Russell, Stuart, and Peter Norvig. 2020. Inteligencia Artificial: Un Enfoque Moderno. 4th ed. Pearson.',
+        harvard: 'Russell, S. & Norvig, P., 2020. Inteligencia Artificial: Un Enfoque Moderno. 4ta ed. Pearson.',
+        mla: 'Russell, Stuart, and Peter Norvig. Inteligencia Artificial: Un Enfoque Moderno. 4ta ed., Pearson, 2020.',
+        ieee: 'S. Russell and P. Norvig, Inteligencia Artificial: Un Enfoque Moderno, 4ta ed. Pearson, 2020.',
+        vancouver: 'Russell S, Norvig P. Inteligencia Artificial: Un Enfoque Moderno. 4ta ed. Pearson; 2020.',
+        bibtex: `@book{russell2020inteligencia,
+            title={Inteligencia Artificial: Un Enfoque Moderno},
+            author={Russell, Stuart and Norvig, Peter},
+            year={2020},
+            edition={4ta},
+            publisher={Pearson}
+        }`
+    };
+
+    res.render('post', {
+        title: `${post.title} - Artícora`,
+        currentPage: 'post',
+        cssFile: 'post.css',
+        jsFile: 'post.js',
+        post,
+        comments,
+        relatedSources,
+        citationFormats
+    });
+});
 
 // Ruta para manejar errores 404
 app.use((req, res) => {
