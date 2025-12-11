@@ -1,0 +1,534 @@
+<%- include('partials/header', { 
+    title: 'Búsqueda Avanzada - Artícora', 
+    currentPage: 'search', 
+    cssFile: 'search.css' 
+}) %>
+
+<div class="container py-4">
+    <!-- Encabezado de búsqueda -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="page-title mb-3">
+                <i class="fas fa-search me-3"></i>Búsqueda Avanzada
+            </h1>
+            
+            <!-- Barra de búsqueda principal -->
+            <div class="search-bar-container">
+                <form id="searchMainForm" class="search-form">
+                    <div class="input-group input-group-lg">
+                        <input type="text" class="form-control search-input" 
+                               placeholder="Buscar por título, autor, palabras clave..." 
+                               value="<%= searchQuery || '' %>"
+                               id="mainSearchInput">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                    
+                    <!-- Filtros rápidos -->
+                    <div class="quick-filters mt-3">
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge bg-light text-dark filter-pill">
+                                <i class="fas fa-filter me-1"></i> <%= totalResults %> resultados
+                            </span>
+                            <% if (activeFilters.length > 0) { %>
+                                <% activeFilters.forEach(filter => { %>
+                                    <span class="badge bg-light text-dark filter-pill">
+                                        <%= filter.label %>: <%= filter.value %>
+                                        <button class="btn-close btn-close-sm ms-1 remove-filter" 
+                                                data-filter="<%= filter.key %>"></button>
+                                    </span>
+                                <% }) %>
+                                <a href="#" class="btn btn-outline-danger btn-sm" id="clearAllFilters">
+                                    <i class="fas fa-times me-1"></i> Limpiar todos
+                                </a>
+                            <% } %>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="row">
+        <!-- Panel de filtros (colapsable) -->
+        <div class="col-lg-3 col-xl-2 mb-4">
+            <div class="card filters-card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>Filtros
+                    </h5>
+                    <button class="btn btn-sm btn-outline-secondary d-lg-none" 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#filtersCollapse">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                
+                <div class="collapse d-lg-block show" id="filtersCollapse">
+                    <div class="card-body filters-body">
+                        <form id="advancedFiltersForm">
+                            <!-- Categorías del conocimiento -->
+                            <div class="filter-section mb-4">
+                                <h6 class="filter-section-title">
+                                    <i class="fas fa-folder me-2"></i>Categorías
+                                </h6>
+                                <div class="filter-options">
+                                    <% categories.forEach(category => { %>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input category-checkbox" 
+                                                   type="checkbox" 
+                                                   id="cat_<%= category.id %>"
+                                                   value="<%= category.id %>"
+                                                   <%= selectedCategories.includes(category.id) ? 'checked' : '' %>>
+                                            <label class="form-check-label" for="cat_<%= category.id %>">
+                                                <span class="category-badge badge bg-<%= category.color %> me-2">
+                                                    <i class="<%= category.icon %>"></i>
+                                                </span>
+                                                <%= category.name %>
+                                                <span class="text-muted small">(<%= category.count %>)</span>
+                                            </label>
+                                        </div>
+                                    <% }) %>
+                                </div>
+                            </div>
+
+                            <!-- Subcategorías (dinámicas) -->
+                            <div class="filter-section mb-4" id="subcategoriesSection">
+                                <h6 class="filter-section-title">
+                                    <i class="fas fa-tags me-2"></i>Subcategorías
+                                </h6>
+                                <div class="filter-options" id="subcategoriesContainer">
+                                    <!-- Se llena dinámicamente con JS -->
+                                    <p class="text-muted small">
+                                        Selecciona una categoría primero para ver las subcategorías.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Calificación promedio -->
+                            <div class="filter-section mb-4">
+                                <h6 class="filter-section-title">
+                                    <i class="fas fa-star me-2"></i>Calificación promedio
+                                </h6>
+                                <div class="rating-filter">
+                                    <div class="mb-2">
+                                        <label class="form-label">
+                                            Mínimo: <span id="minRatingValue">0</span> estrellas
+                                        </label>
+                                        <input type="range" class="form-range rating-slider" 
+                                               min="0" max="5" step="0.5" 
+                                               value="<%= filters.minRating || 0 %>"
+                                               id="minRatingSlider">
+                                    </div>
+                                    <div class="rating-stars-display d-flex justify-content-center">
+                                        <% for(let i = 0; i < 5; i++) { %>
+                                            <i class="fas fa-star <%= i < (filters.minRating || 0) ? 'text-warning' : 'text-muted' %>"></i>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Criterios individuales de calificación -->
+                            <div class="filter-section mb-4">
+                                <h6 class="filter-section-title">
+                                    <i class="fas fa-chart-bar me-2"></i>Criterios específicos
+                                </h6>
+                                <% const criteria = [
+                                    { id: 'extension', label: 'Extensión de lectura', icon: 'fas fa-book-open' },
+                                    { id: 'completitud', label: 'Completitud', icon: 'fas fa-check-circle' },
+                                    { id: 'detalle', label: 'Nivel de detalle', icon: 'fas fa-info-circle' },
+                                    { id: 'veracidad', label: 'Veracidad', icon: 'fas fa-shield-alt' },
+                                    { id: 'dificultad', label: 'Dificultad técnica', icon: 'fas fa-cogs' }
+                                ]; %>
+                                
+                                <% criteria.forEach(criterion => { %>
+                                    <div class="criterion-filter mb-3">
+                                        <label class="form-label small">
+                                            <i class="<%= criterion.icon %> me-1"></i><%= criterion.label %>
+                                        </label>
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2 small">0</span>
+                                            <input type="range" class="form-range criterion-slider" 
+                                                   min="0" max="5" step="0.5"
+                                                   value="<%= filters[criterion.id] || 0 %>"
+                                                   id="<%= criterion.id %>Slider">
+                                            <span class="ms-2 small">5</span>
+                                        </div>
+                                        <div class="text-center">
+                                            <small class="text-muted" id="<%= criterion.id %>Value">
+                                                <%= filters[criterion.id] || 0 %> estrellas
+                                            </small>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+
+                            <!-- Año de publicación -->
+                            <div class="filter-section mb-4">
+                                <h6 class="filter-section-title">
+                                    <i class="fas fa-calendar-alt me-2"></i>Año de publicación
+                                </h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <label for="minYear" class="form-label small">Desde</label>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               id="minYear" min="1900" max="<%= new Date().getFullYear() %>"
+                                               value="<%= filters.minYear || '' %>"
+                                               placeholder="1900">
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="maxYear" class="form-label small">Hasta</label>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               id="maxYear" min="1900" max="<%= new Date().getFullYear() + 1 %>"
+                                               value="<%= filters.maxYear || '' %>"
+                                               placeholder="<%= new Date().getFullYear() + 1 %>">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tipo de fuente -->
+                            <div class="filter-section mb-4">
+                                <h6 class="filter-section-title">
+                                    <i class="fas fa-file-alt me-2"></i>Tipo de fuente
+                                </h6>
+                                <div class="filter-options">
+                                    <% const sourceTypes = [
+                                        { id: 'libro', label: 'Libro', count: 15 },
+                                        { id: 'articulo', label: 'Artículo de revista', count: 42 },
+                                        { id: 'preprint', label: 'Preprint', count: 8 },
+                                        { id: 'tesis', label: 'Tesis o disertación', count: 7 },
+                                        { id: 'capitulo', label: 'Capítulo de libro', count: 12 },
+                                        { id: 'congreso', label: 'Actas de congreso', count: 9 },
+                                        { id: 'informe', label: 'Informe técnico', count: 5 },
+                                        { id: 'enciclopedia', label: 'Enciclopedia', count: 3 },
+                                        { id: 'audiovisual', label: 'Material audiovisual', count: 2 }
+                                    ]; %>
+                                    
+                                    <% sourceTypes.forEach(type => { %>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input source-type-checkbox" 
+                                                   type="checkbox" 
+                                                   id="type_<%= type.id %>"
+                                                   value="<%= type.id %>"
+                                                   <%= selectedSourceTypes.includes(type.id) ? 'checked' : '' %>>
+                                            <label class="form-check-label" for="type_<%= type.id %>">
+                                                <%= type.label %>
+                                                <span class="text-muted small">(<%= type.count %>)</span>
+                                            </label>
+                                        </div>
+                                    <% }) %>
+                                </div>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="filter-actions mt-4">
+                                <button type="submit" class="btn btn-primary w-100 mb-2">
+                                    <i class="fas fa-search me-2"></i> Aplicar filtros
+                                </button>
+                                <button type="reset" class="btn btn-outline-secondary w-100" id="resetFilters">
+                                    <i class="fas fa-redo me-2"></i> Restablecer
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resultados de búsqueda -->
+        <div class="col-lg-9 col-xl-10">
+            <!-- Controles de resultados -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <div class="results-info">
+                                <span class="text-muted">
+                                    Mostrando <strong><%= results.length %></strong> de 
+                                    <strong><%= totalResults %></strong> resultados
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2 mb-md-0 text-center">
+                            <div class="view-toggle">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary active" 
+                                            data-view="list">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" 
+                                            data-view="grid">
+                                        <i class="fas fa-th-large"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="sort-options">
+                                <select class="form-select form-select-sm" id="sortResults">
+                                    <option value="relevance" <%= sortBy === 'relevance' ? 'selected' : '' %>>Más relevantes</option>
+                                    <option value="newest" <%= sortBy === 'newest' ? 'selected' : '' %>>Más recientes</option>
+                                    <option value="rating" <%= sortBy === 'rating' ? 'selected' : '' %>>Mejor calificados</option>
+                                    <option value="popular" <%= sortBy === 'popular' ? 'selected' : '' %>>Más populares</option>
+                                    <option value="title_asc" <%= sortBy === 'title_asc' ? 'selected' : '' %>>Título (A-Z)</option>
+                                    <option value="title_desc" <%= sortBy === 'title_desc' ? 'selected' : '' %>>Título (Z-A)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de resultados -->
+            <div id="resultsContainer" class="results-container">
+                <% if (results.length === 0) { %>
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-search fa-3x text-muted"></i>
+                            </div>
+                            <h4 class="mb-3">No se encontraron resultados</h4>
+                            <p class="text-muted mb-4">
+                                Intenta ajustar tus filtros o utilizar términos de búsqueda diferentes.
+                            </p>
+                            <button class="btn btn-primary" id="resetSearchBtn">
+                                <i class="fas fa-redo me-2"></i> Reiniciar búsqueda
+                            </button>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <div class="results-list">
+                        <% results.forEach((source, index) => { %>
+                            <div class="card source-card shadow-sm mb-4">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <!-- Información principal -->
+                                        <div class="col-md-8">
+                                            <!-- Categoría -->
+                                            <div class="source-category mb-2">
+                                                <span class="badge bg-<%= source.category.color %>">
+                                                    <i class="<%= source.category.icon %> me-1"></i>
+                                                    <%= source.category.name %>
+                                                </span>
+                                                <% if (source.subcategory) { %>
+                                                    <span class="badge bg-light text-dark ms-1">
+                                                        <i class="fas fa-tag me-1"></i>
+                                                        <%= source.subcategory %>
+                                                    </span>
+                                                <% } %>
+                                            </div>
+                                            
+                                            <!-- Título -->
+                                            <h5 class="source-title mb-2">
+                                                <a href="/source/<%= source.id %>" class="text-decoration-none">
+                                                    <%= source.title %>
+                                                </a>
+                                            </h5>
+                                            
+                                            <!-- Autores -->
+                                            <div class="source-authors mb-2">
+                                                <span class="text-muted">
+                                                    <i class="fas fa-user-edit me-1"></i>
+                                                    <%= source.authors.join(', ') %>
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Metadatos -->
+                                            <div class="source-metadata mb-3">
+                                                <small class="text-muted me-3">
+                                                    <i class="fas fa-calendar-alt me-1"></i>
+                                                    <%= source.year %>
+                                                </small>
+                                                <small class="text-muted me-3">
+                                                    <i class="fas fa-book me-1"></i>
+                                                    <%= source.type %>
+                                                </small>
+                                                <% if (source.journal) { %>
+                                                    <small class="text-muted me-3">
+                                                        <i class="fas fa-newspaper me-1"></i>
+                                                        <%= source.journal %>
+                                                    </small>
+                                                <% } %>
+                                                <% if (source.doi) { %>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-link me-1"></i>
+                                                        <%= source.doi %>
+                                                    </small>
+                                                <% } %>
+                                            </div>
+                                            
+                                            <!-- Resumen/Descripción -->
+                                            <p class="source-description">
+                                                <%= source.description.substring(0, 250) %>
+                                                <% if (source.description.length > 250) { %>...<% } %>
+                                            </p>
+                                            
+                                            <!-- Palabras clave -->
+                                            <% if (source.keywords && source.keywords.length > 0) { %>
+                                                <div class="source-keywords mb-3">
+                                                    <% source.keywords.forEach(keyword => { %>
+                                                        <span class="badge bg-light text-dark me-1 mb-1">
+                                                            <i class="fas fa-hashtag me-1"></i><%= keyword %>
+                                                        </span>
+                                                    <% }) %>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                        
+                                        <!-- Información lateral -->
+                                        <div class="col-md-4">
+                                            <!-- Calificaciones -->
+                                            <div class="source-ratings mb-4">
+                                                <div class="rating-summary text-center">
+                                                    <div class="average-rating mb-2">
+                                                        <div class="rating-stars mb-1">
+                                                            <% for(let i = 1; i <= 5; i++) { %>
+                                                                <% if (i <= Math.floor(source.rating.average)) { %>
+                                                                    <i class="fas fa-star text-warning"></i>
+                                                                <% } else if (i === Math.ceil(source.rating.average) && source.rating.average % 1 !== 0) { %>
+                                                                    <i class="fas fa-star-half-alt text-warning"></i>
+                                                                <% } else { %>
+                                                                    <i class="far fa-star text-muted"></i>
+                                                                <% } %>
+                                                            <% } %>
+                                                        </div>
+                                                        <h4 class="rating-value">
+                                                            <%= source.rating.average.toFixed(1) %>
+                                                            <small class="text-muted">/5</small>
+                                                        </h4>
+                                                        <small class="text-muted">
+                                                            <%= source.rating.count %> calificaciones
+                                                        </small>
+                                                    </div>
+                                                    
+                                                    <!-- Desglose por criterios -->
+                                                    <div class="criterion-breakdown">
+                                                        <% source.rating.criteria.forEach(criterion => { %>
+                                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                <small class="text-muted">
+                                                                    <%= criterion.name %>
+                                                                </small>
+                                                                <small class="fw-bold">
+                                                                    <%= criterion.score.toFixed(1) %>
+                                                                </small>
+                                                            </div>
+                                                        <% }) %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Estadísticas -->
+                                            <div class="source-stats mb-4">
+                                                <div class="row text-center">
+                                                    <div class="col-4">
+                                                        <div class="stat-value">
+                                                            <%= source.stats.reads %>
+                                                        </div>
+                                                        <div class="stat-label small">Lecturas</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="stat-value">
+                                                            <%= source.stats.reviews %>
+                                                        </div>
+                                                        <div class="stat-label small">Reseñas</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="stat-value">
+                                                            <%= source.stats.citations %>
+                                                        </div>
+                                                        <div class="stat-label small">Citas</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Acciones -->
+                                            <div class="source-actions">
+                                                <div class="d-grid gap-2">
+                                                    <a href="/source/<%= source.id %>" class="btn btn-primary btn-sm">
+                                                        <i class="fas fa-eye me-1"></i> Ver detalles
+                                                    </a>
+                                                    <button class="btn btn-outline-secondary btn-sm add-to-list-btn" 
+                                                            data-source-id="<%= source.id %>">
+                                                        <i class="fas fa-plus me-1"></i> Añadir a lista
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    <% if (totalPages > 1) { %>
+                        <nav aria-label="Paginación de resultados" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item <%= currentPage <= 1 ? 'disabled' : '' %>">
+                                    <a class="page-link" href="?page=<%= currentPage - 1 %>" aria-label="Anterior">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                                
+                                <% for(let page = 1; page <= totalPages; page++) { %>
+                                    <% if (page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)) { %>
+                                        <li class="page-item <%= page === currentPage ? 'active' : '' %>">
+                                            <a class="page-link" href="?page=<%= page %>"><%= page %></a>
+                                        </li>
+                                    <% } else if (page === currentPage - 3 || page === currentPage + 3) { %>
+                                        <li class="page-item disabled">
+                                            <span class="page-link">...</span>
+                                        </li>
+                                    <% } %>
+                                <% } %>
+                                
+                                <li class="page-item <%= currentPage >= totalPages ? 'disabled' : '' %>">
+                                    <a class="page-link" href="?page=<%= currentPage + 1 %>" aria-label="Siguiente">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    <% } %>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script solo para los datos (JSON literal, sin JS) -->
+<script id="filterData" type="application/json">
+    <%- JSON.stringify({
+        categories: categories || [],
+        subcategoriesByCategory: subcategoriesByCategory || {},
+        filters: filters || []
+    }) %>
+</script>
+
+<!-- Script solo para los datos (JSON literal, sin JS) -->
+<script id="searchState" type="application/json">
+    <%- JSON.stringify({
+        query: searchQuery || "",
+        sortBy: sortBy || "relevance",
+        page: currentPage || 1
+    }) %>
+</script>
+
+<!-- Script separado que carga esos datos y ya sí es JS válido -->
+<script>
+    const filterData = JSON.parse(
+        document.getElementById("filterData").textContent
+    );
+
+    const searchState = JSON.parse(
+        document.getElementById("searchState").textContent
+    );
+
+    console.log(filterData, searchState);
+</script>
+
+
+<%- include('partials/footer', { jsFile: 'search.js' }) %>

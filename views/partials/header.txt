@@ -21,7 +21,7 @@
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
-        
+    
     <style>
         /* Estilos adicionales para tipografía clásica */
         h1, h2, h3, h4, h5, h6, .display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
@@ -38,19 +38,11 @@
     <!-- Barra de navegación estilo barra de biblioteca -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="/" style="padding-right: 1em;">
+            <a class="navbar-brand" href="/">
                 <i class="fas fa-university me-2"></i>
                 <span>Artícora</span>
+                <small class="d-block d-md-inline ms-md-2" style="font-size: 0.8rem; color: #d4c6b8;">Biblioteca Académica</small>
             </a>
-            
-            <!-- Barra de búsqueda en el header -->
-            <form class="d-flex mx-3 flex-grow-1" action="/search" method="GET">
-                <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Buscar documentos, artículos..." name="q" value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>">                    <button class="btn btn-outline-light" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </form>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
