@@ -1,429 +1,324 @@
-// search.js - Funcionalidad para búsqueda avanzada
+// search.js
 document.addEventListener('DOMContentLoaded', function() {
-    // Referencias a elementos del DOM
-    const mainSearchForm = document.getElementById('searchMainForm');
-    const mainSearchInput = document.getElementById('mainSearchInput');
-    const advancedFiltersForm = document.getElementById('advancedFiltersForm');
+    // Elementos principales
     const filtersCollapse = document.getElementById('filtersCollapse');
     const categoryCheckboxes = document.querySelectorAll('.category-checkbox');
-    const subcategoriesContainer = document.getElementById('subcategoriesContainer');
-    const ratingSlider = document.getElementById('minRatingSlider');
-    const ratingValue = document.getElementById('minRatingValue');
-    const criterionSliders = document.querySelectorAll('.criterion-slider');
-    const viewToggleButtons = document.querySelectorAll('[data-view]');
-    const sortSelect = document.getElementById('sortResults');
-    const clearAllFiltersBtn = document.getElementById('clearAllFilters');
-    const resetFiltersBtn = document.getElementById('resetFilters');
-    const resetSearchBtn = document.getElementById('resetSearchBtn');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const addToListButtons = document.querySelectorAll('.add-to-list-btn');
-    const removeFilterButtons = document.querySelectorAll('.remove-filter');
+    const subcategoryCheckboxes = document.querySelectorAll('.subcategory-checkbox');
+    const academicAdjustment = document.getElementById('academicAdjustment');
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+    const resetFiltersEmptyBtn = document.getElementById('resetFiltersEmptyBtn');
+    const viewListBtn = document.getElementById('viewListBtn');
+    const viewGridBtn = document.getElementById('viewGridBtn');
+    const searchResults = document.getElementById('searchResults');
+    const sourceTypeFilter = document.getElementById('sourceTypeFilter');
+    const sortBy = document.getElementById('sortBy');
+    const yearFrom = document.getElementById('yearFrom');
+    const yearTo = document.getElementById('yearTo');
     
-    // Estado de la búsqueda
-    let searchState = window.searchState || {};
-    let currentView = 'list';
+    // Inicializar sliders de rango (simulados)
+    const rangeSliders = document.querySelectorAll('.range-slider');
+    rangeSliders.forEach(slider => {
+        initializeRangeSlider(slider);
+    });
     
-    // Inicialización
-    function initializePage() {
-        // Configurar el slider de calificación
-        if (ratingSlider && ratingValue) {
-            ratingSlider.addEventListener('input', function() {
-                updateRatingDisplay(this.value);
-            });
-            
-            // Inicializar valor
-            updateRatingDisplay(ratingSlider.value);
+    // Manejar colapso de filtros en móvil
+    if (filtersCollapse) {
+        // En pantallas grandes, asegurar que esté expandido
+        if (window.innerWidth >= 992) {
+            filtersCollapse.classList.add('show');
         }
         
-        // Configurar sliders de criterios individuales
-        criterionSliders.forEach(slider => {
-            const valueDisplay = document.getElementById(`${slider.id.replace('Slider', '')}Value`);
+        // Detectar cambios de tamaño de ventana
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 992) {
+                filtersCollapse.classList.add('show');
+            }
+        });
+    }
+    
+    // Manejar categorías y subcategorías
+    categoryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const categoryId = this.value;
+            const subcatContainer = document.getElementById(`subcat_${categoryId}`);
             
-            if (valueDisplay) {
-                // Mostrar valor inicial
-                valueDisplay.textContent = `${slider.value} estrellas`;
-                
-                // Actualizar en tiempo real
-                slider.addEventListener('input', function() {
-                    valueDisplay.textContent = `${this.value} estrellas`;
+            if (this.checked && subcatContainer) {
+                subcatContainer.style.display = 'block';
+            } else if (subcatContainer) {
+                subcatContainer.style.display = 'none';
+                // Desmarcar subcategorías cuando se desmarca la categoría
+                subcatContainer.querySelectorAll('.subcategory-checkbox').forEach(subcat => {
+                    subcat.checked = false;
                 });
             }
         });
         
-        // Cargar subcategorías para categorías seleccionadas
-        loadSubcategories();
+        // Inicializar estado de subcategorías
+        const categoryId = checkbox.value;
+        const subcatContainer = document.getElementById(`subcat_${categoryId}`);
+        if (checkbox.checked && subcatContainer) {
+            subcatContainer.style.display = 'block';
+        }
+    });
+    
+    // Manejar vista de resultados (lista vs cuadrícula)
+    if (viewListBtn && viewGridBtn) {
+        viewListBtn.addEventListener('click', function() {
+            this.classList.add('active');
+            viewGridBtn.classList.remove('active');
+            searchResults.querySelector('.results-list').classList.remove('results-grid');
+        });
+        
+        viewGridBtn.addEventListener('click', function() {
+            this.classList.add('active');
+            viewListBtn.classList.remove('active');
+            searchResults.querySelector('.results-list').classList.add('results-grid');
+        });
     }
     
-    // Actualizar visualización de calificación
-    function updateRatingDisplay(value) {
-        if (ratingValue) {
-            ratingValue.textContent = value;
-        }
-        
-        // Actualizar estrellas de visualización
-        const stars = document.querySelectorAll('.rating-stars-display .fa-star');
-        stars.forEach((star, index) => {
-            if (index < value) {
-                star.classList.add('text-warning');
-                star.classList.remove('text-muted');
-            } else {
-                star.classList.remove('text-warning');
-                star.classList.add('text-muted');
+    // Aplicar filtros
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', function() {
+            const filters = collectFilters();
+            console.log('Filtros aplicados:', filters);
+            
+            // Simular aplicación de filtros
+            showLoadingState();
+            
+            // En una implementación real, aquí se haría una petición AJAX
+            setTimeout(() => {
+                hideLoadingState();
+                showAlert('success', 'Filtros aplicados correctamente.');
+                
+                // Actualizar contadores (simulación)
+                updateResultsCount(filters);
+            }, 1000);
+        });
+    }
+    
+    // Restablecer filtros
+    const resetButtons = [resetFiltersBtn, resetFiltersEmptyBtn].filter(Boolean);
+    resetButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            resetAllFilters();
+            showAlert('info', 'Todos los filtros han sido restablecidos.');
+        });
+    });
+    
+    // Cambios en tiempo real para algunos filtros
+    if (sourceTypeFilter) {
+        sourceTypeFilter.addEventListener('change', function() {
+            applyFiltersDebounced();
+        });
+    }
+    
+    if (sortBy) {
+        sortBy.addEventListener('change', function() {
+            applyFiltersDebounced();
+        });
+    }
+    
+    if (yearFrom || yearTo) {
+        [yearFrom, yearTo].forEach(input => {
+            if (input) {
+                input.addEventListener('input', function() {
+                    applyFiltersDebounced();
+                });
             }
         });
     }
     
-    // Cargar subcategorías basadas en categorías seleccionadas
-    function loadSubcategories() {
+    if (academicAdjustment) {
+        academicAdjustment.addEventListener('change', function() {
+            applyFiltersDebounced();
+        });
+    }
+    
+    // Funciones auxiliares
+    function initializeRangeSlider(slider) {
+        // Crear controles visuales para el slider
+        const minHandle = document.createElement('div');
+        minHandle.className = 'range-handle min';
+        slider.appendChild(minHandle);
+        
+        const maxHandle = document.createElement('div');
+        maxHandle.className = 'range-handle max';
+        slider.appendChild(maxHandle);
+        
+        // Configurar eventos para los handles (simulación)
+        setupHandleEvents(minHandle, slider);
+        setupHandleEvents(maxHandle, slider);
+    }
+    
+    function setupHandleEvents(handle, slider) {
+        let isDragging = false;
+        
+        handle.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        });
+        
+        function mouseMoveHandler(e) {
+            if (!isDragging) return;
+            
+            const sliderRect = slider.getBoundingClientRect();
+            let x = e.clientX - sliderRect.left;
+            x = Math.max(0, Math.min(x, sliderRect.width));
+            
+            const percentage = (x / sliderRect.width) * 100;
+            handle.style.left = `${percentage}%`;
+            
+            // Actualizar valor mostrado
+            updateSliderValue(slider, handle);
+            applyFiltersDebounced();
+        }
+        
+        function mouseUpHandler() {
+            isDragging = false;
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+        }
+    }
+    
+    function updateSliderValue(slider, handle) {
+        const sliderId = slider.id.replace('Slider', '');
+        const valueElement = document.getElementById(`${sliderId}Value`);
+        
+        if (valueElement) {
+            const minHandle = slider.querySelector('.min');
+            const maxHandle = slider.querySelector('.max');
+            
+            const minPercent = parseFloat(minHandle.style.left || '25');
+            const maxPercent = parseFloat(maxHandle.style.left || '75');
+            
+            const minValue = (minPercent / 100 * 5).toFixed(1);
+            const maxValue = (maxPercent / 100 * 5).toFixed(1);
+            
+            valueElement.textContent = `${minValue} - ${maxValue}`;
+        }
+    }
+    
+    function collectFilters() {
+        const filters = {};
+        
+        // Categorías seleccionadas
         const selectedCategories = Array.from(categoryCheckboxes)
-            .filter(checkbox => checkbox.checked)
-            .map(checkbox => checkbox.value);
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
         
-        if (selectedCategories.length === 0) {
-            subcategoriesContainer.innerHTML = `
-                <p class="text-muted small">
-                    Selecciona una categoría primero para ver las subcategorías.
-                </p>
-            `;
-            return;
+        if (selectedCategories.length > 0) {
+            filters.categories = selectedCategories;
         }
         
-        // Obtener todas las subcategorías de las categorías seleccionadas
-        let allSubcategories = [];
-        selectedCategories.forEach(categoryId => {
-            const category = filterData.categories.find(c => c.id === categoryId);
-            if (category && filterData.subcategoriesByCategory[categoryId]) {
-                allSubcategories = allSubcategories.concat(
-                    filterData.subcategoriesByCategory[categoryId].map(sub => ({
-                        ...sub,
-                        categoryName: category.name
-                    }))
-                );
+        // Subcategorías seleccionadas
+        const selectedSubcategories = Array.from(subcategoryCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        
+        if (selectedSubcategories.length > 0) {
+            filters.subcategories = selectedSubcategories;
+        }
+        
+        // Tipo de fuente
+        if (sourceTypeFilter && sourceTypeFilter.value) {
+            filters.sourceType = sourceTypeFilter.value;
+        }
+        
+        // Año de publicación
+        if (yearFrom && yearFrom.value) {
+            filters.yearFrom = yearFrom.value;
+        }
+        
+        if (yearTo && yearTo.value) {
+            filters.yearTo = yearTo.value;
+        }
+        
+        // Ordenamiento
+        if (sortBy && sortBy.value) {
+            filters.sortBy = sortBy.value;
+        }
+        
+        // Ajuste académico
+        if (academicAdjustment) {
+            filters.academicAdjustment = academicAdjustment.checked;
+        }
+        
+        return filters;
+    }
+    
+    function resetAllFilters() {
+        // Desmarcar todas las categorías
+        categoryCheckboxes.forEach(cb => {
+            cb.checked = false;
+            const subcatContainer = document.getElementById(`subcat_${cb.value}`);
+            if (subcatContainer) {
+                subcatContainer.style.display = 'none';
             }
         });
         
-        if (allSubcategories.length === 0) {
-            subcategoriesContainer.innerHTML = `
-                <p class="text-muted small">
-                    No hay subcategorías disponibles para las categorías seleccionadas.
-                </p>
-            `;
-            return;
-        }
+        // Desmarcar todas las subcategorías
+        subcategoryCheckboxes.forEach(cb => {
+            cb.checked = false;
+        });
         
-        // Crear checkboxes para subcategorías
-        let html = '';
-        allSubcategories.forEach((subcategory, index) => {
-            const isChecked = filterData.filters.subcategories && 
-                             filterData.filters.subcategories.includes(subcategory.id);
+        // Resetear sliders
+        document.querySelectorAll('.range-slider').forEach(slider => {
+            const minHandle = slider.querySelector('.min');
+            const maxHandle = slider.querySelector('.max');
             
-            html += `
-                <div class="form-check mb-2">
-                    <input class="form-check-input subcategory-checkbox" 
-                           type="checkbox" 
-                           id="sub_${subcategory.id}"
-                           value="${subcategory.id}"
-                           ${isChecked ? 'checked' : ''}>
-                    <label class="form-check-label" for="sub_${subcategory.id}">
-                        <small class="text-muted">${subcategory.categoryName}:</small> ${subcategory.name}
-                    </label>
-                </div>
-            `;
-        });
-        
-        subcategoriesContainer.innerHTML = html;
-        
-        // Añadir event listeners a los nuevos checkboxes
-        document.querySelectorAll('.subcategory-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                // Actualizar contador o marcar visualmente
-                const label = this.nextElementSibling;
-                if (this.checked) {
-                    label.classList.add('fw-bold');
-                } else {
-                    label.classList.remove('fw-bold');
-                }
-            });
-        });
-    }
-    
-    // Cambiar vista (lista/grid)
-    function setupViewToggle() {
-        viewToggleButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const view = this.getAttribute('data-view');
-                
-                // Actualizar botones activos
-                viewToggleButtons.forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                this.classList.add('active');
-                
-                // Cambiar vista
-                currentView = view;
-                resultsContainer.className = `results-container ${view}-view`;
-                
-                if (view === 'grid') {
-                    convertToGridView();
-                } else {
-                    convertToListView();
-                }
-            });
-        });
-    }
-    
-    function convertToGridView() {
-        const sourceCards = document.querySelectorAll('.source-card');
-        sourceCards.forEach(card => {
-            card.classList.add('grid-card');
-            // Aquí podrías modificar el contenido para la vista de cuadrícula
-        });
-    }
-    
-    function convertToListView() {
-        const sourceCards = document.querySelectorAll('.source-card');
-        sourceCards.forEach(card => {
-            card.classList.remove('grid-card');
-        });
-    }
-    
-    // Manejar ordenamiento
-    function setupSorting() {
-        if (sortSelect) {
-            sortSelect.addEventListener('change', function() {
-                // En una implementación real, esto recargaría la página o haría una petición AJAX
-                const url = new URL(window.location);
-                url.searchParams.set('sort', this.value);
-                url.searchParams.delete('page'); // Volver a primera página
-                
-                // Simular recarga (en producción sería window.location.href = url.toString())
-                console.log('Ordenando por:', this.value);
-                // showLoadingState();
-                // setTimeout(() => hideLoadingState(), 500);
-            });
-        }
-    }
-    
-    // Manejar formulario principal de búsqueda
-    function setupMainSearch() {
-        if (mainSearchForm) {
-            mainSearchForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const query = mainSearchInput.value.trim();
-                if (!query) {
-                    mainSearchInput.focus();
-                    return;
-                }
-                
-                // En producción, esto enviaría el formulario
-                console.log('Buscando:', query);
-                
-                // Mostrar estado de carga
-                showLoadingState();
-                
-                // Simular búsqueda
-                setTimeout(() => {
-                    hideLoadingState();
-                    // Aquí se actualizarían los resultados
-                }, 1000);
-            });
-        }
-    }
-    
-    // Manejar formulario de filtros avanzados
-    function setupAdvancedFilters() {
-        if (advancedFiltersForm) {
-            advancedFiltersForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                applyFilters();
-            });
+            if (minHandle) minHandle.style.left = '25%';
+            if (maxHandle) maxHandle.style.left = '75%';
             
-            // Actualizar subcategorías cuando cambien las categorías
-            categoryCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', loadSubcategories);
-            });
-        }
-    }
-    
-    function applyFilters() {
-        // Recopilar todos los filtros
-        const filters = {
-            // Categorías
-            categories: Array.from(categoryCheckboxes)
-                .filter(checkbox => checkbox.checked)
-                .map(checkbox => checkbox.value),
-            
-            // Subcategorías
-            subcategories: Array.from(document.querySelectorAll('.subcategory-checkbox'))
-                .filter(checkbox => checkbox.checked)
-                .map(checkbox => checkbox.value),
-            
-            // Calificación mínima
-            minRating: ratingSlider ? parseFloat(ratingSlider.value) : 0,
-            
-            // Criterios específicos
-            criteria: {}
-        };
-        
-        // Añadir criterios individuales
-        criterionSliders.forEach(slider => {
-            const criterionId = slider.id.replace('Slider', '');
-            const value = parseFloat(slider.value);
-            if (value > 0) {
-                filters.criteria[criterionId] = value;
-            }
+            updateSliderValue(slider, minHandle);
         });
         
-        // Añadir años
-        const minYear = document.getElementById('minYear');
-        const maxYear = document.getElementById('maxYear');
-        if (minYear && minYear.value) filters.minYear = parseInt(minYear.value);
-        if (maxYear && maxYear.value) filters.maxYear = parseInt(maxYear.value);
+        // Resetear otros filtros
+        if (sourceTypeFilter) sourceTypeFilter.value = '';
+        if (sortBy) sortBy.value = 'relevance';
+        if (yearFrom) yearFrom.value = '';
+        if (yearTo) yearTo.value = '';
+        if (academicAdjustment) academicAdjustment.checked = false;
         
-        // Añadir tipos de fuente
-        filters.sourceTypes = Array.from(document.querySelectorAll('.source-type-checkbox'))
-            .filter(checkbox => checkbox.checked)
-            .map(checkbox => checkbox.value);
-        
-        console.log('Aplicando filtros:', filters);
-        showLoadingState();
-        
-        // Simular aplicación de filtros
-        setTimeout(() => {
-            hideLoadingState();
-            // En producción, aquí se haría una petición AJAX para actualizar resultados
-        }, 800);
+        // Aplicar filtros después de resetear
+        applyFiltersDebounced();
     }
     
-    // Botones de limpieza
-    function setupClearButtons() {
-        if (clearAllFiltersBtn) {
-            clearAllFiltersBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                clearAllFilters();
-            });
-        }
-        
-        if (resetFiltersBtn) {
-            resetFiltersBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                resetFiltersForm();
-            });
-        }
-        
-        if (resetSearchBtn) {
-            resetSearchBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                window.location.href = '/search'; // Reiniciar búsqueda
-            });
-        }
-        
-        // Botones para eliminar filtros individuales
-        removeFilterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const filterKey = this.getAttribute('data-filter');
-                removeFilter(filterKey);
-            });
-        });
-    }
-    
-    function clearAllFilters() {
-        // Limpiar formulario de filtros
-        if (advancedFiltersForm) {
-            advancedFiltersForm.reset();
-        }
-        
-        // Limpiar búsqueda principal
-        if (mainSearchInput) {
-            mainSearchInput.value = '';
-        }
-        
-        // Restablecer sliders
-        if (ratingSlider) {
-            ratingSlider.value = 0;
-            updateRatingDisplay(0);
-        }
-        
-        criterionSliders.forEach(slider => {
-            slider.value = 0;
-            const valueDisplay = document.getElementById(`${slider.id.replace('Slider', '')}Value`);
-            if (valueDisplay) {
-                valueDisplay.textContent = '0 estrellas';
-            }
-        });
-        
-        // Recargar página (en producción sería una petición AJAX)
-        window.location.href = '/search';
-    }
-    
-    function resetFiltersForm() {
-        if (advancedFiltersForm) {
-            advancedFiltersForm.reset();
+    function applyFiltersDebounced() {
+        // Debounce para evitar muchas llamadas
+        clearTimeout(window.applyFiltersTimeout);
+        window.applyFiltersTimeout = setTimeout(() => {
+            const filters = collectFilters();
+            console.log('Filtros actualizados:', filters);
             
-            // Restablecer valores específicos
-            if (ratingSlider) {
-                ratingSlider.value = 0;
-                updateRatingDisplay(0);
+            // Aquí iría la lógica real de actualización
+            // Por ahora solo actualizamos el contador simulado
+            updateResultsCount(filters);
+        }, 300);
+    }
+    
+    function updateResultsCount(filters) {
+        // Simular actualización de conteo
+        const resultsCount = Math.floor(Math.random() * 50) + 10;
+        const resultsElement = document.querySelector('h5.mb-0');
+        
+        if (resultsElement) {
+            const query = new URLSearchParams(window.location.search).get('q') || '';
+            let text = `${resultsCount} resultados`;
+            
+            if (query) {
+                text += ` para "<strong>${query}</strong>"`;
             }
             
-            criterionSliders.forEach(slider => {
-                slider.value = 0;
-                const valueDisplay = document.getElementById(`${slider.id.replace('Slider', '')}Value`);
-                if (valueDisplay) {
-                    valueDisplay.textContent = '0 estrellas';
-                }
-            });
-            
-            // Recargar subcategorías
-            loadSubcategories();
+            resultsElement.innerHTML = text;
         }
     }
     
-    function removeFilter(filterKey) {
-        // En producción, esto eliminaría un filtro específico
-        console.log('Eliminando filtro:', filterKey);
-        
-        // Simular actualización
-        showLoadingState();
-        setTimeout(hideLoadingState, 500);
-    }
-    
-    // Botones "Añadir a lista"
-    function setupAddToListButtons() {
-        addToListButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const sourceId = this.getAttribute('data-source-id');
-                addSourceToList(sourceId, this);
-            });
-        });
-    }
-    
-    function addSourceToList(sourceId, button) {
-        // Simular añadir a lista
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check me-1"></i> Añadido';
-        button.classList.remove('btn-outline-secondary');
-        button.classList.add('btn-success');
-        button.disabled = true;
-        
-        console.log(`Añadiendo fuente ${sourceId} a lista`);
-        
-        // Restaurar después de 2 segundos
-        setTimeout(() => {
-            button.innerHTML = originalText;
-            button.classList.remove('btn-success');
-            button.classList.add('btn-outline-secondary');
-            button.disabled = false;
-        }, 2000);
-    }
-    
-    // Estados de carga
     function showLoadingState() {
-        // Crear overlay de carga
         const loadingOverlay = document.createElement('div');
-        loadingOverlay.id = 'loadingOverlay';
-        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.id = 'searchLoading';
+        loadingOverlay.className = 'search-loading-overlay';
         loadingOverlay.innerHTML = `
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Cargando...</span>
@@ -431,85 +326,45 @@ document.addEventListener('DOMContentLoaded', function() {
             <p class="mt-3">Aplicando filtros...</p>
         `;
         
-        document.body.appendChild(loadingOverlay);
+        searchResults.appendChild(loadingOverlay);
     }
     
     function hideLoadingState() {
-        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingOverlay = document.getElementById('searchLoading');
         if (loadingOverlay) {
             loadingOverlay.remove();
         }
     }
     
-    // Sugerencias de búsqueda (simuladas)
-    function setupSearchSuggestions() {
-        if (mainSearchInput) {
-            let debounceTimer;
-            
-            mainSearchInput.addEventListener('input', function() {
-                clearTimeout(debounceTimer);
-                
-                if (this.value.length < 2) return;
-                
-                debounceTimer = setTimeout(() => {
-                    showSearchSuggestions(this.value);
-                }, 300);
-            });
-            
-            mainSearchInput.addEventListener('blur', function() {
-                setTimeout(() => {
-                    hideSearchSuggestions();
-                }, 200);
-            });
-        }
+    function showAlert(type, message) {
+        // Crear alerta temporal
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        alertDiv.style.zIndex = '1050';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto-eliminar después de 3 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
     }
     
-    function showSearchSuggestions(query) {
-        // En producción, esto haría una petición al servidor
-        const suggestions = [
-            'Inteligencia artificial',
-            'Machine learning',
-            'Procesamiento de lenguaje natural',
-            'Deep learning',
-            'Redes neuronales'
-        ].filter(s => s.toLowerCase().includes(query.toLowerCase()));
-        
-        if (suggestions.length === 0) return;
-        
-        // Crear o actualizar contenedor de sugerencias
-        let suggestionsContainer = document.getElementById('searchSuggestions');
-        if (!suggestionsContainer) {
-            suggestionsContainer = document.createElement('div');
-            suggestionsContainer.id = 'searchSuggestions';
-            suggestionsContainer.className = 'search-suggestions';
-            mainSearchInput.parentNode.appendChild(suggestionsContainer);
-        }
-        
-        suggestionsContainer.innerHTML = suggestions.map(suggestion => `
-            <div class="suggestion-item">
-                <i class="fas fa-search me-2"></i>${suggestion}
-            </div>
-        `).join('');
-        
-        suggestionsContainer.style.display = 'block';
-    }
+    // Inicializar tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
     
-    function hideSearchSuggestions() {
-        const suggestionsContainer = document.getElementById('searchSuggestions');
-        if (suggestionsContainer) {
-            suggestionsContainer.style.display = 'none';
-        }
-    }
-    
-    // Inicializar todo
-    initializePage();
-    setupViewToggle();
-    setupSorting();
-    setupMainSearch();
-    setupAdvancedFilters();
-    setupClearButtons();
-    setupAddToListButtons();
-    setupSearchSuggestions();
-    
-    console.log('Página de búsqueda inicializada');
+    // Inicializar popovers
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
 });

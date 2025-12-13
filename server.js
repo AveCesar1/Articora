@@ -195,283 +195,227 @@ app.get('/forgot-password', (req, res) => {
 // PUBLICACIONES //
 ///////////////////
 
-// Agregar esta ruta al server.js
+// Agregar esta ruta a tu server.js
 app.get('/search', (req, res) => {
-    const searchQuery = req.query.q || '';
+    const query = req.query.q || '';
     const page = parseInt(req.query.page) || 1;
-    const sortBy = req.query.sort || 'relevance';
-    const itemsPerPage = 10;
-    
-    // Datos de ejemplo para categorías (las 8 del conocimiento)
-    const categories = [
-        { id: 'cognitive', name: 'Ciencias Cognitivas', icon: 'fas fa-brain', color: 'primary', count: 42 },
-        { id: 'social', name: 'Ciencias Sociales', icon: 'fas fa-users', color: 'success', count: 38 },
-        { id: 'humanities', name: 'Ciencias Humanistas', icon: 'fas fa-book-open', color: 'info', count: 27 },
-        { id: 'creative', name: 'Disciplinas Creativas', icon: 'fas fa-palette', color: 'warning', count: 15 },
-        { id: 'computational', name: 'Ciencias Computacionales', icon: 'fas fa-laptop-code', color: 'danger', count: 56 },
-        { id: 'exact', name: 'Ciencias Exactas', icon: 'fa-duotone fa-solid fa-calculator', color: 'dark', count: 33 },
-        { id: 'natural', name: 'Ciencias Naturales', icon: 'fas fa-leaf', color: 'secondary', count: 41 },
-        { id: 'applied', name: 'Ciencias Aplicadas', icon: 'fa-solid fa-flask-vial', color: 'white', count: 47 }
-    ];
-    
-    // Subcategorías por categoría
-    const subcategoriesByCategory = {
-        cognitive: [
-            { id: 'cog_psych', name: 'Psicología Cognitiva' },
-            { id: 'neuro_cog', name: 'Neurociencia Cognitiva' },
-            { id: 'lang_process', name: 'Procesamiento del Lenguaje' },
-            { id: 'applied_cog', name: 'Cognición Aplicada' },
-            { id: 'ai_cog', name: 'IA Cognitiva' },
-            { id: 'philo_mind', name: 'Filosofía de la Mente' }
-        ],
-        computational: [
-            { id: 'comp_theory', name: 'Computación Teórica' },
-            { id: 'software_eng', name: 'Ingeniería de Software' },
-            { id: 'ai_ml', name: 'Inteligencia Artificial' },
-            { id: 'cybersecurity', name: 'Ciberseguridad' },
-            { id: 'digital_infra', name: 'Infraestructura Digital' },
-            { id: 'scientific_comp', name: 'Computación Científica' },
-            { id: 'robotics', name: 'Robótica' }
-        ],
-        social: [
-            { id: 'sociology', name: 'Sociología' },
-            { id: 'political_science', name: 'Ciencia Política' },
-            { id: 'anthropology', name: 'Antropología' },
-            { id: 'economics', name: 'Economía' },
-            { id: 'history', name: 'Historia' },
-            { id: 'human_geography', name: 'Geografía Humana' }
-        ],
-        humanities: [
-            { id: 'philosophy', name: 'Filosofía' },
-            { id: 'religious_studies', name: 'Estudios Religiosos' },
-            { id: 'literature', name: 'Literatura' },
-            { id: 'linguistics', name: 'Lingüística' },
-            { id: 'digital_humanities', name: 'Humanidades Digitales' },
-            { id: 'cultural_studies', name: 'Estudios Culturales' },
-            { id: 'historical_humanities', name: 'Humanidades Históricas' }
-        ],
-        creative: [
-            { id: 'visual_arts', name: 'Artes Visuales' },
-            { id: 'music', name: 'Música' },
-            { id: 'performing_arts', name: 'Artes Escénicas' },
-            { id: 'creative_writing', name: 'Escritura Creativa' },
-            { id: 'design', name: 'Diseño' },
-            { id: 'art_theory', name: 'Teoría del Arte' }
-        ],
-        exact: [
-            { id: 'pure_math', name: 'Matemáticas Puras' },
-            { id: 'applied_math', name: 'Matemáticas Aplicadas' },
-            { id: 'theoretical_physics', name: 'Física Teórica' },
-            { id: 'experimental_physics', name: 'Física Experimental' },
-            { id: 'formal_logic', name: 'Lógica Formal' },
-            { id: 'statistics', name: 'Estadística' },
-            { id: 'theoretical_chem', name: 'Química Teórica' }
-        ],
-        natural: [
-            { id: 'biology', name: 'Biología' },
-            { id: 'ecology', name: 'Ecología' },
-            { id: 'chemistry', name: 'Química' },
-            { id: 'earth_sciences', name: 'Ciencias de la Tierra' },
-            { id: 'astronomy', name: 'Astronomía' },
-            { id: 'biotechnology', name: 'Biotecnología' },
-            { id: 'life_sciences', name: 'Ciencias de la Vida' }
-        ],
-        applied: [
-            { id: 'engineering', name: 'Ingenierías' },
-            { id: 'health_sciences', name: 'Ciencias de la Salud' },
-            { id: 'architecture', name: 'Arquitectura' },
-            { id: 'materials_nano', name: 'Materiales y Nano' },
-            { id: 'agro_vet', name: 'Agro y Veterinaria' },
-            { id: 'biomed_eng', name: 'Ingeniería Biomédica' },
-            { id: 'env_eng', name: 'Ingeniería Ambiental' }
-        ]
-    };
-    
-    // Filtros activos (simulados)
     const filters = {
-        minRating: parseFloat(req.query.minRating) || 0,
-        minYear: parseInt(req.query.minYear) || null,
-        maxYear: parseInt(req.query.maxYear) || null,
-        extension: parseFloat(req.query.extension) || 0,
-        completitud: parseFloat(req.query.completitud) || 0,
-        detalle: parseFloat(req.query.detalle) || 0,
-        veracidad: parseFloat(req.query.veracidad) || 0,
-        dificultad: parseFloat(req.query.dificultad) || 0
+        categories: req.query.categories ? req.query.categories.split(',') : [],
+        subcategories: req.query.subcategories ? req.query.subcategories.split(',') : [],
+        sourceType: req.query.sourceType || '',
+        yearFrom: req.query.yearFrom || '',
+        yearTo: req.query.yearTo || '',
+        sortBy: req.query.sortBy || 'relevance',
+        academicAdjustment: req.query.academicAdjustment === 'true'
     };
     
-    // Categorías seleccionadas
-    const selectedCategories = req.query.categories ? 
-        Array.isArray(req.query.categories) ? req.query.categories : [req.query.categories] : 
-        [];
-    
-    // Subcategorías seleccionadas
-    const selectedSubcategories = req.query.subcategories ? 
-        Array.isArray(req.query.subcategories) ? req.query.subcategories : [req.query.subcategories] : 
-        [];
-    
-    // Tipos de fuente seleccionados
-    const selectedSourceTypes = req.query.types ? 
-        Array.isArray(req.query.types) ? req.query.types : [req.query.types] : 
-        [];
-    
-    // Resultados de búsqueda (datos de ejemplo)
-    const allResults = Array.from({ length: 145 }, (_, i) => ({
-        id: `source_${i + 1}`,
-        title: `Avances en ${['IA', 'Machine Learning', 'NLP', 'Redes Neuronales', 'Visión por Computadora'][i % 5]} - Estudio ${i + 1}`,
-        authors: [
-            `Investigador ${i + 1}`,
-            `Coautor ${i + 1}`,
-            `Dr. Académico ${i + 1}`
-        ].slice(0, (i % 3) + 1),
-        year: 2020 + (i % 4),
-        type: ['libro', 'articulo', 'preprint', 'tesis', 'capitulo'][i % 5], // IDs en minúsculas
-        journal: i % 3 === 0 ? `Journal of ${['AI Research', 'ML Studies', 'Computational Science'][i % 3]}` : null,
-        doi: i % 4 === 0 ? `10.1000/xyzabc.${i}` : null,
-        description: `Este estudio investiga aspectos clave de ${['inteligencia artificial', 'aprendizaje automático', 'procesamiento de lenguaje natural'][i % 3]}. 
-                     Presenta metodologías innovadoras y resultados significativos en el campo. 
-                     La investigación incluye análisis exhaustivos y conclusiones relevantes para la comunidad científica.`,
-        keywords: ['IA', 'Machine Learning', 'Investigación', 'Ciencia de Datos', 'Algoritmos'].slice(0, (i % 4) + 1),
-        category: categories[i % categories.length],
-        subcategory: subcategoriesByCategory[categories[i % categories.length].id]?.[i % 3]?.name || null,
-        rating: {
-            average: 3.5 + (Math.random() * 1.5),
-            count: 10 + (i * 3) % 50,
-            criteria: [
-                { name: 'Extensión', score: 3.0 + (Math.random() * 2) },
-                { name: 'Completitud', score: 3.5 + (Math.random() * 1.5) },
-                { name: 'Detalle', score: 4.0 + (Math.random() * 1) },
-                { name: 'Veracidad', score: 4.5 + (Math.random() * 0.5) },
-                { name: 'Dificultad', score: 2.5 + (Math.random() * 2.5) }
+    // Categorías y subcategorías (8 categorías principales)
+    const categories = [
+        {
+            id: 'cognitive',
+            name: 'Ciencias Cognitivas',
+            color: '#3498db',
+            subcategories: [
+                { id: 'cog_psych', name: 'Psicología Cognitiva' },
+                { id: 'cog_neuro', name: 'Neurociencia Cognitiva' },
+                { id: 'cog_lang', name: 'Procesamiento del Lenguaje' },
+                { id: 'cog_applied', name: 'Cognición Aplicada' },
+                { id: 'cog_ai', name: 'IA Cognitiva' },
+                { id: 'cog_phil', name: 'Filosofía de la Mente' }
             ]
         },
-        stats: {
-            reads: 100 + (i * 7) % 500,
-            reviews: 5 + (i * 2) % 30,
-            citations: 10 + (i * 5) % 100
+        {
+            id: 'social',
+            name: 'Ciencias Sociales',
+            color: '#2ecc71',
+            subcategories: [
+                { id: 'soc_sociology', name: 'Sociología' },
+                { id: 'soc_politics', name: 'Ciencia Política' },
+                { id: 'soc_anthropology', name: 'Antropología' },
+                { id: 'soc_economics', name: 'Economía' },
+                { id: 'soc_history', name: 'Historia' },
+                { id: 'soc_geography', name: 'Geografía Humana' }
+            ]
+        },
+        {
+            id: 'humanities',
+            name: 'Ciencias Humanistas',
+            color: '#9b59b6',
+            subcategories: [
+                { id: 'hum_philosophy', name: 'Filosofía' },
+                { id: 'hum_religion', name: 'Estudios Religiosos' },
+                { id: 'hum_literature', name: 'Literatura' },
+                { id: 'hum_linguistics', name: 'Lingüística' },
+                { id: 'hum_digital', name: 'Humanidades Digitales' },
+                { id: 'hum_cultural', name: 'Estudios Culturales' },
+                { id: 'hum_history', name: 'Humanidades Históricas' }
+            ]
+        },
+        {
+            id: 'creative',
+            name: 'Disciplinas Creativas',
+            color: '#e74c3c',
+            subcategories: [
+                { id: 'cre_visual', name: 'Artes Visuales' },
+                { id: 'cre_music', name: 'Música' },
+                { id: 'cre_performing', name: 'Artes Escénicas' },
+                { id: 'cre_writing', name: 'Escritura Creativa' },
+                { id: 'cre_design', name: 'Diseño' },
+                { id: 'cre_theory', name: 'Teoría del Arte' }
+            ]
+        },
+        {
+            id: 'computational',
+            name: 'Ciencias Computacionales',
+            color: '#f39c12',
+            subcategories: [
+                { id: 'comp_theory', name: 'Computación Teórica' },
+                { id: 'comp_software', name: 'Ingeniería de Software' },
+                { id: 'comp_ai', name: 'Inteligencia Artificial' },
+                { id: 'comp_cyber', name: 'Ciberseguridad' },
+                { id: 'comp_infra', name: 'Infraestructura Digital' },
+                { id: 'comp_scientific', name: 'Computación Científica' },
+                { id: 'comp_robotics', name: 'Robótica' }
+            ]
+        },
+        {
+            id: 'exact',
+            name: 'Ciencias Exactas',
+            color: '#1abc9c',
+            subcategories: [
+                { id: 'exact_pure_math', name: 'Matemáticas Puras' },
+                { id: 'exact_applied_math', name: 'Matemáticas Aplicadas' },
+                { id: 'exact_theoretical_physics', name: 'Física Teórica' },
+                { id: 'exact_experimental_physics', name: 'Física Experimental' },
+                { id: 'exact_logic', name: 'Lógica Formal' },
+                { id: 'exact_statistics', name: 'Estadística' },
+                { id: 'exact_theoretical_chemistry', name: 'Química Teórica' }
+            ]
+        },
+        {
+            id: 'natural',
+            name: 'Ciencias Naturales',
+            color: '#34495e',
+            subcategories: [
+                { id: 'nat_biology', name: 'Biología' },
+                { id: 'nat_ecology', name: 'Ecología' },
+                { id: 'nat_chemistry', name: 'Química' },
+                { id: 'nat_earth', name: 'Ciencias de la Tierra' },
+                { id: 'nat_astronomy', name: 'Astronomía' },
+                { id: 'nat_biotech', name: 'Biotecnología' },
+                { id: 'nat_life', name: 'Ciencias de la Vida' }
+            ]
+        },
+        {
+            id: 'applied',
+            name: 'Ciencias Aplicadas',
+            color: '#e67e22',
+            subcategories: [
+                { id: 'app_engineering', name: 'Ingenierías' },
+                { id: 'app_health', name: 'Ciencias de la Salud' },
+                { id: 'app_architecture', name: 'Arquitectura' },
+                { id: 'app_materials', name: 'Materiales y Nano' },
+                { id: 'app_agro', name: 'Agro y Veterinaria' },
+                { id: 'app_biomedical', name: 'Ingeniería Biomédica' },
+                { id: 'app_environmental', name: 'Ingeniería Ambiental' }
+            ]
         }
-    }));
+    ];
     
-    // Filtrar resultados basados en búsqueda
-    let filteredResults = allResults;
+    // Criterios de calificación
+    const ratingCriteria = [
+        { id: 'extension', name: 'Extensión de lectura' },
+        { id: 'completeness', name: 'Completitud' },
+        { id: 'detail', name: 'Nivel de detalle' },
+        { id: 'veracity', name: 'Veracidad' },
+        { id: 'difficulty', name: 'Dificultad técnica' }
+    ];
     
-    if (searchQuery) {
-        const queryLower = searchQuery.toLowerCase();
-        filteredResults = filteredResults.filter(source => 
-            source.title.toLowerCase().includes(queryLower) ||
-            source.authors.some(author => author.toLowerCase().includes(queryLower)) ||
-            source.keywords.some(keyword => keyword.toLowerCase().includes(queryLower)) ||
-            source.description.toLowerCase().includes(queryLower)
-        );
-    }
+    // Tipos de fuente
+    const sourceTypes = [
+        { value: 'article', label: 'Artículo de revista' },
+        { value: 'book', label: 'Libro' },
+        { value: 'chapter', label: 'Capítulo de libro' },
+        { value: 'thesis', label: 'Tesis o disertación' },
+        { value: 'preprint', label: 'Preprint' },
+        { value: 'conference', label: 'Actas de congreso' },
+        { value: 'technical', label: 'Informe técnico' },
+        { value: 'encyclopedia', label: 'Enciclopedia' },
+        { value: 'audiovisual', label: 'Material audiovisual' },
+        { value: 'online', label: 'Artículo en línea' }
+    ];
     
-    // Aplicar filtros
-    if (filters.minRating > 0) {
-        filteredResults = filteredResults.filter(source => source.rating.average >= filters.minRating);
-    }
-    
-    if (selectedCategories.length > 0) {
-        filteredResults = filteredResults.filter(source => 
-            selectedCategories.includes(source.category.id)
-        );
-    }
-    
-    if (selectedSourceTypes.length > 0) {
-        filteredResults = filteredResults.filter(source => 
-            selectedSourceTypes.includes(source.type)
-        );
-    }
-    
-    // Filtrar por año
-    if (filters.minYear) {
-        filteredResults = filteredResults.filter(source => source.year >= filters.minYear);
-    }
-    
-    if (filters.maxYear) {
-        filteredResults = filteredResults.filter(source => source.year <= filters.maxYear);
-    }
-    
-    // Ordenar resultados
-    switch (sortBy) {
-        case 'newest':
-            filteredResults.sort((a, b) => b.year - a.year);
-            break;
-        case 'rating':
-            filteredResults.sort((a, b) => b.rating.average - a.rating.average);
-            break;
-        case 'popular':
-            filteredResults.sort((a, b) => b.stats.reads - a.stats.reads);
-            break;
-        case 'title_asc':
-            filteredResults.sort((a, b) => a.title.localeCompare(b.title));
-            break;
-        case 'title_desc':
-            filteredResults.sort((a, b) => b.title.localeCompare(a.title));
-            break;
-        default: // relevancia
-            // Mantener orden por similitud con búsqueda
-            break;
-    }
+    // Resultados de ejemplo (20 fuentes)
+    const results = Array.from({ length: 20 }, (_, i) => {
+        const sourceId = `source_${i + 1}`;
+        const category = categories[Math.floor(Math.random() * categories.length)];
+        const subcategory = category.subcategories[Math.floor(Math.random() * category.subcategories.length)];
+        
+        return {
+            id: sourceId,
+            title: `${i + 1}: Un estudio sobre ${['IA', 'Machine Learning', 'Procesamiento de Lenguaje', 'Redes Neuronales', 'Ética en Tecnología'][i % 5]}`,
+            authors: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, (_, j) => 
+                `Autor ${String.fromCharCode(65 + j)}. ${['Smith', 'Johnson', 'Williams', 'Brown', 'Jones'][(i + j) % 5]}`
+            ),
+            year: 2020 + (i % 5),
+            type: sourceTypes[Math.floor(Math.random() * sourceTypes.length)].label,
+            pages: `${Math.floor(Math.random() * 50) + 5}-${Math.floor(Math.random() * 50) + 60}`,
+            doi: i % 3 === 0 ? `10.1234/example.${sourceId}` : null,
+            keywords: ['Inteligencia Artificial', 'Machine Learning', 'Procesamiento de Lenguaje Natural', 'Redes Neuronales', 'Ética'].slice(0, Math.floor(Math.random() * 3) + 2),
+            excerpt: `Este documento presenta una investigación sobre ${
+                ['métodos innovadores en IA', 'aplicaciones de machine learning', 'técnicas de procesamiento de lenguaje natural', 'modelos de redes neuronales profundas', 'consideraciones éticas en tecnología'][i % 5]
+            }. El estudio incluye análisis detallados, experimentos controlados y conclusiones relevantes para la comunidad académica. Los resultados demuestran que...`,
+            rating: {
+                average: 3.5 + (Math.random() * 1.5),
+                count: Math.floor(Math.random() * 100) + 10,
+                criteria: ratingCriteria.map(criterion => ({
+                    name: criterion.name,
+                    value: 3 + (Math.random() * 2)
+                }))
+            },
+            category: {
+                id: category.id,
+                name: category.name,
+                color: category.color
+            },
+            subcategory: {
+                id: subcategory.id,
+                name: subcategory.name
+            },
+            stats: {
+                views: Math.floor(Math.random() * 500) + 100,
+                bookmarks: Math.floor(Math.random() * 50) + 5
+            },
+            uploadDate: `${Math.floor(Math.random() * 28) + 1}/${Math.floor(Math.random() * 12) + 1}/2023`,
+            uploader: {
+                id: `user_${Math.floor(Math.random() * 100)}`,
+                name: ['Dr. Ana García', 'Prof. Carlos López', 'Dra. María Rodríguez', 'Lic. Juan Martínez'][Math.floor(Math.random() * 4)]
+            }
+        };
+    });
     
     // Paginación
-    const totalResults = filteredResults.length;
-    const totalPages = Math.ceil(totalResults / itemsPerPage);
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const results = filteredResults.slice(startIndex, endIndex);
-    
-    // Filtros activos para mostrar
-    const activeFilters = [];
-    if (filters.minRating > 0) {
-        activeFilters.push({ key: 'minRating', label: 'Calificación mínima', value: `${filters.minRating} estrellas` });
-    }
-    if (selectedCategories.length > 0) {
-        activeFilters.push({ 
-            key: 'categories', 
-            label: 'Categorías', 
-            value: selectedCategories.map(catId => 
-                categories.find(c => c.id === catId)?.name || catId
-            ).join(', ')
-        });
-    }
-    if (selectedSourceTypes.length > 0) {
-        activeFilters.push({ 
-            key: 'types', 
-            label: 'Tipos', 
-            value: selectedSourceTypes.map(type => {
-                const typeLabels = {
-                    'libro': 'Libro',
-                    'articulo': 'Artículo',
-                    'preprint': 'Preprint',
-                    'tesis': 'Tesis',
-                    'capitulo': 'Capítulo',
-                    'congreso': 'Congreso',
-                    'informe': 'Informe',
-                    'enciclopedia': 'Enciclopedia',
-                    'audiovisual': 'Audiovisual'
-                };
-                return typeLabels[type] || type;
-            }).join(', ')
-        });
-    }
+    const resultsPerPage = 10;
+    const startIndex = (page - 1) * resultsPerPage;
+    const endIndex = startIndex + resultsPerPage;
+    const paginatedResults = results.slice(startIndex, endIndex);
     
     res.render('search', {
-        title: 'Búsqueda Avanzada - Artícora',
+        title: query ? `"${query}" - Búsqueda - Artícora` : 'Búsqueda - Artícora',
         currentPage: 'search',
         cssFile: 'search.css',
         jsFile: 'search.js',
-        searchQuery,
-        categories,
-        subcategoriesByCategory,
-        filters,
-        selectedCategories,
-        selectedSubcategories,
-        selectedSourceTypes,
-        sortBy,
-        currentPage: page,
-        totalPages,
-        totalResults,
-        results,
-        activeFilters
+        query: query,
+        filters: Object.keys(filters).length > 0 ? filters : undefined,
+        categories: categories,
+        ratingCriteria: ratingCriteria,
+        sourceTypes: sourceTypes,
+        results: paginatedResults,
+        pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(results.length / resultsPerPage),
+            totalResults: results.length
+        }
     });
 });
 
