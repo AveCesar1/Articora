@@ -47,7 +47,6 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 
 ### 🚧 En Desarrollo
 - `/dashboard` - Dashboard principal de usuario
-- `/post/:id` - Detalle completo de fuente
 - `/chat` - Sistema de chat individual y grupal
 - `/lists` - Gestión de listas curatoriales
 - `/compare` - Comparador de fuentes
