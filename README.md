@@ -36,7 +36,7 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 ### 🔍 Búsqueda y Contenido
 - `/search` - Página de búsqueda avanzada con filtros
 - `/upload` - Página para subir nuevas fuentes bibliográficas
-- `/post/:id` - Página de detalle de una publicación (pendiente por desarrollar)
+- `/post/:id` - Página de detalle de una publicación
 
 ### 📚 Información y Ayuda
 - `/faq` - Página de preguntas frecuentes (FAQ) con 5 categorías
