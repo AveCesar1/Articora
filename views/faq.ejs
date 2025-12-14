@@ -1,0 +1,398 @@
+<%- include('partials/header', { 
+    title: 'Preguntas Frecuentes - Artícora', 
+    currentPage: 'faq',
+    cssFile: 'faq.css'
+}) %>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Encabezado -->
+            <div class="text-center mb-5">
+                <h1 class="page-title mb-3">
+                    <i class="fas fa-question-circle me-3"></i>Preguntas Frecuentes
+                </h1>
+                <p class="lead text-muted">
+                    Encuentra respuestas a las preguntas más comunes sobre Artícora
+                </p>
+            </div>
+
+            <!-- Barra de búsqueda en FAQs -->
+            <div class="card shadow-sm mb-5">
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" 
+                               placeholder="Buscar en preguntas frecuentes..."
+                               id="faqSearch">
+                        <button class="btn btn-primary" type="button">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQs por categorías -->
+            <div class="row mb-5">
+                <div class="col-md-3 mb-4">
+                    <div class="list-group">
+                        <a href="#general" class="list-group-item list-group-item-action active">
+                            <i class="fas fa-globe me-2"></i> General
+                        </a>
+                        <a href="#cuentas" class="list-group-item list-group-item-action">
+                            <i class="fas fa-user me-2"></i> Cuentas
+                        </a>
+                        <a href="#fuentes" class="list-group-item list-group-item-action">
+                            <i class="fas fa-book me-2"></i> Fuentes
+                        </a>
+                        <a href="#comunidad" class="list-group-item list-group-item-action">
+                            <i class="fas fa-users me-2"></i> Comunidad
+                        </a>
+                        <a href="#tecnicos" class="list-group-item list-group-item-action">
+                            <i class="fas fa-cog me-2"></i> Técnicos
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-md-9">
+                    <!-- General -->
+                    <div class="mb-5" id="general">
+                        <h3 class="mb-4 border-bottom pb-2">
+                            <i class="fas fa-globe me-2 text-primary"></i> Preguntas Generales
+                        </h3>
+                        
+                        <div class="accordion" id="accordionGeneral">
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#general1">
+                                        ¿Qué es Artícora?
+                                    </button>
+                                </h4>
+                                <div id="general1" class="accordion-collapse collapse show">
+                                    <div class="accordion-body">
+                                        Artícora es una plataforma web colaborativa para la investigación académica que combina curación comunitaria de fuentes bibliográficas con herramientas de comunicación y gestión. No es un repositorio, sino un índice avanzado y crítico que orienta a usuarios hacia fuentes originales mediante metadatos y evaluación colaborativa.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#general2">
+                                        ¿Es gratuito usar Artícora?
+                                    </button>
+                                </h4>
+                                <div id="general2" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Sí, Artícora es completamente gratuito para todos los usuarios. Creemos en el acceso abierto al conocimiento y la colaboración académica sin barreras económicas.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#general3">
+                                        ¿Qué idiomas soporta la plataforma?
+                                    </button>
+                                </h4>
+                                <div id="general3" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Actualmente, Artícora está disponible en español e inglés. Planeamos agregar más idiomas en el futuro basándonos en la demanda de nuestra comunidad.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cuentas -->
+                    <div class="mb-5" id="cuentas">
+                        <h3 class="mb-4 border-bottom pb-2">
+                            <i class="fas fa-user me-2 text-success"></i> Cuentas y Registro
+                        </h3>
+                        
+                        <div class="accordion" id="accordionCuentas">
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#cuentas1">
+                                        ¿Qué beneficios tengo al registrarme?
+                                    </button>
+                                </h4>
+                                <div id="cuentas1" class="accordion-collapse collapse show">
+                                    <div class="accordion-body">
+                                        Los usuarios registrados pueden:
+                                        <ul>
+                                            <li>Calificar y comentar fuentes</li>
+                                            <li>Crear listas curatoriales personalizadas</li>
+                                            <li>Guardar fuentes para leer después</li>
+                                            <li>Participar en discusiones académicas</li>
+                                            <li>Recibir recomendaciones personalizadas</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#cuentas2">
+                                        ¿Cómo funciona la verificación académica?
+                                    </button>
+                                </h4>
+                                <div id="cuentas2" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        La verificación académica permite a los usuarios:
+                                        <ul>
+                                            <li>Subir nuevas fuentes a la plataforma</li>
+                                            <li>Crear y moderar grupos de chat</li>
+                                            <li>Realizar calificaciones multidimensionales</li>
+                                            <li>Participar en funciones avanzadas de curación</li>
+                                        </ul>
+                                        Puedes verificarte mediante cédula profesional (72 horas) o certificados académicos (7 días).
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#cuentas3">
+                                        ¿Puedo eliminar mi cuenta?
+                                    </button>
+                                </h4>
+                                <div id="cuentas3" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Sí, puedes eliminar tu cuenta en cualquier momento desde la configuración de tu perfil. Ten en cuenta que esta acción es irreversible y eliminará:
+                                        <ul>
+                                            <li>Tus datos personales</li>
+                                            <li>Tus calificaciones y comentarios (se anonimizarán)</li>
+                                            <li>Tus listas curatoriales</li>
+                                        </ul>
+                                        Las fuentes que hayas subido permanecerán en la plataforma con crédito anónimo.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fuentes -->
+                    <div class="mb-5" id="fuentes">
+                        <h3 class="mb-4 border-bottom pb-2">
+                            <i class="fas fa-book me-2 text-warning"></i> Fuentes y Contenido
+                        </h3>
+                        
+                        <div class="accordion" id="accordionFuentes">
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#fuentes1">
+                                        ¿Qué tipos de fuentes puedo subir?
+                                    </button>
+                                </h4>
+                                <div id="fuentes1" class="accordion-collapse collapse show">
+                                    <div class="accordion-body">
+                                        Aceptamos los siguientes tipos de fuentes:
+                                        <ul>
+                                            <li>Libros</li>
+                                            <li>Capítulos de libro</li>
+                                            <li>Artículos de revista (papers)</li>
+                                            <li>Preprints</li>
+                                            <li>Tesis o disertaciones</li>
+                                            <li>Artículos en línea</li>
+                                            <li>Actas de congreso</li>
+                                            <li>Informes técnicos o institucionales</li>
+                                            <li>Enciclopedias o diccionarios</li>
+                                            <li>Material audiovisual académico</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#fuentes2">
+                                        ¿Cómo funciona la verificación de duplicados?
+                                    </button>
+                                </h4>
+                                <div id="fuentes2" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Artícora utiliza un sistema de tres niveles para detectar duplicados:
+                                        <ol>
+                                            <li><strong>Nivel 1:</strong> Comparación de similitud de títulos usando TF-IDF</li>
+                                            <li><strong>Nivel 2:</strong> Verificación combinada de título y autores</li>
+                                            <li><strong>Nivel 3:</strong> Verificación exacta de título, autores y edición</li>
+                                        </ol>
+                                        Si se detecta un duplicado exacto, el sistema redirigirá automáticamente a la ficha existente.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#fuentes3">
+                                        ¿Puedo subir fuentes en cualquier idioma?
+                                    </button>
+                                </h4>
+                                <div id="fuentes3" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Sí, aceptamos fuentes en cualquier idioma. Sin embargo, para facilitar la búsqueda y organización, recomendamos que los metadatos clave (título, resumen, palabras clave) también se incluyan en español o inglés cuando sea posible.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comunidad -->
+                    <div class="mb-5" id="comunidad">
+                        <h3 class="mb-4 border-bottom pb-2">
+                            <i class="fas fa-users me-2 text-info"></i> Comunidad y Moderación
+                        </h3>
+                        
+                        <div class="accordion" id="accordionComunidad">
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#comunidad1">
+                                        ¿Cómo se calculan las calificaciones?
+                                    </button>
+                                </h4>
+                                <div id="comunidad1" class="accordion-collapse collapse show">
+                                    <div class="accordion-body">
+                                        Cada fuente es calificada en 5 criterios:
+                                        <ul>
+                                            <li><strong>Claridad:</strong> ¿Es comprensible y bien estructurada?</li>
+                                            <li><strong>Rigor:</strong> ¿Sigue metodologías adecuadas?</li>
+                                            <li><strong>Originalidad:</strong> ¿Aporta nuevas perspectivas?</li>
+                                            <li><strong>Relevancia:</strong> ¿Es significativa para su campo?</li>
+                                            <li><strong>Actualidad:</strong> ¿Incluye referencias actualizadas?</li>
+                                        </ul>
+                                        Cada criterio se califica de 0 a 5 en incrementos de 0.5.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#comunidad2">
+                                        ¿Cómo reporto contenido inapropiado?
+                                    </button>
+                                </h4>
+                                <div id="comunidad2" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Puedes reportar contenido inapropiado haciendo clic en el botón "Reportar" en cualquier fuente, comentario o perfil de usuario. Los reportes son revisados por nuestro equipo de moderadores en un plazo de 24-48 horas.
+                                        <br><br>
+                                        <strong>Motivos válidos para reportar:</strong>
+                                        <ul>
+                                            <li>Contenido plagiado</li>
+                                            <li>Información falsa o engañosa</li>
+                                            <li>Comentarios ofensivos o spam</li>
+                                            <li>Violación de derechos de autor</li>
+                                            <li>Fuentes no académicas</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Técnicos -->
+                    <div class="mb-5" id="tecnicos">
+                        <h3 class="mb-4 border-bottom pb-2">
+                            <i class="fas fa-cog me-2 text-secondary"></i> Aspectos Técnicos
+                        </h3>
+                        
+                        <div class="accordion" id="accordionTecnicos">
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#tecnicos1">
+                                        ¿Qué tecnologías utiliza Artícora?
+                                    </button>
+                                </h4>
+                                <div id="tecnicos1" class="accordion-collapse collapse show">
+                                    <div class="accordion-body">
+                                        Artícora está construido con:
+                                        <ul>
+                                            <li><strong>Backend:</strong> Node.js + Express.js</li>
+                                            <li><strong>Frontend:</strong> HTML5, CSS3, JavaScript vanilla</li>
+                                            <li><strong>Base de datos:</strong> SQLite</li>
+                                            <li><strong>Templates:</strong> EJS (Embedded JavaScript)</li>
+                                            <li><strong>CSS Framework:</strong> Bootstrap 5.3 personalizado</li>
+                                            <li><strong>Gráficos:</strong> Chart.js</li>
+                                            <li><strong>Iconos:</strong> Font Awesome 6</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h4 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#tecnicos2">
+                                        ¿Cómo funciona el sistema de recomendaciones?
+                                    </button>
+                                </h4>
+                                <div id="tecnicos2" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        Nuestro sistema de recomendaciones utiliza:
+                                        <ul>
+                                            <li><strong>Filtrado colaborativo:</strong> Basado en calificaciones de usuarios con intereses similares</li>
+                                            <li><strong>Filtrado por contenido:</strong> Basado en categorías, palabras clave y metadatos</li>
+                                            <li><strong>Ajuste a grado académico:</strong> Prioriza fuentes evaluadas por usuarios de tu nivel</li>
+                                            <li><strong>Popularidad temporal:</strong> Considera tendencias recientes</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacto adicional -->
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h4 class="card-title mb-3">
+                        <i class="fas fa-comments me-2"></i> ¿No encontraste tu respuesta?
+                    </h4>
+                    <p class="card-text mb-4">
+                        Nuestro equipo de soporte está aquí para ayudarte
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="mailto:soporte@articora.com" class="btn btn-primary">
+                            <i class="fas fa-envelope me-2"></i> Enviar email
+                        </a>
+                        <a href="/search" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-2"></i> Buscar fuentes
+                        </a>
+                        <a href="/" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i> Volver al inicio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: 'faq.js' }) %>

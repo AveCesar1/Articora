@@ -1,0 +1,106 @@
+<%- include('partials/header', { 
+    title: 'Página no encontrada - Artícora', 
+    currentPage: '404',
+    cssFile: '404.css'
+}) %>
+
+<div class="container py-5">
+    <div class="row justify-content-center align-items-center min-vh-75">
+        <div class="col-lg-8 text-center">
+            <!-- Ilustración -->
+            <div class="mb-5">
+                <div class="error-illustration">
+                    <i class="fas fa-book-dead error-icon"></i>
+                </div>
+            </div>
+
+            <!-- Mensaje de error -->
+            <h1 class="display-1 fw-bold text-muted mb-3">404</h1>
+            <h2 class="mb-4">
+                <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                Página no encontrada
+            </h2>
+            
+            <p class="lead text-muted mb-5">
+                Lo sentimos, la página que estás buscando no existe o ha sido movida.
+                Puede que la URL haya cambiado o la página haya sido eliminada.
+            </p>
+
+            <!-- Sugerencias -->
+            <div class="row justify-content-center mb-5">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-start">
+                            <h5 class="card-title mb-3">
+                                <i class="fas fa-lightbulb me-2 text-info"></i>
+                                ¿Qué puedes hacer?
+                            </h5>
+                            <div class="suggestion-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>Verifica que la URL esté escrita correctamente</span>
+                            </div>
+                            <div class="suggestion-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>Regresa a la <a href="/">página de inicio</a> y navega desde allí</span>
+                            </div>
+                            <div class="suggestion-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>Usa el <a href="/search">buscador</a> para encontrar lo que necesitas</span>
+                            </div>
+                            <div class="suggestion-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>Revisa nuestras <a href="/faq">preguntas frecuentes</a></span>
+                            </div>
+                            <div class="suggestion-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>Si el problema persiste, <a href="mailto:soporte@articora.com">contacta a soporte</a></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones rápidas -->
+            <div class="d-flex justify-content-center gap-3 flex-wrap mb-5">
+                <a href="/" class="btn btn-primary btn-lg">
+                    <i class="fas fa-home me-2"></i> Ir al inicio
+                </a>
+                <a href="/search" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-search me-2"></i> Buscar fuentes
+                </a>
+                <button onclick="window.history.back()" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i> Volver atrás
+                </button>
+            </div>
+
+            <!-- Búsqueda directa -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-search me-2"></i>
+                        Búsqueda rápida
+                    </h5>
+                    <form action="/search" method="GET" class="d-flex">
+                        <input type="text" class="form-control me-2" 
+                               name="q" placeholder="Buscar fuentes, autores, temas...">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información adicional -->
+            <div class="mt-5">
+                <p class="text-muted small">
+                    Si llegaste aquí siguiendo un enlace de Artícora, por favor 
+                    <a href="mailto:soporte@articora.com">reporta el enlace roto</a>.
+                    <br>
+                    Código de error: 404_NOT_FOUND | <%= new Date().toISOString() %>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: '404.js' }) %>

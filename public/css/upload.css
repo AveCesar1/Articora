@@ -1,0 +1,176 @@
+/* upload.css - Estilos específicos para la página de subida */
+
+:root {
+    --progress-color: #b7934c;
+    --valid-color: #28a745;
+    --invalid-color: #dc3545;
+    --warning-color: #ffc107;
+    --autocomplete-bg: #f8f9fa;
+}
+
+/* Barra de progreso */
+#formProgress {
+    background-color: var(--progress-color);
+    transition: width 0.3s ease;
+}
+
+/* Contadores de caracteres */
+.input-group-text {
+    background-color: var(--light-color);
+    border-color: var(--border-color);
+    font-size: 0.85rem;
+    min-width: 70px;
+}
+
+/* Campos de autores y URLs dinámicos */
+.author-field, .url-field {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Badge de categoría */
+.category-badge {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    vertical-align: middle;
+}
+
+.category-badge-small {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    vertical-align: middle;
+}
+
+/* Contenedor de categorías */
+.categories-container {
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    background-color: var(--light-color);
+}
+
+.subcategories-container {
+    border-left: 2px solid var(--border-color);
+    padding-left: 1rem;
+}
+
+/* Checkboxes de categorías */
+.category-checkbox:checked + label .category-badge {
+    box-shadow: 0 0 0 2px var(--light-color), 0 0 0 4px currentColor;
+}
+
+/* Autocompletado */
+.autocomplete-hint {
+    position: absolute;
+    background-color: var(--autocomplete-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+    display: none;
+    z-index: 1000;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.autocomplete-hint.active {
+    display: block;
+}
+
+/* Resumen de validación */
+.validation-summary {
+    background-color: var(--light-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+
+.validation-summary .fa-check-circle {
+    font-size: 1rem;
+}
+
+/* Estados de validación */
+.is-valid {
+    border-color: var(--valid-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.is-invalid {
+    border-color: var(--invalid-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+/* Botones */
+#submitBtn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* Modal de redirección */
+#redirectProgress {
+    background-color: var(--accent-color);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .categories-container {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .author-field .btn,
+    .url-field .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .input-group-text {
+        font-size: 0.75rem;
+        min-width: 60px;
+    }
+}
+
+/* Efectos hover */
+.category-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+}
+
+/* Animación de carga */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}

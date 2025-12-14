@@ -1,0 +1,415 @@
+<%- include('partials/header', { 
+    title: 'Subir fuente - Artícora', 
+    currentPage: 'upload',
+    cssFile: 'upload.css'
+}) %>
+
+<div class="container py-5">
+    <!-- Encabezado -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h1 class="page-title mb-3">
+                <i class="fas fa-cloud-upload-alt me-3"></i>Subir Nueva Fuente
+            </h1>
+            <p class="text-muted">
+                Completa todos los campos obligatorios (<span class="text-danger">*</span>) para agregar una nueva fuente bibliográfica a la plataforma.
+                El sistema verificará automáticamente posibles duplicados.
+            </p>
+            <div class="progress mb-4" style="height: 8px;">
+                <div class="progress-bar" id="formProgress" role="progressbar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <form id="uploadForm" novalidate>
+        <div class="row">
+            <!-- Columna izquierda: Metadatos básicos -->
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Información Básica
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Tipo de fuente -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="sourceType" class="form-label">
+                                    <strong>Tipo de fuente <span class="text-danger">*</span></strong>
+                                </label>
+                                <select class="form-select" id="sourceType" name="sourceType" required>
+                                    <option value="">Seleccionar tipo...</option>
+                                    <% sourceTypes.forEach(type => { %>
+                                        <option value="<%= type.value %>"><%= type.label %></option>
+                                    <% }) %>
+                                </select>
+                                <div class="form-text">Selecciona el tipo de fuente bibliográfica</div>
+                            </div>
+                        </div>
+
+                        <!-- Título -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label">
+                                <strong>Título <span class="text-danger">*</span></strong>
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="title" name="title" 
+                                       maxlength="500" required 
+                                       placeholder="Ingresa el título completo de la fuente">
+                                <span class="input-group-text">
+                                    <span id="titleCounter">0</span>/500
+                                </span>
+                            </div>
+                            <div class="form-text">
+                                Título completo de la fuente. Máximo 500 caracteres.
+                                <div class="autocomplete-hint" id="titleAutocomplete"></div>
+                            </div>
+                            <div class="invalid-feedback" id="titleError">
+                                El título es obligatorio y debe tener entre 1 y 500 caracteres.
+                            </div>
+                        </div>
+
+                        <!-- Autores -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <strong>Autor(es) <span class="text-danger">*</span></strong>
+                            </label>
+                            <div id="authorsContainer">
+                                <div class="input-group mb-2 author-field">
+                                    <input type="text" class="form-control author-input" 
+                                           maxlength="150" placeholder="Apellido, Nombre"
+                                           data-index="0">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="addAuthorField()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                Agrega cada autor en formato "Apellido, Nombre". Mínimo 1 autor, máximo 10.
+                                <div class="autocomplete-hint" id="authorAutocomplete"></div>
+                            </div>
+                            <div class="invalid-feedback" id="authorsError">
+                                Debe ingresar al menos un autor válido (máximo 150 caracteres cada uno).
+                            </div>
+                        </div>
+
+                        <!-- Año -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="year" class="form-label">
+                                    <strong>Año de publicación <span class="text-danger">*</span></strong>
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="year" name="year" 
+                                           min="1" max="<%= new Date().getFullYear() + 100 %>" 
+                                           required placeholder="Ej: 2023">
+                                    <select class="form-select" id="yearEra" style="max-width: 120px;">
+                                        <option value="AD">d.C.</option>
+                                        <option value="BC">a.C.</option>
+                                    </select>
+                                </div>
+                                <div class="form-text">Año de publicación (4 dígitos)</div>
+                                <div class="invalid-feedback" id="yearError">
+                                    El año debe ser un número válido entre 1 y <%= new Date().getFullYear() + 100 %>.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Revista/Editorial -->
+                        <div class="mb-4">
+                            <label for="publisher" class="form-label">
+                                <strong>Revista / Editorial</strong>
+                                <span id="publisherRequired" class="text-danger d-none"> *</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="publisher" name="publisher" 
+                                       maxlength="300" placeholder="Nombre de la revista o editorial">
+                                <span class="input-group-text">
+                                    <span id="publisherCounter">0</span>/300
+                                </span>
+                            </div>
+                            <div class="form-text" id="publisherHelp">
+                                Nombre de la revista (para artículos) o editorial (para libros).
+                                <div class="autocomplete-hint" id="publisherAutocomplete"></div>
+                            </div>
+                            <div class="invalid-feedback" id="publisherError">
+                                Este campo es obligatorio para libros y artículos de revista.
+                            </div>
+                        </div>
+
+                        <!-- Volumen y Número -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="volume" class="form-label">
+                                    <strong>Volumen</strong>
+                                </label>
+                                <input type="text" class="form-control" id="volume" name="volume" 
+                                       maxlength="20" placeholder="Ej: 15, IV">
+                                <div class="form-text">Volumen de la publicación</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="number" class="form-label">
+                                    <strong>Número</strong>
+                                </label>
+                                <input type="number" class="form-control" id="number" name="number" 
+                                       min="1" placeholder="Ej: 3">
+                                <div class="form-text">Número de la publicación</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="edition" class="form-label">
+                                    <strong>Edición</strong>
+                                    <span id="editionRequired" class="text-danger d-none"> *</span>
+                                </label>
+                                <input type="number" class="form-control" id="edition" name="edition" 
+                                       min="1" placeholder="Ej: 1">
+                                <div class="form-text">Número de edición (obligatorio para libros)</div>
+                                <div class="invalid-feedback" id="editionError">
+                                    La edición debe ser un número entero positivo.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Páginas -->
+                        <div class="mb-4">
+                            <label for="pages" class="form-label">
+                                <strong>Páginas</strong>
+                            </label>
+                            <input type="text" class="form-control" id="pages" name="pages" 
+                                   placeholder="Ej: 10-25 o 10">
+                            <div class="form-text">Rango de páginas (formato: inicio-fin) o página única</div>
+                            <div class="invalid-feedback" id="pagesError">
+                                Formato inválido. Use "10-25" para rangos o "10" para página única.
+                            </div>
+                        </div>
+
+                        <!-- DOI -->
+                        <div class="mb-4">
+                            <label for="doi" class="form-label">
+                                <strong>DOI</strong>
+                            </label>
+                            <input type="text" class="form-control" id="doi" name="doi" 
+                                   placeholder="Ej: 10.1000/xyz123">
+                            <div class="form-text">Digital Object Identifier (formato estándar)</div>
+                            <div class="invalid-feedback" id="doiError">
+                                Formato DOI inválido. Use: 10.xxxx/xxxx
+                            </div>
+                        </div>
+
+                        <!-- Palabras clave -->
+                        <div class="mb-4">
+                            <label for="keywords" class="form-label">
+                                <strong>Palabras clave</strong>
+                                <span id="keywordsRequired" class="text-danger d-none"> *</span>
+                            </label>
+                            <textarea class="form-control" id="keywords" name="keywords" 
+                                      rows="2" placeholder="Separadas por comas, ej: cognición, memoria, aprendizaje"></textarea>
+                            <div class="form-text">
+                                Mínimo 3, máximo 10 términos. Separados por comas.
+                                <div class="autocomplete-hint" id="keywordsAutocomplete"></div>
+                            </div>
+                            <div class="invalid-feedback" id="keywordsError">
+                                Se requieren entre 3 y 10 palabras clave para este tipo de fuente.
+                            </div>
+                        </div>
+
+                        <!-- URLs -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <strong>URL(s) de acceso</strong>
+                            </label>
+                            <div id="urlsContainer">
+                                <div class="input-group mb-2 url-field">
+                                    <span class="input-group-text">Primaria</span>
+                                    <input type="url" class="form-control url-input" 
+                                           placeholder="https://ejemplo.com/articulo" data-type="primary">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="addUrlField()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                URL primaria de acceso a la fuente. Puedes agregar URLs secundarias adicionales.
+                            </div>
+                            <div class="invalid-feedback" id="urlsError">
+                                Al menos una URL debe ser válida (formato http:// o https://).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna derecha: Categorías y envío -->
+            <div class="col-lg-4">
+                <!-- Categorías -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-folder-open me-2"></i>Categorías
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Selecciona las categorías y subcategorías que describen el contenido de la fuente.
+                            Puedes seleccionar múltiples opciones.
+                        </p>
+                        
+                        <div class="categories-container" style="max-height: 400px; overflow-y: auto;">
+                            <% categories.forEach(category => { %>
+                                <div class="category-item mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input category-checkbox" 
+                                               type="checkbox" 
+                                               id="cat_<%= category.id %>"
+                                               value="<%= category.id %>"
+                                               data-color="<%= category.color %>">
+                                        <label class="form-check-label" for="cat_<%= category.id %>">
+                                            <span class="category-badge me-2" 
+                                                  style="background-color: <%= category.color %>"></span>
+                                            <strong><%= category.name %></strong>
+                                        </label>
+                                    </div>
+                                    
+                                    <!-- Subcategorías -->
+                                    <div class="subcategories-container ms-4 mt-2" 
+                                         id="subcat_<%= category.id %>" 
+                                         style="display: none;">
+                                        <% category.subcategories.forEach(subcat => { %>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input subcategory-checkbox" 
+                                                       type="checkbox" 
+                                                       id="subcat_<%= subcat.id %>"
+                                                       value="<%= subcat.id %>"
+                                                       data-category="<%= category.id %>">
+                                                <label class="form-check-label small" for="subcat_<%= subcat.id %>">
+                                                    <%= subcat.name %>
+                                                </label>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                        
+                        <div class="invalid-feedback" id="categoriesError">
+                            Debe seleccionar al menos una categoría y una subcategoría.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen y envío -->
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-check-circle me-2"></i>Verificación Final
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <h6 class="mb-3">Resumen de validación:</h6>
+                            <div class="validation-summary">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-check-circle text-success me-2" id="titleStatus"></i>
+                                    <span class="small">Título: <span id="titleSummary">No validado</span></span>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-check-circle text-success me-2" id="authorsStatus"></i>
+                                    <span class="small">Autores: <span id="authorsSummary">No validado</span></span>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-check-circle text-success me-2" id="categoriesStatus"></i>
+                                    <span class="small">Categorías: <span id="categoriesSummary">No validado</span></span>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-check-circle text-success me-2" id="duplicateStatus"></i>
+                                    <span class="small">Duplicados: <span id="duplicateSummary">No verificado</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary btn-lg" id="validateBtn">
+                                <i class="fas fa-search me-2"></i> Verificar duplicados
+                            </button>
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-cloud-upload-alt me-2"></i> Subir fuente
+                            </button>
+                        </div>
+
+                        <div class="alert alert-info mt-3 d-none" id="duplicateAlert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span id="duplicateMessage"></span>
+                        </div>
+
+                        <div class="alert alert-success mt-3 d-none" id="successAlert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Fuente subida exitosamente. Generando portada...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Modal de verificación de duplicados -->
+    <div class="modal fade" id="duplicateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="duplicateModalTitle">
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        Posible fuente duplicada
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="duplicateModalContent">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="confirmNotDuplicate">
+                        No, es una fuente diferente
+                    </button>
+                    <button type="button" class="btn btn-warning" id="confirmDuplicate">
+                        Sí, es la misma fuente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de redirección -->
+    <div class="modal fade" id="redirectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-sync-alt me-2 text-info"></i>
+                        Redirigiendo...
+                    </h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-external-link-alt fa-3x text-info"></i>
+                    </div>
+                    <h5 id="redirectMessage"></h5>
+                    <div class="mt-4">
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 id="redirectProgress" style="width: 100%"></div>
+                        </div>
+                        <p class="mt-2 small text-muted">
+                            Serás redirigido en <span id="redirectCountdown">5</span> segundos...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: 'upload.js' }) %>

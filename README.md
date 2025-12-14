@@ -22,15 +22,36 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 
 ## 🔗 Rutas
 
-- `/` - Landing page
+### 📍 Páginas Principales
+- `/` - Landing page (página de inicio)
 - `/login` - Página de inicio de sesión
-- `/verify-email` - Página de confirmación de email
-- `/forgot-password` - Perfil de usuario
-- `/register` - Página de registro
+- `/register` - Página de registro de cuenta
+- `/verify-email` - Página de verificación de correo electrónico (OTP)
+- `/forgot-password` - Página de recuperación de contraseña
+
+### 👤 Perfil y Configuración
 - `/profile` - Perfil de usuario
-- `/profile/config` - Configuración del perfil de usuario
-- `/search` - Página de búsqueda en la plataforma
-- `/post/:id`- Información detallada de cada publicación
+- `/profile/config` - Configuración del perfil de usuario (6 pestañas)
+
+### 🔍 Búsqueda y Contenido
+- `/search` - Página de búsqueda avanzada con filtros
+- `/upload` - Página para subir nuevas fuentes bibliográficas
+- `/post/:id` - Página de detalle de una publicación (pendiente por desarrollar)
+
+### 📚 Información y Ayuda
+- `/faq` - Página de preguntas frecuentes (FAQ) con 5 categorías
+- `/terms` - Página de términos y políticas
+
+### ⚠️ Error
+- Cualquier ruta no definida muestra la página 404 personalizada
+
+### 🚧 En Desarrollo
+- `/dashboard` - Dashboard principal de usuario
+- `/post/:id` - Detalle completo de fuente
+- `/chat` - Sistema de chat individual y grupal
+- `/lists` - Gestión de listas curatoriales
+- `/compare` - Comparador de fuentes
+- `/admin` - Panel de administración
 
 ## 🎨 Diseño
 
