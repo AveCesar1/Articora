@@ -1,0 +1,333 @@
+<%- include('partials/header', { 
+    title: 'Dashboard - Artícora', 
+    currentPage: 'dashboard',
+    cssFile: 'dashboard.css'
+}) %>
+
+<div class="container py-4">
+    <!-- Encabezado del Dashboard -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="page-title mb-2">
+                        <i class="fas fa-tachometer-alt me-3"></i>Mi Dashboard
+                    </h1>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-user me-1"></i> Bienvenido/a, <strong>Usuario</strong> 
+                        | Última actualización: <span id="lastUpdate"><%= new Date().toLocaleTimeString('es-ES') %></span>
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary" id="refreshDashboard">
+                        <i class="fas fa-sync-alt me-2"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-book-open fa-2x text-primary"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.userStats.totalReadings %></h3>
+                    <p class="stat-label">Lecturas Totales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-cloud-upload-alt fa-2x text-success"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.userStats.uploadedSources %></h3>
+                    <p class="stat-label">Fuentes Subidas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-check-circle fa-2x text-warning"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.userStats.completedReadings %></h3>
+                    <p class="stat-label">Lecturas Calificadas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-calendar-check fa-2x text-info"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.userStats.activeDays %></h3>
+                    <p class="stat-label">Días Activos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección 1: Tema de Estudio Reciente -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Tema de Estudio Reciente
+                        <span class="badge bg-secondary ms-2">15% más reciente</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 text-center mb-3 mb-md-0">
+                            <div class="category-circle" style="background-color: <%= data.recentStudyTopic.color %>">
+                                <i class="fas fa-brain fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <h3 class="mb-2"><%= data.recentStudyTopic.category %></h3>
+                            <p class="text-muted mb-3">
+                                <i class="fas fa-tag me-2"></i>
+                                <span class="badge bg-light text-dark"><%= data.recentStudyTopic.subcategory %></span>
+                            </p>
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div class="progress-bar" 
+                                     style="width: <%= data.recentStudyTopic.percentage %>%; background-color: <%= data.recentStudyTopic.color %>">
+                                    <%= data.recentStudyTopic.percentage %>%
+                                </div>
+                            </div>
+                            <p class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                <strong><%= data.recentStudyTopic.recentReadings %></strong> lecturas recientes en esta categoría
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Columna izquierda: Mis Referencias y Tema Más Leído -->
+        <div class="col-lg-8">
+            <!-- Sección 2: Mis Referencias -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bookmark me-2"></i>Mis Referencias
+                    </h5>
+                    <span class="badge bg-primary"><%= data.myReferences.length %> fuentes</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Autores</th>
+                                    <th>Año</th>
+                                    <th>Estadísticas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.myReferences.forEach(source => { %>
+                                <tr>
+                                    <td>
+                                        <strong><%= source.title %></strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-<%= source.type === 'Libro' ? 'book' : 'file-alt' %> me-1"></i>
+                                            <%= source.type %>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small><%= source.authors.join(', ') %></small>
+                                    </td>
+                                    <td><%= source.year %></td>
+                                    <td>
+                                        <div class="d-flex gap-3">
+                                            <span class="text-muted small">
+                                                <i class="far fa-eye me-1"></i> <%= source.views %>
+                                            </span>
+                                            <span class="text-muted small">
+                                                <i class="far fa-bookmark me-1"></i> <%= source.bookmarks %>
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end">
+                        <a href="/upload" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus me-1"></i> Subir nueva fuente
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 3: Mi Tema Más Leído -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-star me-2"></i>Mi Tema Más Leído
+                        <span class="badge bg-secondary ms-2">Histórico</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 text-center mb-3 mb-md-0">
+                            <div class="category-circle-large" style="background-color: <%= data.mostReadTopic.color %>">
+                                <i class="fas fa-graduation-cap fa-3x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <h3 class="mb-2"><%= data.mostReadTopic.category %></h3>
+                            <p class="lead mb-3">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                <strong><%= data.mostReadTopic.totalReadings %></strong> lecturas completadas
+                            </p>
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Distribución por subcategorías:</span>
+                                    <span><%= data.mostReadTopic.percentage %>% del total</span>
+                                </div>
+                                <div class="subcategories-distribution">
+                                    <% data.mostReadTopic.subcategories.forEach(subcat => { %>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="me-3" style="width: 100px;">
+                                            <small><%= subcat.name %></small>
+                                        </div>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar" 
+                                                 style="width: <%= (subcat.count / data.mostReadTopic.totalReadings * 100) %>%; 
+                                                        background-color: <%= data.mostReadTopic.color %>"></div>
+                                        </div>
+                                        <small class="ms-2"><%= subcat.count %></small>
+                                    </div>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna derecha: Tendencias Globales -->
+        <div class="col-lg-4">
+            <!-- Sección 4: Tendencias Globales -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-fire me-2"></i>Tendencias Globales
+                    </h5>
+                    <span class="badge bg-warning text-dark">Últimos 30 días</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Top 10 fuentes con más lecturas en la comunidad
+                    </p>
+                    
+                    <div class="trends-list">
+                        <% data.globalTrends.forEach((trend, index) => { %>
+                        <div class="trend-item mb-3">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div class="d-flex align-items-center">
+                                    <span class="trend-rank badge <%= index < 3 ? 'bg-primary' : 'bg-secondary' %> me-2">
+                                        <%= index + 1 %>
+                                    </span>
+                                    <strong class="trend-title"><%= trend.title %></strong>
+                                </div>
+                                <span class="badge <%= trend.trend === 'up' ? 'bg-success' : trend.trend === 'down' ? 'bg-danger' : 'bg-secondary' %>">
+                                    <i class="fas fa-<%= trend.trend === 'up' ? 'arrow-up' : trend.trend === 'down' ? 'arrow-down' : 'minus' %>"></i>
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-user-edit me-1"></i>
+                                    <%= trend.authors.join(', ') %>
+                                </small>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-eye me-1 text-muted"></i>
+                                    <strong class="trend-reads"><%= trend.reads.toLocaleString() %></strong>
+                                </div>
+                            </div>
+                            <div class="mt-1">
+                                <span class="badge bg-light text-dark small">
+                                    <i class="fas fa-folder me-1"></i>
+                                    <%= trend.category %>
+                                </span>
+                            </div>
+                        </div>
+                        <% if (index < data.globalTrends.length - 1) { %>
+                        <hr class="my-2">
+                        <% } %>
+                        <% }) %>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="/search?sort=popular" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt me-1"></i> Ver todas las tendencias
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lecturas Recientes -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Tu Actividad Reciente
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <% data.recentReadings.forEach(reading => { %>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <i class="fas fa-book me-2" style="color: <%= reading.category === 'Ciencias Cognitivas' ? '#8B4513' : 
+                                                                     reading.category === 'Ciencias Humanistas' ? '#6A5ACD' : 
+                                                                     reading.category === 'Ciencias Sociales' ? '#2E8B57' : '#4682B4' %>"></i>
+                            <span><%= reading.category %></span>
+                        </div>
+                        <div class="text-end">
+                            <strong><%= reading.count %> lecturas</strong>
+                            <br>
+                            <small class="text-muted"><%= reading.date %></small>
+                        </div>
+                    </div>
+                    <% }) %>
+                    
+                    <div class="text-center mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" id="viewActivity">
+                            <i class="fas fa-chart-line me-1"></i> Ver estadísticas completas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nota de actualización -->
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Nota:</strong> Las estadísticas se actualizan automáticamente después de cada acción de lectura. 
+                Los cambios se reflejan tras recargar la página.
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: 'dashboard.js' }) %>

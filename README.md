@@ -26,12 +26,14 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 - `/` - Landing page (página de inicio)
 - `/login` - Página de inicio de sesión
 - `/register` - Página de registro de cuenta
-- `/verify-email` - Página de verificación de correo electrónico (OTP)
-- `/forgot-password` - Página de recuperación de contraseña
+- `/chat` - Sistema de chat individual y grupal
 
 ### 👤 Perfil y Configuración
+- `/dashboard` - Dashboard principal de usuario
 - `/profile` - Perfil de usuario
 - `/profile/config` - Configuración del perfil de usuario (6 pestañas)
+- `/verify-email` - Página de verificación de correo electrónico (OTP)
+- `/forgot-password` - Página de recuperación de contraseña
 
 ### 🔍 Búsqueda y Contenido
 - `/search` - Página de búsqueda avanzada con filtros
@@ -46,8 +48,6 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 - Cualquier ruta no definida muestra la página 404 personalizada
 
 ### 🚧 En Desarrollo
-- `/dashboard` - Dashboard principal de usuario
-- `/chat` - Sistema de chat individual y grupal
 - `/lists` - Gestión de listas curatoriales
 - `/compare` - Comparador de fuentes
 - `/admin` - Panel de administración
