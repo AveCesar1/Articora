@@ -372,8 +372,8 @@ app.get('/dashboard', (req, res) => {
 // Ruta para Chat
 app.get('/chat', (req, res) => {
     // Determinar tipo de usuario (simulado)
-    const userType = Math.random() > 0.5 ? 'validated' : 'registered'; // 50% de chance para demostración
-    const isAdmin = Math.random() > 0.8; // 20% de chance de ser admin para demostración
+    const userType = Math.random() > 0.5 ? 'validated' : 'registered';
+    const isAdmin = Math.random() > 0.8;
     
     // Datos mock para el chat
     const chatData = {
@@ -416,10 +416,11 @@ app.get('/chat', (req, res) => {
                 name: 'María Rodríguez',
                 status: 'offline',
                 type: 'validated',
-                isContact: false, // Solicitud pendiente
+                isContact: false, // Solicitud pendiente (yo envié)
                 lastSeen: 'Hace 2 horas',
                 avatar: 'https://ui-avatars.com/api/?name=Maria+Rodriguez&background=FF6347&color=fff',
-                unread: 0
+                unread: 0,
+                requestMessage: 'Hola, me gustaría colaborar en tu investigación sobre cognición.'
             },
             {
                 id: 5,
@@ -430,6 +431,17 @@ app.get('/chat', (req, res) => {
                 lastSeen: 'En línea',
                 avatar: 'https://ui-avatars.com/api/?name=Pedro+Sanchez&background=20B2AA&color=fff',
                 unread: 1
+            },
+            {
+                id: 0,
+                name: 'Artícora',
+                status: 'online',
+                type: 'channel',
+                isContact: true,
+                lastSeen: 'Canal oficial',
+                avatar: 'https://ui-avatars.com/api/?name=Articora&background=DAA520&color=fff&bold=true',
+                unread: 3,
+                isOfficialChannel: true
             }
         ],
         groups: [
@@ -462,24 +474,9 @@ app.get('/chat', (req, res) => {
                     time: 'Ayer'
                 },
                 avatar: 'https://ui-avatars.com/api/?name=Filosofia&background=6A5ACD&color=fff&bold=true'
-            },
-            {
-                id: 103,
-                name: 'Investigación en IA',
-                description: 'Grupo de investigación en inteligencia artificial',
-                creatorId: 5,
-                members: 11,
-                maxMembers: 12,
-                isMember: false, // No miembro, puede solicitar unirse
-                lastMessage: {
-                    sender: 'Pedro Sánchez',
-                    text: 'El nuevo modelo de lenguaje...',
-                    time: '2 días'
-                },
-                avatar: 'https://ui-avatars.com/api/?name=IA+Research&background=4682B4&color=fff&bold=true'
             }
         ],
-        pendingRequests: [
+        incomingRequests: [
             {
                 id: 6,
                 name: 'Laura Martínez',
@@ -497,41 +494,60 @@ app.get('/chat', (req, res) => {
                 avatar: 'https://ui-avatars.com/api/?name=Juan+Perez&background=32CD32&color=fff'
             }
         ],
-        articoraChannel: {
-            id: 0,
-            name: 'Artícora',
-            description: 'Canal oficial de anuncios y notificaciones',
-            isAdmin: isAdmin,
-            messages: [
-                {
-                    id: 1001,
-                    sender: 'Administración',
-                    text: '⚠️ Mantenimiento programado: El sistema estará en mantenimiento el próximo domingo de 2:00 a 6:00 AM.',
-                    time: 'Hoy 09:00',
-                    isAnnouncement: true
-                },
-                {
-                    id: 1002,
-                    sender: 'Administración',
-                    text: '🎉 Nueva función: Ya está disponible el comparador de fuentes. Pruébalo en /compare',
-                    time: 'Ayer 14:30',
-                    isAnnouncement: true
-                },
-                {
-                    id: 1003,
-                    sender: 'Administración',
-                    text: '📢 Recordatorio: El límite semanal de archivos es de 50. Actualmente llevas 23 archivos subidos esta semana.',
-                    time: '2 días 11:15',
-                    isAnnouncement: true
-                }
-            ]
-        },
+        articoraMessages: [
+            {
+                id: 1001,
+                sender: 'Administración',
+                text: '⚠️ Mantenimiento programado: El sistema estará en mantenimiento el próximo domingo de 2:00 a 6:00 AM.',
+                time: 'Hoy 09:00',
+                isAnnouncement: true
+            },
+            {
+                id: 1002,
+                sender: 'Administración',
+                text: '🎉 Nueva función: Ya está disponible el comparador de fuentes. Pruébalo en /compare',
+                time: 'Ayer 14:30',
+                isAnnouncement: true
+            },
+            {
+                id: 1003,
+                sender: 'Administración',
+                text: '📢 Recordatorio: El límite semanal de archivos es de 50. Actualmente llevas 23 archivos subidos esta semana.',
+                time: '2 días 11:15',
+                isAnnouncement: true
+            }
+        ],
+        fileFormats: [
+            { ext: 'pdf', name: 'PDF', icon: 'file-pdf', color: '#e74c3c' },
+            { ext: 'png', name: 'PNG', icon: 'file-image', color: '#3498db' },
+            { ext: 'jpg', name: 'JPG', icon: 'file-image', color: '#3498db' },
+            { ext: 'jpeg', name: 'JPEG', icon: 'file-image', color: '#3498db' },
+            { ext: 'doc', name: 'Word', icon: 'file-word', color: '#2c3e50' },
+            { ext: 'docx', name: 'Word', icon: 'file-word', color: '#2c3e50' },
+            { ext: 'xls', name: 'Excel', icon: 'file-excel', color: '#27ae60' },
+            { ext: 'xlsx', name: 'Excel', icon: 'file-excel', color: '#27ae60' },
+            { ext: 'ppt', name: 'PowerPoint', icon: 'file-powerpoint', color: '#e67e22' },
+            { ext: 'pptx', name: 'PowerPoint', icon: 'file-powerpoint', color: '#e67e22' },
+            { ext: 'zip', name: 'ZIP', icon: 'file-archive', color: '#f39c12' }
+        ],
+        reportReasons: [
+            'Contenido inapropiado',
+            'Spam o publicidad no solicitada',
+            'Información falsa o engañosa',
+            'Acoso o comportamiento ofensivo',
+            'Violación de derechos de autor',
+            'Contenido no académico',
+            'Otro'
+        ],
+        // Chat activo por defecto
         activeChat: {
             type: 'individual',
             id: 2,
             name: 'Ana García',
             status: 'online',
+            avatar: 'https://ui-avatars.com/api/?name=Ana+Garcia&background=2E8B57&color=fff',
             encryption: true,
+            isRequest: false,
             messages: [
                 {
                     id: 1,
@@ -564,44 +580,9 @@ app.get('/chat', (req, res) => {
                     time: '10:35',
                     isOwn: true,
                     status: 'delivered'
-                },
-                {
-                    id: 5,
-                    sender: 'Ana García',
-                    text: 'Perfecto, gracias. Adjunto el archivo con los datos adicionales que mencioné.',
-                    time: '10:36',
-                    isOwn: false,
-                    status: 'read',
-                    file: {
-                        name: 'datos_adicionales.pdf',
-                        size: '2.4 MB',
-                        type: 'pdf'
-                    }
                 }
             ]
-        },
-        fileFormats: [
-            { ext: 'pdf', name: 'PDF', icon: 'file-pdf', color: '#e74c3c' },
-            { ext: 'png', name: 'PNG', icon: 'file-image', color: '#3498db' },
-            { ext: 'jpg', name: 'JPG', icon: 'file-image', color: '#3498db' },
-            { ext: 'jpeg', name: 'JPEG', icon: 'file-image', color: '#3498db' },
-            { ext: 'doc', name: 'Word', icon: 'file-word', color: '#2c3e50' },
-            { ext: 'docx', name: 'Word', icon: 'file-word', color: '#2c3e50' },
-            { ext: 'xls', name: 'Excel', icon: 'file-excel', color: '#27ae60' },
-            { ext: 'xlsx', name: 'Excel', icon: 'file-excel', color: '#27ae60' },
-            { ext: 'ppt', name: 'PowerPoint', icon: 'file-powerpoint', color: '#e67e22' },
-            { ext: 'pptx', name: 'PowerPoint', icon: 'file-powerpoint', color: '#e67e22' },
-            { ext: 'zip', name: 'ZIP', icon: 'file-archive', color: '#f39c12' }
-        ],
-        reportReasons: [
-            'Contenido inapropiado',
-            'Spam o publicidad no solicitada',
-            'Información falsa o engañosa',
-            'Acoso o comportamiento ofensivo',
-            'Violación de derechos de autor',
-            'Contenido no académico',
-            'Otro'
-        ]
+        }
     };
 
     res.render('chat', {

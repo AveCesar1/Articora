@@ -58,31 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('404 - Página no encontrada:', window.location.href);
     console.log('Referrer:', document.referrer);
     
-    // Función para mostrar ayuda adicional
-    function showAdditionalHelp() {
-        const additionalHelp = document.createElement('div');
-        additionalHelp.className = 'alert alert-info mt-4';
-        additionalHelp.innerHTML = `
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>¿Sigues teniendo problemas?</strong> 
-            Puedes intentar limpiar la caché de tu navegador o contactar a nuestro 
-            <a href="mailto:soporte@articora.com" class="alert-link">equipo de soporte</a>.
-        `;
-        
-        const container = document.querySelector('.container');
-        container.appendChild(additionalHelp);
-        
-        // Animación de entrada
-        additionalHelp.style.opacity = '0';
-        additionalHelp.style.transform = 'translateY(20px)';
-        additionalHelp.style.transition = 'all 0.5s ease';
-        
-        setTimeout(() => {
-            additionalHelp.style.opacity = '1';
-            additionalHelp.style.transform = 'translateY(0)';
-        }, 100);
-    }
-    
     // Efecto de escritura en el campo de búsqueda
     const placeholderTexts = [
         'Buscar fuentes académicas...',

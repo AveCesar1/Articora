@@ -1,36 +1,43 @@
-/* chat.css - Estilos rediseñados para el sistema de chat */
+/* chat.css - Estilos optimizados para pantalla completa */
 
+/* Variables */
 :root {
     --sidebar-width: 320px;
-    --sidebar-bg: #f8f9fa;
-    --main-bg: #ffffff;
-    --message-bg: #f0f2f5;
-    --own-message-bg: #0084ff;
-    --own-message-color: #ffffff;
-    --border-light: #e4e6eb;
+    --header-height: 60px;
+    --footer-height: 60px;
+    --primary-color: #2c1810;
+    --secondary-color: #5d4037;
+    --accent-color: #8d6e63;
+    --light-color: #f5f1e6;
+    --text-color: #3e2723;
+    --border-color: #d4c8be;
     --online-color: #31a24c;
     --away-color: #ffb300;
-    --offline-color: #8d949e;
-    --unread-badge: #1877f2;
+    --offline-color: #95a5a6;
+    --message-bg: #f0f2f5;
+    --own-message-bg: #0084ff;
+    --own-message-color: white;
 }
 
-/* Contenedor principal */
-.chat-main-container {
-    height: calc(100vh - 76px);
-    background-color: var(--main-bg);
+/* Reset y base */
+.chat-app {
+    height: calc(100vh - 76px); /* 76px es la altura del header */
+    background-color: white;
     overflow: hidden;
 }
 
-.chat-layout {
+.chat-container {
     display: flex;
     height: 100%;
+    width: 100%;
+    background-color: white;
 }
 
 /* ========== SIDEBAR IZQUIERDO ========== */
 .chat-sidebar {
     width: var(--sidebar-width);
-    background-color: var(--sidebar-bg);
-    border-right: 1px solid var(--border-light);
+    background-color: white;
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -38,97 +45,114 @@
 }
 
 /* Perfil del usuario */
-.user-profile-card {
+.user-profile {
     padding: 1rem;
-    border-bottom: 1px solid var(--border-light);
-    background-color: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border-color);
+    background-color: white;
 }
 
-.user-profile-card .avatar {
+.avatar-container {
+    position: relative;
+}
+
+.avatar {
     width: 45px;
     height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
-.limits-info {
-    font-size: 0.75rem;
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
-/* Barra de búsqueda */
+.avatar-lg {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.status-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.status-indicator.online {
+    background-color: var(--online-color);
+}
+
+.status-indicator.away {
+    background-color: var(--away-color);
+}
+
+.status-indicator.offline {
+    background-color: var(--offline-color);
+}
+
+/* Búsqueda */
 .sidebar-search {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar-search .input-group {
     background-color: white;
     border-radius: 20px;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-color);
 }
 
 .sidebar-search .input-group:focus-within {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(141, 110, 99, 0.1);
 }
 
-/* Navegación */
-.sidebar-nav {
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.nav-tabs {
+/* Pestañas */
+.sidebar-tabs {
     display: flex;
-    justify-content: space-between;
-    gap: 4px;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: white;
 }
 
-.nav-tab {
+.tab-btn {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 8px 4px;
+    padding: 0.5rem;
     border: none;
     background: transparent;
     color: var(--text-color);
     border-radius: 8px;
     transition: all 0.2s ease;
     font-size: 0.75rem;
-    position: relative;
 }
 
-.nav-tab i {
+.tab-btn i {
     font-size: 1.1rem;
-    margin-bottom: 4px;
+    margin-bottom: 0.25rem;
 }
 
-.nav-tab span {
-    font-size: 0.7rem;
-    white-space: nowrap;
-}
-
-.nav-tab .badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    font-size: 0.6rem;
-    padding: 2px 4px;
-    min-width: 16px;
-    height: 16px;
-}
-
-.nav-tab.active {
+.tab-btn.active {
     background-color: var(--accent-color);
     color: white;
 }
 
-.nav-tab:hover:not(.active) {
+.tab-btn:hover:not(.active) {
     background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Contenido del sidebar */
-.sidebar-content {
+/* Lista de chats */
+.chats-list {
     flex: 1;
     overflow-y: auto;
     padding: 0.5rem 0;
@@ -136,67 +160,61 @@
 
 .tab-content {
     display: none;
-    padding: 0 1rem;
+    animation: fadeIn 0.3s ease;
 }
 
 .tab-content.active {
     display: block;
 }
 
-/* Listas */
-.list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 0;
-    font-size: 0.75rem;
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-/* Contactos */
-.contact-list, .group-list, .request-list {
-    margin-bottom: 1rem;
-}
-
-.contact-item, .group-item {
-    padding: 0.5rem;
+/* Elementos de chat */
+.chat-item {
+    padding: 0.75rem 1rem;
     border-radius: 8px;
-    margin-bottom: 2px;
+    margin: 0.125rem 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
-.contact-item:hover:not(.pending),
-.group-item:hover:not(.active) {
-    background-color: rgba(0, 0, 0, 0.05);
+.chat-item:hover {
+    background-color: rgba(0, 0, 0, 0.03);
 }
 
-.contact-item.active,
-.group-item.active {
+.chat-item.active {
     background-color: var(--accent-color);
     color: white;
+    border-color: var(--accent-color);
 }
 
-.contact-item.active .text-muted,
-.group-item.active .text-muted {
+.chat-item.active .text-muted {
     color: rgba(255, 255, 255, 0.8) !important;
 }
 
-.contact-item.pending:hover .btn-group {
-    opacity: 1;
+.chat-info {
+    min-width: 0; /* Para que el text-truncate funcione */
 }
 
-.contact-item.pending .btn-group {
-    opacity: 0;
-    transition: opacity 0.2s ease;
+.chat-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Solicitudes */
 .request-item {
-    padding: 0.75rem;
-    background-color: white;
+    padding: 0.75rem 1rem;
+    margin: 0.125rem 0.5rem;
     border-radius: 8px;
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-color);
+    background-color: white;
     transition: transform 0.2s ease;
 }
 
@@ -208,26 +226,26 @@
 .request-message {
     font-size: 0.85rem;
     color: var(--text-color);
+    margin: 0.5rem 0;
     line-height: 1.4;
+}
+
+.request-actions {
+    display: flex;
+    gap: 0.5rem;
     margin-top: 0.5rem;
 }
 
-/* Canal Artícora */
-.channel-messages {
-    padding: 0.5rem 0;
+.request-actions .btn {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
-.channel-message {
-    padding: 0.75rem;
-    background-color: white;
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
-    border-left: 3px solid var(--border-light);
-}
-
-.channel-message.announcement {
-    border-left-color: var(--warning-color);
-    background-color: rgba(255, 193, 7, 0.05);
+.request-actions .report-btn {
+    flex: 0 0 auto;
+    width: 36px;
 }
 
 /* ========== ÁREA PRINCIPAL DEL CHAT ========== */
@@ -236,19 +254,18 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background-color: var(--main-bg);
+    background-color: white;
 }
 
 /* Encabezado del chat */
 .chat-header {
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
     background-color: white;
     z-index: 10;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .chat-actions .btn {
@@ -257,11 +274,11 @@
 }
 
 /* Área de mensajes */
-.messages-area {
+.messages-container {
     flex: 1;
     overflow-y: auto;
     padding: 1.5rem;
-    background-color: var(--chat-bg);
+    background-color: white;
     display: flex;
     flex-direction: column;
 }
@@ -276,6 +293,17 @@
 
 .message.own {
     align-self: flex-end;
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message-content {
@@ -323,30 +351,35 @@
     font-size: 0.7rem;
 }
 
-/* Archivos */
-.file-message {
-    background-color: white;
-    padding: 0.75rem;
-    border-radius: 8px;
-    border: 1px solid var(--border-light);
-}
-
-/* Canal Artícora en área principal */
+/* Canal Artícora */
 .channel-welcome {
-    padding: 2rem;
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    text-align: center;
     margin-bottom: 2rem;
 }
 
-.channel-message-card {
+.channel-message {
     padding: 1rem;
     background-color: white;
     border-radius: 8px;
     border-left: 4px solid var(--warning-color);
     margin-bottom: 1rem;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.channel-message.announcement {
+    border-left-color: var(--warning-color);
+    background-color: rgba(255, 193, 7, 0.05);
+}
+
+.message-icon {
+    flex-shrink: 0;
+}
+
+/* Solicitud pendiente (vista de chat) */
+.request-chat-view {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
 }
 
 /* Indicador de cifrado */
@@ -363,207 +396,112 @@
 /* Área de entrada */
 .message-input-area {
     padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-light);
+    border-top: 1px solid var(--border-color);
     background-color: white;
 }
 
-.message-form {
-    background-color: var(--message-bg);
+#messageForm .input-group {
+    background-color: var(--light-color);
     border-radius: 24px;
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-light);
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
 }
 
-.input-wrapper {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.5rem;
-}
-
-.message-input {
-    flex: 1;
+#messageInput {
     border: none;
     background: transparent;
     resize: none;
-    padding: 0.5rem 0;
+    padding: 0.5rem;
     max-height: 120px;
     font-size: 0.95rem;
 }
 
-.message-input:focus {
+#messageInput:focus {
     outline: none;
     box-shadow: none;
-}
-
-.input-actions {
-    display: flex;
-    gap: 0.25rem;
-    align-items: center;
-}
-
-.send-button {
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .input-info {
     display: flex;
     justify-content: space-between;
-    padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
 }
 
-/* Información del canal */
-.channel-info {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-light);
-}
-
-/* ========== AVATARES Y ESTADOS ========== */
-.avatar {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-}
-
-.avatar-sm {
-    width: 36px;
-    height: 36px;
-    object-fit: cover;
-}
-
-.status-indicator {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--sidebar-bg);
-}
-
-.status-indicator.online {
-    background-color: var(--online-color);
-}
-
-.status-indicator.away {
-    background-color: var(--away-color);
-}
-
-.status-indicator.offline {
-    background-color: var(--offline-color);
-}
-
-/* ========== ANIMACIONES ========== */
-@keyframes messageSlide {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.message.new {
-    animation: pulse 0.3s ease;
-}
-
-/* ========== SCROLLBARS ========== */
-.sidebar-content::-webkit-scrollbar,
-.messages-area::-webkit-scrollbar {
+/* Scrollbars personalizados */
+.chats-list::-webkit-scrollbar,
+.messages-container::-webkit-scrollbar {
     width: 6px;
 }
 
-.sidebar-content::-webkit-scrollbar-track,
-.messages-area::-webkit-scrollbar-track {
+.chats-list::-webkit-scrollbar-track,
+.messages-container::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.sidebar-content::-webkit-scrollbar-thumb,
-.messages-area::-webkit-scrollbar-thumb {
+.chats-list::-webkit-scrollbar-thumb,
+.messages-container::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 3px;
 }
 
-.sidebar-content::-webkit-scrollbar-thumb:hover,
-.messages-area::-webkit-scrollbar-thumb:hover {
+.chats-list::-webkit-scrollbar-thumb:hover,
+.messages-container::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.3);
 }
 
 /* ========== RESPONSIVE ========== */
-@media (max-width: 992px) {
-    .chat-sidebar {
-        width: 280px;
-    }
-}
-
 @media (max-width: 768px) {
-    .chat-layout {
+    .chat-container {
         flex-direction: column;
     }
     
     .chat-sidebar {
         width: 100%;
-        height: auto;
-        max-height: 50vh;
+        height: 50vh;
     }
     
     .chat-main {
-        height: calc(50vh - 76px);
+        height: 50vh;
+    }
+    
+    .sidebar-tabs {
+        justify-content: space-around;
+    }
+    
+    .tab-btn span {
+        display: none;
+    }
+    
+    .tab-btn i {
+        margin-bottom: 0;
+        font-size: 1.2rem;
     }
     
     .message {
         max-width: 85%;
     }
     
-    .nav-tab span {
-        display: none;
+    .chat-header {
+        padding: 0.75rem 1rem;
     }
     
-    .nav-tab i {
-        margin-bottom: 0;
-        font-size: 1.2rem;
+    .messages-container {
+        padding: 1rem;
     }
 }
 
-/* ========== ESTILOS ADICIONALES ========== */
-.character-counter {
-    padding: 0.5rem;
-    background-color: rgba(0, 0, 0, 0.02);
-    border-radius: 6px;
+/* ========== UTILIDADES ========== */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.channel-icon {
-    width: 36px;
-    height: 36px;
-    background-color: rgba(241, 196, 15, 0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.flex-grow-1 {
+    flex-grow: 1;
 }
 
-/* Efectos hover */
-.btn-outline-primary:hover {
-    background-color: var(--accent-color);
-    border-color: var(--accent-color);
-    color: white;
-}
-
-/* Tooltips personalizados */
+/* Tooltips */
 .tooltip-inner {
     background-color: var(--primary-color);
     color: white;
@@ -572,6 +510,13 @@
     font-size: 0.8rem;
 }
 
-.tooltip.bs-tooltip-auto[x-placement^="top"] .tooltip-arrow::before {
-    border-top-color: var(--primary-color);
+/* Animaciones */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.message.new {
+    animation: pulse 0.3s ease;
 }

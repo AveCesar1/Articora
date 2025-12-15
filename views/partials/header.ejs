@@ -59,7 +59,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'landing' ? 'active' : '' %>" href="/">
+                        <a class="nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>" href="/dashboard">
                             <i class="fas fa-home me-1"></i> Inicio
                         </a>
                     </li>
@@ -69,7 +69,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#about">
+                        <a class="nav-link <%= currentPage === 'faq' ? 'active' : '' %>" href="/faq">
                             <i class="fas fa-info-circle me-1"></i> Acerca de
                         </a>
                     </li>
