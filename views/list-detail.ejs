@@ -1,0 +1,685 @@
+<%- include('partials/header', { title: data.list ? `${data.list.title} - Artícora` : 'Lista no encontrada - Artícora' ,
+    currentPage: 'lists' , cssFile: 'lists.css' }) %>
+
+    <!-- Pasar datos del servidor al JavaScript -->
+    <script id="listDetailData" type="application/json">
+        <%- JSON.stringify(data) %>
+    </script>
+
+    <div class="container-fluid py-4">
+        <% if (!data.list) { %>
+            <!-- Lista no encontrada -->
+            <div class="text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-4x text-warning mb-4"></i>
+                <h2 class="text-muted mb-3">Lista no encontrada</h2>
+                <p class="text-muted mb-4">La lista que buscas no existe o no tienes permisos para verla.</p>
+                <a href="/lists" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i> Volver a mis listas
+                </a>
+            </div>
+            <% } else { %>
+                <div class="row">
+                    <!-- Barra lateral de información y estadísticas -->
+                    <div class="col-lg-3 col-xl-2">
+                        <!-- Portada e información básica -->
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <img src="<%= data.list.coverImage %>" alt="Portada de <%= data.list.title %>"
+                                        class="img-fluid rounded" style="max-height: 200px;">
+                                </div>
+
+                                <% if (data.user.isOwner) { %>
+                                    <div class="d-flex gap-2 mb-3 sidebar-actions">
+                                        <button class="btn btn-sm btn-outline-primary flex-fill icon-btn"
+                                            id="editCoverBtn">
+                                            <i class="fas fa-image"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary flex-fill icon-btn"
+                                            id="shareListBtn">
+                                            <i class="fas fa-share-alt"></i>
+                                        </button>
+                                    </div>
+                                    <% } %>
+
+
+                                        <!-- Estado de la lista -->
+                                        <div class="mb-3">
+                                            <% if (data.list.isCollaborative) { %>
+                                                <span class="badge bg-success mb-2">
+                                                    <i class="fas fa-users me-1"></i> Colaborativa
+                                                </span>
+                                                <% } %>
+                                                    <% if (!data.list.isPublic) { %>
+                                                        <span class="badge bg-secondary">
+                                                            <i class="fas fa-lock me-1"></i> Privada
+                                                        </span>
+                                                        <% } else { %>
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-globe-americas me-1"></i> Pública
+                                                            </span>
+                                                            <% } %>
+                                        </div>
+
+                                        <!-- Información del creador -->
+                                        <div class="d-flex align-items-center justify-content-center mb-3">
+                                            <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(data.list.creatorName) %>&background=8d6e63&color=fff"
+                                                alt="<%= data.list.creatorName %>"
+                                                class="avatar-sm rounded-circle me-2">
+                                            <div class="text-start">
+                                                <small class="d-block">Creada por</small>
+                                                <strong>
+                                                    <%= data.list.creatorName %>
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        <!-- Fechas -->
+                                        <div class="small text-muted">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Creada:</span>
+                                                <span>
+                                                    <%= new Date(data.list.createdAt).toLocaleDateString('es-ES') %>
+                                                </span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Última modificación:</span>
+                                                <span>
+                                                    <%= new Date(data.list.lastModified).toLocaleDateString('es-ES') %>
+                                                </span>
+                                            </div>
+                                        </div>
+                            </div>
+                        </div>
+
+                        <!-- Estadísticas -->
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>Estadísticas
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <div class="display-6 fw-bold">
+                                        <%= data.list.totalVisits.toLocaleString() %>
+                                    </div>
+                                    <small class="text-muted">Visitas totales</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <small class="text-muted d-block mb-2">Distribución de categorías:</small>
+                                    <% Object.entries(data.list.categoriesDistribution || {}).forEach(([category,
+                                        percentage])=> {
+                                        const catInfo = data.knowledgeCategories?.find(c => c.name === category);
+                                        %>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="small">
+                                                <i class="fas fa-circle me-1"
+                                                    style="color: <%= catInfo ? catInfo.color : '#8d6e63' %>"></i>
+                                                <%= category %>
+                                            </span>
+                                            <span class="small fw-bold">
+                                                <%= percentage %>%
+                                            </span>
+                                        </div>
+                                        <% }) %>
+                                </div>
+
+                                <% if (data.list.monthlyVisits) { %>
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block mb-2">Visitas últimos 12 meses:</small>
+                                        <div class="progress" style="height: 20px;">
+                                            <% const maxVisits=Math.max(...data.list.monthlyVisits);
+                                                data.list.monthlyVisits.slice(-6).forEach(visits=> {
+                                                const width = (visits / maxVisits) * 100;
+                                                %>
+                                                <div class="progress-bar" style="width: <%= width %>%"
+                                                    title="<%= visits %> visitas"></div>
+                                                <% }) %>
+                                        </div>
+                                        <small class="text-muted d-block text-center mt-1">Últimos 6 meses</small>
+                                    </div>
+                                    <% } %>
+                            </div>
+                        </div>
+
+                        <!-- Colaboradores (si aplica) -->
+                        <% if (data.list.collaborators && data.list.collaborators.length> 0) { %>
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-users me-2"></i>Colaboradores
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <% data.list.collaborators.forEach(collab=> { %>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <img src="<%= collab.avatar %>" alt="<%= collab.name %>"
+                                                class="avatar-xs rounded-circle me-2">
+                                            <span class="small">
+                                                <%= collab.name %>
+                                            </span>
+                                        </div>
+                                        <% }) %>
+
+                                            <% if (data.user.isOwner) { %>
+                                                <button class="btn btn-sm btn-outline-primary w-100 mt-2"
+                                                    id="manageCollaboratorsBtn">
+                                                    <i class="fas fa-user-plus me-1"></i> Gestionar colaboradores
+                                                </button>
+                                                <% } %>
+                                </div>
+                            </div>
+                            <% } %>
+                    </div>
+
+                    <!-- Área principal de contenido -->
+                    <div class="col-lg-9 col-xl-10">
+                        <!-- Encabezado con título y acciones -->
+                        <div class="d-flex justify-content-between align-items-start mb-4">
+                            <div>
+                                <h1 class="h2 mb-1" id="listTitleDisplay">
+                                    <%= data.list.title %>
+                                </h1>
+                                <p class="text-muted mb-0" id="listDescriptionDisplay">
+                                    <%= data.list.description || 'Sin descripción' %>
+                                </p>
+                            </div>
+
+                            <div class="btn-group">
+                                <% if (data.user.canEdit) { %>
+                                    <button class="btn btn-outline-primary" id="editListBtn">
+                                        <i class="fas fa-edit me-1"></i> Editar información
+                                    </button>
+                                    <% } %>
+
+                                        <button class="btn btn-outline-primary" id="exportListBtn">
+                                            <i class="fas fa-download me-1"></i> Exportar
+                                        </button>
+
+                                        <% if (data.user.isOwner) { %>
+                                            <button class="btn btn-outline-danger" id="deleteListBtn">
+                                                <i class="fas fa-trash me-1"></i> Eliminar
+                                            </button>
+                                            <% } %>
+                            </div>
+                        </div>
+
+                        <% if (data.user.canEdit) { %>
+                            <!-- Modo edición: Panel de control -->
+                            <div class="card border-0 shadow-sm mb-4">
+                                <div class="card-header bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0" style="color: black;">
+                                            <i class="fas fa-sliders-h me-2"></i>Gestionar lista
+                                        </h6>
+                                        <div class="small" style="color: black;">
+                                            <span id="sourceCount">
+                                                <%= data.list.sources ? data.list.sources.length : 0 %>
+                                            </span>/<%= data.user.maxSourcesPerList %> fuentes
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Barra de herramientas -->
+                                    <div class="d-flex flex-wrap gap-2 mb-4">
+                                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                            data-bs-target="#addSourcesModal">
+                                            <i class="fas fa-plus-circle me-1"></i> Añadir fuentes
+                                        </button>
+
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                type="button" data-bs-toggle="dropdown">
+                                                <i class="fas fa-sort me-1"></i> Ordenar por
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" data-sort="added">Fecha de adición
+                                                        (más reciente)</a></li>
+                                                <li><a class="dropdown-item" href="#" data-sort="rating">Calificación
+                                                        (mayor a menor)</a></li>
+                                                <li><a class="dropdown-item" href="#" data-sort="title-asc">Título
+                                                        (A-Z)</a></li>
+                                                <li><a class="dropdown-item" href="#" data-sort="title-desc">Título
+                                                        (Z-A)</a></li>
+                                            </ul>
+                                        </div>
+
+                                        <button class="btn btn-sm btn-outline-secondary" id="saveOrderBtn"
+                                            style="display: none;">
+                                            <i class="fas fa-save me-1"></i> Guardar orden
+                                        </button>
+
+                                        <div class="ms-auto">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="editModeSwitch"
+                                                    checked>
+                                                <label class="form-check-label" for="editModeSwitch">Modo
+                                                    edición</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Lista de fuentes (ordenable) -->
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="sourcesTable">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 40px;">#</th>
+                                                    <th style="width: 80px;">Portada</th>
+                                                    <th>Título y autor</th>
+                                                    <th style="width: 100px;">Categoría</th>
+                                                    <th style="width: 100px;">Calificación</th>
+                                                    <th style="width: 100px;">Añadida</th>
+                                                    <th style="width: 80px;">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="sourcesList" class="sortable-list">
+                                                <% if (data.list.sources && data.list.sources.length> 0) {
+                                                    data.list.sources.forEach((source, index) => {
+                                                    %>
+                                                    <tr class="sortable-item" data-id="<%= source.id %>"
+                                                        data-order="<%= source.order || index + 1 %>">
+                                                        <td class="text-muted">
+                                                            <i class="fas fa-grip-vertical grip-handle"></i>
+                                                            <span class="item-number">
+                                                                <%= index + 1 %>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <img src="<%= source.cover %>" alt="<%= source.title %>"
+                                                                class="img-thumbnail"
+                                                                style="width: 60px; height: 80px; object-fit: cover;">
+                                                        </td>
+                                                        <td>
+                                                            <div class="fw-bold">
+                                                                <%= source.title %>
+                                                            </div>
+                                                            <div class="small text-muted">
+                                                                <%= source.author %>
+                                                                    <% if (source.year) { %>(<%= source.year %>)<% } %>
+                                                            </div>
+                                                            <% if (source.isDeleted) { %>
+                                                                <div class="small text-danger">
+                                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                                    <%= source.title %>
+                                                                </div>
+                                                                <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-light text-dark">
+                                                                <%= source.category %>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <% if (!source.isDeleted) { %>
+                                                                <div class="rating-display">
+                                                                    <i class="fas fa-star text-warning"></i>
+                                                                    <span class="ms-1">
+                                                                        <%= source.rating %>
+                                                                    </span>
+                                                                </div>
+                                                                <% } else { %>
+                                                                    <span class="text-muted">N/A</span>
+                                                                    <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <small class="text-muted">
+                                                                <%= new
+                                                                    Date(source.addedDate).toLocaleDateString('es-ES')
+                                                                    %>
+                                                            </small>
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm">
+                                                                <a href="#" class="btn btn-outline-primary"
+                                                                    title="Ver fuente">
+                                                                    <i class="fas fa-eye"></i>
+                                                                </a>
+                                                                <button class="btn btn-outline-danger remove-source-btn"
+                                                                    data-id="<%= source.id %>"
+                                                                    title="Eliminar de la lista">
+                                                                    <i class="fas fa-times"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <% }); } else { %>
+                                                        <tr>
+                                                            <td colspan="7" class="text-center py-4 text-muted">
+                                                                <i class="fas fa-inbox fa-2x mb-3"></i>
+                                                                <p class="mb-0">No hay fuentes en esta lista</p>
+                                                            </td>
+                                                        </tr>
+                                                        <% } %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <% } else { %>
+                                <!-- Modo lectura: Vista pública -->
+                                <div class="card border-0 shadow-sm mb-4">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-book me-2"></i>Fuentes en esta lista
+                                            <span class="badge bg-secondary ms-2">
+                                                <%= data.list.sources ? data.list.sources.length : 0 %>
+                                            </span>
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <% if (!data.list.sources || data.list.sources.length===0) { %>
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                                <h5 class="text-muted">Esta lista está vacía</h5>
+                                                <p class="text-muted">El creador aún no ha añadido fuentes a esta lista.
+                                                </p>
+                                            </div>
+                                            <% } else { %>
+                                                <div class="row">
+                                                    <% data.list.sources.forEach(source=> { %>
+                                                        <div class="col-md-6 col-lg-4 mb-4">
+                                                            <div class="card h-100 border-0 shadow-sm hover-lift">
+                                                                <div class="row g-0">
+                                                                    <div class="col-4">
+                                                                        <img src="<%= source.cover %>"
+                                                                            alt="<%= source.title %>"
+                                                                            class="img-fluid h-100 object-fit-cover rounded-start">
+                                                                    </div>
+                                                                    <div class="col-8">
+                                                                        <div class="card-body">
+                                                                            <h6 class="card-title mb-1"
+                                                                                title="<%= source.title %>">
+                                                                                <%= source.title.length> 50 ?
+                                                                                    source.title.substring(0, 50) +
+                                                                                    '...' : source.title %>
+                                                                            </h6>
+                                                                            <p class="card-text small text-muted mb-2">
+                                                                                <%= source.author %>
+                                                                                    <% if (source.year) { %>(<%=
+                                                                                            source.year %>)<% } %>
+                                                                            </p>
+                                                                            <% if (source.isDeleted) { %>
+                                                                                <div
+                                                                                    class="alert alert-warning py-1 mb-2">
+                                                                                    <i
+                                                                                        class="fas fa-exclamation-triangle me-1"></i>
+                                                                                    <small>Este título se ha eliminado
+                                                                                        de la plataforma</small>
+                                                                                </div>
+                                                                                <% } else { %>
+                                                                                    <div
+                                                                                        class="d-flex justify-content-between align-items-center">
+                                                                                        <span
+                                                                                            class="badge bg-light text-dark">
+                                                                                            <%= source.category %>
+                                                                                        </span>
+                                                                                        <div
+                                                                                            class="rating-display small">
+                                                                                            <i
+                                                                                                class="fas fa-star text-warning"></i>
+                                                                                            <span>
+                                                                                                <%= source.rating %>
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <% } %>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <% }) %>
+                                                </div>
+                                                <% } %>
+                                    </div>
+                                </div>
+                                <% } %>
+
+                                    <!-- Espacio para estadísticas detalladas o comentarios -->
+                                    <div class="row">
+                                        <% if (data.list.categoriesDistribution &&
+                                            Object.keys(data.list.categoriesDistribution).length> 0) { %>
+                                            <div class="col-lg-6">
+                                                <div class="card border-0 shadow-sm h-100">
+                                                    <div class="card-header">
+                                                        <h6 class="mb-0">
+                                                            <i class="fas fa-chart-pie me-2"></i>Distribución por
+                                                            categorías
+                                                        </h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div id="categoriesChart" style="height: 250px;">
+                                                            <!-- Gráfico de torta será generado con JavaScript -->
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% } %>
+
+                                                <div class="col-lg-6">
+                                                    <div class="card border-0 shadow-sm h-100">
+                                                        <div class="card-header">
+                                                            <h6 class="mb-0">
+                                                                <i class="fas fa-history me-2"></i>Actividad reciente
+                                                            </h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="timeline">
+                                                                <div class="timeline-item mb-3">
+                                                                    <div class="timeline-marker bg-success"></div>
+                                                                    <div class="timeline-content">
+                                                                        <small class="text-muted">Hoy</small>
+                                                                        <p class="mb-0">Se añadieron 2 nuevas fuentes a
+                                                                            la lista</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="timeline-item mb-3">
+                                                                    <div class="timeline-marker bg-primary"></div>
+                                                                    <div class="timeline-content">
+                                                                        <small class="text-muted">Ayer</small>
+                                                                        <p class="mb-0">María Rodríguez reordenó las
+                                                                            fuentes</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="timeline-item">
+                                                                    <div class="timeline-marker bg-info"></div>
+                                                                    <div class="timeline-content">
+                                                                        <small class="text-muted">Hace 3 días</small>
+                                                                        <p class="mb-0">La lista alcanzó 1,000 visitas
+                                                                            totales</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                    </div>
+                    </div>
+                </div>
+                <% } %>
+    </div>
+
+    <!-- Modal: Añadir fuentes a la lista -->
+    <div class="modal fade" id="addSourcesModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus-circle me-2"></i>Añadir fuentes a la lista
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Búsqueda de fuentes -->
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="fas fa-search text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" id="searchSources"
+                                        placeholder="Buscar fuentes por título, autor o categoría...">
+                                </div>
+                            </div>
+
+                            <!-- Lista de fuentes disponibles -->
+                            <div class="sources-grid" style="max-height: 400px; overflow-y: auto;">
+                                <div class="row" id="availableSourcesList">
+                                    <!-- Fuentes disponibles se cargarán aquí dinámicamente -->
+                                    <div class="col-12 text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Cargando fuentes...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <!-- Fuentes seleccionadas -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-check-circle me-2"></i>Fuentes seleccionadas
+                                        <span id="selectedCount" class="badge bg-primary ms-2">0</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="selectedSourcesList" style="min-height: 300px;">
+                                        <p class="text-muted small">No hay fuentes seleccionadas</p>
+                                    </div>
+
+                                    <div class="d-grid gap-2 mt-3">
+                                        <button class="btn btn-primary" id="addSelectedBtn" disabled>
+                                            <i class="fas fa-plus me-1"></i> Añadir a la lista
+                                        </button>
+                                        <button class="btn btn-outline-secondary" id="clearSelectionBtn">
+                                            Limpiar selección
+                                        </button>
+                                    </div>
+
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <small>
+                                            Límite: <%= data.user.maxSourcesPerList %> fuentes por lista.
+                                                Actual: <%= data.list && data.list.sources ? data.list.sources.length :
+                                                    0 %> fuentes.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar información de la lista -->
+    <div class="modal fade" id="editListModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>Editar información de la lista
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editListForm">
+                        <div class="mb-3">
+                            <label class="form-label">Título</label>
+                            <input type="text" class="form-control" id="editListTitle" value="<%= data.list.title %>"
+                                maxlength="50" required>
+                            <div class="form-text">Máximo 50 caracteres</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Descripción</label>
+                            <textarea class="form-control" id="editListDescription" rows="4"
+                                maxlength="500"><%= data.list.description %></textarea>
+                            <div class="form-text">Máximo 500 caracteres</div>
+                        </div>
+
+                        <% if (data.user.isOwner) { %>
+                            <div class="mb-3">
+                                <label class="form-label">Visibilidad</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="editVisibility"
+                                        id="editVisibilityPublic" value="public" <%=data.list.isPublic ? 'checked' : ''
+                                        %>>
+                                    <label class="form-check-label" for="editVisibilityPublic">
+                                        <i class="fas fa-globe-americas me-2 text-success"></i>
+                                        Pública - Cualquier usuario puede ver esta lista
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="editVisibility"
+                                        id="editVisibilityPrivate" value="private" <%=!data.list.isPublic ? 'checked'
+                                        : '' %>>
+                                    <label class="form-check-label" for="editVisibilityPrivate">
+                                        <i class="fas fa-lock me-2 text-secondary"></i>
+                                        Privada - Solo tú puedes ver esta lista
+                                    </label>
+                                </div>
+                            </div>
+                            <% } %>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" form="editListForm">Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Eliminar lista -->
+    <div class="modal fade" id="deleteListModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar eliminación
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>¡Atención! Esta acción es irreversible.</strong>
+                    </div>
+
+                    <p>¿Estás seguro de que quieres eliminar la lista "<strong>
+                            <%= data.list.title %>
+                        </strong>"?</p>
+
+                    <ul class="text-muted">
+                        <li>Se eliminarán todos los metadatos de la lista</li>
+                        <li>Se perderán todas las estadísticas de visitas</li>
+                        <li>Los colaboradores perderán acceso</li>
+                        <li><strong>Las fuentes bibliográficas en sí mismas NO se eliminarán</strong></li>
+                    </ul>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="confirmDelete">
+                        <label class="form-check-label" for="confirmDelete">
+                            Entiendo que esta acción no se puede deshacer
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                        <i class="fas fa-trash me-1"></i> Eliminar permanentemente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('partials/footer', { jsFile: 'lists.js' }) %>

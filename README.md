@@ -39,6 +39,8 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 - `/search` - Página de búsqueda avanzada con filtros
 - `/upload` - Página para subir nuevas fuentes bibliográficas
 - `/post/:id` - Página de detalle de una publicación
+- `/lists` - Gestión y búsqueda de listas curatoriales
+- `/lists/:id` - Vista de listas curatoriales
 
 ### 📚 Información y Ayuda
 - `/faq` - Página de preguntas frecuentes (FAQ) con 5 categorías
@@ -48,7 +50,6 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 - Cualquier ruta no definida muestra la página 404 personalizada
 
 ### 🚧 En Desarrollo
-- `/lists` - Gestión de listas curatoriales
 - `/compare` - Comparador de fuentes
 - `/admin` - Panel de administración
 

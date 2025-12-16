@@ -1074,6 +1074,620 @@ app.get('/upload', (req, res) => {
     });
 });
 
+////////////
+// LISTAS //
+////////////
+
+// Ruta para Listas Curatoriales
+app.get('/lists', (req, res) => {
+    // Determinar tipo de usuario (simulado)
+    const userType = Math.random() > 0.5 ? 'validated' : 'registered';
+    
+    // Datos mock para listas
+    const listsData = {
+        user: {
+            id: 1,
+            name: 'Usuario Demo',
+            type: userType,
+            isAdmin: false,
+            avatar: 'https://ui-avatars.com/api/?name=Usuario+Demo&background=8d6e63&color=fff',
+            maxLists: userType === 'validated' ? 10 : 3,
+            maxSourcesPerList: userType === 'validated' ? 50 : 15,
+            currentLists: 3,
+            canCreateCollaborative: userType === 'validated'
+        },
+        
+        // Listas del usuario actual
+        myLists: [
+            {
+                id: 1,
+                title: 'Teorías de la Cognición',
+                description: 'Una recopilación de las principales teorías sobre procesos cognitivos y aprendizaje.',
+                creatorId: 1,
+                creatorName: 'Usuario Demo',
+                isPublic: true,
+                isCollaborative: false,
+                createdAt: '2024-01-15',
+                lastModified: '2024-03-10',
+                totalSources: 8,
+                totalVisits: 1247,
+                monthlyVisits: [45, 67, 89, 102, 78, 91, 110, 145, 123, 98, 87, 76],
+                categoriesDistribution: {
+                    'Ciencias Sociales': 40,
+                    'Ciencias Cognitivas': 35,
+                    'Ciencias Naturales': 25
+                },
+                coverType: 'auto',
+                coverImage: 'https://placehold.co/300x200/5d4037/f5f1e6?text=Primera+Fuente',
+                collaborators: []
+            },
+            {
+                id: 2,
+                title: 'Metodologías de Investigación Cualitativa',
+                description: 'Diferentes enfoques metodológicos para investigación en ciencias sociales.',
+                creatorId: 1,
+                creatorName: 'Usuario Demo',
+                isPublic: true,
+                isCollaborative: true,
+                createdAt: '2024-02-20',
+                lastModified: '2024-03-15',
+                totalSources: 12,
+                totalVisits: 892,
+                monthlyVisits: [23, 34, 45, 56, 67, 78, 89, 90, 101, 112, 98, 87],
+                categoriesDistribution: {
+                    'Ciencias Sociales': 50,
+                    'Ciencias Cognitivas': 30,
+                    'Ciencias de la Educación': 20
+                },
+                coverType: 'category',
+                coverImage: 'https://placehold.co/300x200/2c1810/f5f1e6?text=Metodología',
+                collaborators: [
+                    { id: 2, name: 'Ana García', avatar: 'https://ui-avatars.com/api/?name=Ana+Garcia&background=2E8B57&color=fff' },
+                    { id: 3, name: 'Carlos López', avatar: 'https://ui-avatars.com/api/?name=Carlos+Lopez&background=4682B4&color=fff' }
+                ]
+            },
+            {
+                id: 3,
+                title: 'Historia de la Filosofía Occidental',
+                description: 'Fuentes fundamentales desde los presocráticos hasta la filosofía contemporánea.',
+                creatorId: 1,
+                creatorName: 'Usuario Demo',
+                isPublic: false,
+                isCollaborative: false,
+                createdAt: '2024-01-05',
+                lastModified: '2024-03-12',
+                totalSources: 25,
+                totalVisits: 567,
+                monthlyVisits: [12, 23, 34, 45, 56, 67, 78, 89, 90, 101, 87, 76],
+                categoriesDistribution: {
+                    'Ciencias Sociales': 100
+                },
+                coverType: 'auto',
+                coverImage: 'https://placehold.co/300x200/8d6e63/f5f1e6?text=Filosofía',
+                collaborators: []
+            }
+        ],
+        
+        // Listas públicas de otros usuarios
+        publicLists: [
+            {
+                id: 101,
+                title: 'Introducción a la Inteligencia Artificial',
+                description: 'Recursos básicos para comprender los fundamentos de la IA.',
+                creatorId: 2,
+                creatorName: 'Ana García',
+                isPublic: true,
+                isCollaborative: false,
+                createdAt: '2024-02-10',
+                lastModified: '2024-03-08',
+                totalSources: 15,
+                totalVisits: 2345,
+                monthlyVisits: [89, 101, 145, 167, 189, 201, 223, 245, 267, 289, 301, 323],
+                categoriesDistribution: {
+                    'Ciencias Naturales': 60,
+                    'Ciencias Exactas': 25,
+                    'Ciencias Sociales': 15
+                },
+                coverType: 'auto',
+                coverImage: 'https://placehold.co/300x200/2c1810/f5f1e6?text=Primera+Fuente',
+                collaborators: []
+            },
+            {
+                id: 102,
+                title: 'Neurociencia Cognitiva Avanzada',
+                description: 'Artículos y estudios recientes sobre procesos cognitivos a nivel neuronal.',
+                creatorId: 3,
+                creatorName: 'Carlos López',
+                isPublic: true,
+                isCollaborative: true,
+                createdAt: '2024-01-25',
+                lastModified: '2024-03-14',
+                totalSources: 32,
+                totalVisits: 1890,
+                monthlyVisits: [67, 78, 89, 101, 112, 123, 134, 145, 156, 167, 178, 189],
+                categoriesDistribution: {
+                    'Ciencias Cognitivas': 70,
+                    'Ciencias Sociales': 20,
+                    'Ciencias Naturales': 10
+                },
+                coverType: 'category',
+                coverImage: 'https://placehold.co/300x200/5d4037/f5f1e6?text=Neurociencia',
+                collaborators: [
+                    { id: 4, name: 'María Rodríguez', avatar: 'https://ui-avatars.com/api/?name=Maria+Rodriguez&background=FF6347&color=fff' }
+                ]
+            },
+            {
+                id: 103,
+                title: 'Metodologías de Investigación en Educación',
+                description: 'Enfoques y técnicas para investigación educativa.',
+                creatorId: 4,
+                creatorName: 'María Rodríguez',
+                isPublic: true,
+                isCollaborative: false,
+                createdAt: '2024-03-01',
+                lastModified: '2024-03-10',
+                totalSources: 18,
+                totalVisits: 456,
+                monthlyVisits: [12, 23, 34, 45, 56, 67, 78, 89, 90, 101, 112, 123],
+                categoriesDistribution: {
+                    'Ciencias Cognitivas': 60,
+                    'Ciencias Sociales': 25,
+                    'Ciencias Naturales': 15
+                },
+                coverType: 'auto',
+                coverImage: 'https://placehold.co/300x200/8d6e63/f5f1e6?text=Primera+Fuente',
+                collaborators: []
+            }
+        ],
+        
+        // Categorías del conocimiento (las 8 principales)
+        knowledgeCategories: [
+            { id: 'cognitive', name: 'Ciencias Cognitivas', icon: 'brain', color: '#3498db' },
+            { id: 'social', name: 'Ciencias Sociales', icon: 'users', color: '#2ecc71' },
+            { id: 'humanities', name: 'Ciencias Humanistas', icon: 'book', color: '#9b59b6' },
+            { id: 'creative', name: 'Disciplinas Creativas', icon: 'paint-brush', color: '#e74c3c' },
+            { id: 'computational', name: 'Ciencias Computacionales', icon: 'laptop-code', color: '#f39c12' },
+            { id: 'exact', name: 'Ciencias Exactas', icon: 'calculator', color: '#1abc9c' },
+            { id: 'natural', name: 'Ciencias Naturales', icon: 'leaf', color: '#34495e' },
+            { id: 'applied', name: 'Ciencias Aplicadas', icon: 'cogs', color: '#e67e22' }
+        ],
+        
+        // Fuentes disponibles para añadir (simuladas)
+        availableSources: [
+            {
+                id: 1001,
+                title: 'La Estructura de las Revoluciones Científicas',
+                author: 'Thomas S. Kuhn',
+                year: 1962,
+                category: 'Ciencias Sociales',
+                rating: 4.5,
+                cover: 'https://placehold.co/150x200/5d4037/f5f1e6?text=Kuhn'
+            },
+            {
+                id: 1002,
+                title: 'Pensar Rápido, Pensar Despacio',
+                author: 'Daniel Kahneman',
+                year: 2011,
+                category: 'Ciencias Cognitivas',
+                rating: 4.7,
+                cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Kahneman'
+            },
+            {
+                id: 1003,
+                title: 'El Origen de las Especies',
+                author: 'Charles Darwin',
+                year: 1859,
+                category: 'Ciencias Naturales',
+                rating: 4.8,
+                cover: 'https://placehold.co/150x200/2c1810/f5f1e6?text=Darwin'
+            },
+            {
+                id: 1004,
+                title: 'Vigilar y Castigar',
+                author: 'Michel Foucault',
+                year: 1975,
+                category: 'Ciencias Sociales',
+                rating: 4.6,
+                cover: 'https://placehold.co/150x200/5d4037/f5f1e6?text=Foucault'
+            },
+            {
+                id: 1005,
+                title: 'Pedagogía del Oprimido',
+                author: 'Paulo Freire',
+                year: 1968,
+                category: 'Ciencias Cognitivas',
+                rating: 4.9,
+                cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Freire'
+            }
+        ],
+        
+        // Fuentes eliminadas (para demostración)
+        deletedSources: [
+            {
+                id: 9999,
+                title: 'Este título se ha eliminado de la plataforma',
+                author: 'N/A',
+                year: null,
+                category: 'Desconocida',
+                rating: 0,
+                isDeleted: true,
+                cover: 'https://placehold.co/150x200/cccccc/999999?text=Eliminado'
+            }
+        ],
+        
+        // Contactos para invitar como colaboradores (solo usuarios validados)
+        validContacts: [
+            { id: 2, name: 'Ana García', type: 'validated', avatar: 'https://ui-avatars.com/api/?name=Ana+Garcia&background=2E8B57&color=fff' },
+            { id: 3, name: 'Carlos López', type: 'validated', avatar: 'https://ui-avatars.com/api/?name=Carlos+Lopez&background=4682B4&color=fff' },
+            { id: 4, name: 'María Rodríguez', type: 'validated', avatar: 'https://ui-avatars.com/api/?name=Maria+Rodriguez&background=FF6347&color=fff' },
+            { id: 5, name: 'Pedro Sánchez', type: 'validated', avatar: 'https://ui-avatars.com/api/?name=Pedro+Sanchez&background=20B2AA&color=fff' }
+        ]
+    };
+
+    res.render('lists', {
+        title: 'Listas Curatoriales - Artícora',
+        currentPage: 'lists',
+        cssFile: 'lists.css',
+        data: listsData
+    });
+});
+
+// Ruta para vista detallada de lista (detecta automáticamente permisos)
+app.get('/lists/:id', (req, res) => {
+    const listId = parseInt(req.params.id);
+    const userType = Math.random() > 0.5 ? 'validated' : 'registered';
+    const userId = 1; // ID del usuario simulado
+    
+    // Datos base para todas las listas
+    let listData = {
+        user: {
+            id: userId,
+            type: userType,
+            isOwner: false,
+            isCollaborator: false,
+            canEdit: false,
+            maxSourcesPerList: userType === 'validated' ? 50 : 15
+        },
+        knowledgeCategories: [
+            { id: 'cognitive', name: 'Ciencias Cognitivas', icon: 'brain', color: '#3498db' },
+            { id: 'social', name: 'Ciencias Sociales', icon: 'users', color: '#2ecc71' },
+            { id: 'humanities', name: 'Ciencias Humanistas', icon: 'book', color: '#9b59b6' },
+            { id: 'creative', name: 'Disciplinas Creativas', icon: 'paint-brush', color: '#e74c3c' },
+            { id: 'computational', name: 'Ciencias Computacionales', icon: 'laptop-code', color: '#f39c12' },
+            { id: 'exact', name: 'Ciencias Exactas', icon: 'calculator', color: '#1abc9c' },
+            { id: 'natural', name: 'Ciencias Naturales', icon: 'leaf', color: '#34495e' },
+            { id: 'applied', name: 'Ciencias Aplicadas', icon: 'cogs', color: '#e67e22' }
+        ]
+    };
+
+    // Simular diferentes casos según el ID
+    if (listId === 1) {
+        listData.list = {
+            id: 1,
+            title: 'Teorías de la Cognición',
+            description: 'Una recopilación de las principales teorías sobre procesos cognitivos y aprendizaje.',
+            creatorId: 1,
+            creatorName: 'Usuario Demo',
+            isPublic: true,
+            isCollaborative: false,
+            createdAt: '2024-01-15',
+            lastModified: '2024-03-10',
+            totalSources: 8,
+            totalVisits: 1247,
+            monthlyVisits: [45, 67, 89, 102, 78, 91, 110, 145, 123, 98, 87, 76],
+            categoriesDistribution: {
+                'Ciencias Sociales': 40,
+                'Ciencias Cognitivas': 35,
+                'Ciencias Humanistas': 25
+            },
+            coverType: 'auto',
+            coverImage: 'https://placehold.co/400x250/5d4037/f5f1e6?text=Primera+Fuente',
+            collaborators: [],
+            sources: [
+                {
+                    id: 1001,
+                    title: 'La Estructura de las Revoluciones Científicas',
+                    author: 'Thomas S. Kuhn',
+                    year: 1962,
+                    category: 'Ciencias Cognitivas',
+                    rating: 4.5,
+                    addedDate: '2024-01-20',
+                    cover: 'https://placehold.co/150x200/5d4037/f5f1e6?text=Kuhn',
+                    order: 1
+                },
+                {
+                    id: 1002,
+                    title: 'Pensar Rápido, Pensar Despacio',
+                    author: 'Daniel Kahneman',
+                    year: 2011,
+                    category: 'Ciencias Cognitivas',
+                    rating: 4.7,
+                    addedDate: '2024-01-22',
+                    cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Kahneman',
+                    order: 2
+                },
+                {
+                    id: 9999,
+                    title: 'Este título se ha eliminado de la plataforma',
+                    author: 'N/A',
+                    year: null,
+                    category: 'Desconocida',
+                    rating: 0,
+                    addedDate: '2024-02-01',
+                    cover: 'https://placehold.co/150x200/cccccc/999999?text=Eliminado',
+                    isDeleted: true,
+                    order: 3
+                }
+            ],
+            availableSources: [
+                {
+                    id: 1003,
+                    title: 'El Origen de las Especies',
+                    author: 'Charles Darwin',
+                    year: 1859,
+                    category: 'Ciencias Naturales',
+                    rating: 4.8,
+                    cover: 'https://placehold.co/150x200/2c1810/f5f1e6?text=Darwin'
+                },
+                {
+                    id: 1004,
+                    title: 'Vigilar y Castigar',
+                    author: 'Michel Foucault',
+                    year: 1975,
+                    category: 'Ciencias Cognitivas',
+                    rating: 4.6,
+                    cover: 'https://placehold.co/150x200/5d4037/f5f1e6?text=Foucault'
+                }
+            ]
+        };
+        listData.user.isOwner = true;
+        listData.user.canEdit = true;
+        
+    } else if (listId === 2) {
+        listData.list = {
+            id: 2,
+            title: 'Metodologías de Investigación Cualitativa',
+            description: 'Diferentes enfoques metodológicos para investigación en ciencias sociales.',
+            creatorId: 1,
+            creatorName: 'Usuario Demo',
+            isPublic: true,
+            isCollaborative: true,
+            createdAt: '2024-02-20',
+            lastModified: '2024-03-15',
+            totalSources: 12,
+            totalVisits: 892,
+            monthlyVisits: [23, 34, 45, 56, 67, 78, 89, 90, 101, 112, 98, 87],
+            categoriesDistribution: {
+                'Ciencias Sociales': 50,
+                'Ciencias Cognitivas': 30,
+                'Ciencias Humanistas': 20
+            },
+            coverType: 'category',
+            coverImage: 'https://placehold.co/400x250/2c1810/f5f1e6?text=Metodología',
+            collaborators: [
+                { id: 2, name: 'Ana García', avatar: 'https://ui-avatars.com/api/?name=Ana+Garcia&background=2E8B57&color=fff' },
+                { id: 3, name: 'Carlos López', avatar: 'https://ui-avatars.com/api/?name=Carlos+Lopez&background=4682B4&color=fff' }
+            ],
+            sources: [
+                {
+                    id: 1001,
+                    title: 'La Estructura de las Revoluciones Científicas',
+                    author: 'Thomas S. Kuhn',
+                    year: 1962,
+                    category: 'Ciencias Sociales',
+                    rating: 4.5,
+                    addedDate: '2024-02-25',
+                    cover: 'https://placehold.co/150x200/5d4037/f5f1e6?text=Kuhn',
+                    order: 1
+                },
+                {
+                    id: 1002,
+                    title: 'Pensar Rápido, Pensar Despacio',
+                    author: 'Daniel Kahneman',
+                    year: 2011,
+                    category: 'Ciencias Cognitivas',
+                    rating: 4.7,
+                    addedDate: '2024-02-26',
+                    cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Kahneman',
+                    order: 2
+                }
+            ],
+            availableSources: [
+                {
+                    id: 1003,
+                    title: 'El Origen de las Especies',
+                    author: 'Charles Darwin',
+                    year: 1859,
+                    category: 'Ciencias Naturales',
+                    rating: 4.8,
+                    cover: 'https://placehold.co/150x200/2c1810/f5f1e6?text=Darwin'
+                }
+            ]
+        };
+        listData.user.isOwner = true;
+        listData.user.canEdit = true;
+        
+    } else if (listId === 3) {
+        listData.list = {
+            id: 3,
+            title: 'Historia de la Filosofía Occidental',
+            description: 'Fuentes fundamentales desde los presocráticos hasta la filosofía contemporánea.',
+            creatorId: 1,
+            creatorName: 'Usuario Demo',
+            isPublic: false,
+            isCollaborative: false,
+            createdAt: '2024-01-05',
+            lastModified: '2024-03-12',
+            totalSources: 25,
+            totalVisits: 567,
+            monthlyVisits: [12, 23, 34, 45, 56, 67, 78, 89, 90, 101, 87, 76],
+            categoriesDistribution: {
+                'Ciencias Sociales': 100
+            },
+            coverType: 'auto',
+            coverImage: 'https://placehold.co/400x250/8d6e63/f5f1e6?text=Primera+Fuente',
+            collaborators: [],
+            sources: [
+                {
+                    id: 1001,
+                    title: 'La Estructura de las Revoluciones Científicas',
+                    author: 'Thomas S. Kuhn',
+                    year: 1962,
+                    category: 'Ciencias Sociales',
+                    rating: 4.5,
+                    addedDate: '2024-01-10',
+                    cover: 'https://placehold.co/150x200/5d4037/f5f1e6?text=Kuhn',
+                    order: 1
+                }
+            ],
+            availableSources: [
+                {
+                    id: 1002,
+                    title: 'Pensar Rápido, Pensar Despacio',
+                    author: 'Daniel Kahneman',
+                    year: 2011,
+                    category: 'Ciencias Cognitivas',
+                    rating: 4.7,
+                    cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Kahneman'
+                }
+            ]
+        };
+        listData.user.isOwner = true;
+        listData.user.canEdit = true;
+        
+    } else if (listId === 101) {
+        listData.list = {
+            id: 101,
+            title: 'Introducción a la Inteligencia Artificial',
+            description: 'Recursos básicos para comprender los fundamentos de la IA.',
+            creatorId: 2,
+            creatorName: 'Ana García',
+            isPublic: true,
+            isCollaborative: false,
+            createdAt: '2024-02-10',
+            lastModified: '2024-03-08',
+            totalSources: 15,
+            totalVisits: 2345,
+            monthlyVisits: [89, 101, 145, 167, 189, 201, 223, 245, 267, 289, 301, 323],
+            categoriesDistribution: {
+                'Ciencias de la Computación': 60,
+                'Ciencias Exactas': 25,
+                'Ciencias Sociales': 15
+            },
+            coverType: 'auto',
+            coverImage: 'https://placehold.co/400x250/2c1810/f5f1e6?text=Primera+Fuente',
+            sources: [
+                {
+                    id: 1005,
+                    title: 'Pedagogía del Oprimido',
+                    author: 'Paulo Freire',
+                    year: 1968,
+                    category: 'Ciencias Sociales',
+                    rating: 4.9,
+                    addedDate: '2024-02-12',
+                    cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Freire',
+                    order: 1
+                }
+            ],
+            availableSources: []
+        };
+        listData.user.isOwner = false;
+        listData.user.canEdit = false;
+        
+    } else if (listId === 102) {
+        listData.list = {
+            id: 102,
+            title: 'Neurociencia Cognitiva Avanzada',
+            description: 'Artículos y estudios recientes sobre procesos cognitivos a nivel neuronal.',
+            creatorId: 3,
+            creatorName: 'Carlos López',
+            isPublic: true,
+            isCollaborative: true,
+            createdAt: '2024-01-25',
+            lastModified: '2024-03-14',
+            totalSources: 32,
+            totalVisits: 1890,
+            monthlyVisits: [67, 78, 89, 101, 112, 123, 134, 145, 156, 167, 178, 189],
+            categoriesDistribution: {
+                'Ciencias Cognitivas': 70,
+                'Ciencias Sociales': 20,
+                'Ciencias Naturales': 10
+            },
+            coverType: 'category',
+            coverImage: 'https://placehold.co/400x250/5d4037/f5f1e6?text=Neurociencia',
+            collaborators: [
+                { id: 4, name: 'María Rodríguez', avatar: 'https://ui-avatars.com/api/?name=Maria+Rodriguez&background=FF6347&color=fff' }
+            ],
+            sources: [
+                {
+                    id: 1002,
+                    title: 'Pensar Rápido, Pensar Despacio',
+                    author: 'Daniel Kahneman',
+                    year: 2011,
+                    category: 'Ciencias Cognitivas',
+                    rating: 4.7,
+                    addedDate: '2024-02-01',
+                    cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Kahneman',
+                    order: 1
+                }
+            ],
+            availableSources: []
+        };
+        listData.user.isOwner = false;
+        listData.user.canEdit = false;
+        
+    } else if (listId === 103) {
+        listData.list = {
+            id: 103,
+            title: 'Metodologías de Investigación en Educación',
+            description: 'Enfoques y técnicas para investigación educativa.',
+            creatorId: 4,
+            creatorName: 'María Rodríguez',
+            isPublic: true,
+            isCollaborative: false,
+            createdAt: '2024-03-01',
+            lastModified: '2024-03-10',
+            totalSources: 18,
+            totalVisits: 456,
+            monthlyVisits: [12, 23, 34, 45, 56, 67, 78, 89, 90, 101, 112, 123],
+            categoriesDistribution: {
+                'Ciencias Sociales': 60,
+                'Ciencias Exactas': 25,
+                'Ciencias Cognitivas': 15
+            },
+            coverType: 'auto',
+            coverImage: 'https://placehold.co/400x250/8d6e63/f5f1e6?text=Primera+Fuente',
+            sources: [
+                {
+                    id: 1005,
+                    title: 'Pedagogía del Oprimido',
+                    author: 'Paulo Freire',
+                    year: 1968,
+                    category: 'Ciencias Sociales',
+                    rating: 4.9,
+                    addedDate: '2024-03-05',
+                    cover: 'https://placehold.co/150x200/8d6e63/f5f1e6?text=Freire',
+                    order: 1
+                }
+            ],
+            availableSources: []
+        };
+        listData.user.isOwner = false;
+        listData.user.canEdit = false;
+        
+    } else {
+        // Lista no encontrada
+        listData.list = null;
+    }
+    
+    res.render('list-detail', {
+        title: listData.list ? `${listData.list.title} - Artícora` : 'Lista no encontrada - Artícora',
+        currentPage: 'lists',
+        cssFile: 'lists.css',
+        data: listData
+    });
+});
+
 ////////////////
 // PLATAFORMA //
 ////////////////

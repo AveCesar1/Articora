@@ -1,0 +1,577 @@
+/* lists.css - Estilos para el módulo de Listas Curatoriales */
+
+:root {
+    --list-cover-height: 180px;
+    --avatar-xs: 24px;
+    --avatar-sm: 32px;
+    --avatar-md: 48px;
+}
+
+/* Estilos generales */
+.list-cover {
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+    position: relative;
+}
+
+.list-cover img {
+    transition: transform 0.3s ease;
+}
+
+.card:hover .list-cover img {
+    transform: scale(1.05);
+}
+
+.hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Avatar sizes */
+.avatar-xs {
+    width: var(--avatar-xs);
+    height: var(--avatar-xs);
+}
+
+.avatar-sm {
+    width: var(--avatar-sm);
+    height: var(--avatar-sm);
+}
+
+.avatar-md {
+    width: var(--avatar-md);
+    height: var(--avatar-md);
+}
+
+.avatar-group {
+    display: flex;
+}
+
+.avatar-group img {
+    border: 2px solid white;
+    margin-left: -8px;
+}
+
+.avatar-group img:first-child {
+    margin-left: 0;
+}
+
+/* Límites y contadores */
+.limits .progress {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Categorías y tags */
+.category-tags .badge {
+    font-weight: normal;
+    padding: 0.35em 0.65em;
+}
+
+/* Timeline para actividad */
+.timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--border-color);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -20px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.timeline-content {
+    padding-left: 10px;
+}
+
+/* Tabla de fuentes sortable */
+.sortable-list {
+    cursor: move;
+    cursor: grab;
+}
+
+.sortable-list:active {
+    cursor: grabbing;
+}
+
+.sortable-item.sortable-ghost {
+    opacity: 0.4;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sortable-item.sortable-chosen {
+    background-color: rgba(141, 110, 99, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.grip-handle {
+    cursor: move;
+    color: var(--accent-color);
+    margin-right: 8px;
+}
+
+.grip-handle:hover {
+    color: var(--primary-color);
+}
+
+/* Grid de fuentes */
+.sources-grid .card {
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.sources-grid .card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 8px rgba(44, 24, 16, 0.1);
+}
+
+.sources-grid .card.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(44, 24, 16, 0.05);
+}
+
+/* Rating display */
+.rating-display {
+    display: inline-flex;
+    align-items: center;
+    color: #f39c12;
+}
+
+/* Modal específico para listas */
+#createListModal .card {
+    border: 1px solid var(--border-color);
+}
+
+#coverPreview {
+    transition: all 0.3s ease;
+}
+
+/* Botones de acción */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .list-cover {
+        height: 150px !important;
+    }
+    
+    .avatar-group img {
+        width: 20px;
+        height: 20px;
+        margin-left: -6px;
+    }
+    
+    .sources-grid .row {
+        margin: -0.5rem;
+    }
+    
+    .sources-grid .col-md-6 {
+        padding: 0.5rem;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.list-card {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Estado de fuente eliminada */
+.source-deleted {
+    opacity: 0.6;
+    background-color: rgba(204, 204, 204, 0.1);
+    border-left: 3px solid #dc3545;
+}
+
+/* Badges personalizados */
+.badge[style*="border-left"] {
+    border-radius: 0.25rem;
+    padding-left: 0.75rem;
+}
+
+/* Contadores de caracteres */
+.char-count {
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+.char-count.warning {
+    color: #ff9800;
+}
+
+.char-count.danger {
+    color: #f44336;
+}
+
+/* Estadísticas */
+.stats-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.stats-label {
+    font-size: 0.875rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+/* Scroll personalizado */
+.sources-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sources-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+}
+
+.sources-grid::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 3px;
+}
+
+.sources-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+/* Selector de portada */
+.cover-option {
+    border: 2px solid transparent;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cover-option:hover {
+    border-color: var(--border-color);
+}
+
+.cover-option.active {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(44, 24, 16, 0.25);
+}
+
+/* Estados de colaboración */
+.collaborator-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.collaborator-item:last-child {
+    margin-bottom: 0;
+}
+
+.collaborator-item .btn-sm {
+    padding: 0.125rem 0.375rem;
+    margin-left: auto;
+}
+
+/* Agregar al final del archivo lists.css */
+
+/* Estilos para botones de selección de portada en modal */
+#createListModal .btn-group.d-flex .btn {
+    padding: 0.5rem;
+    white-space: nowrap;
+}
+
+/* Asegurar que las imágenes de portada se mantengan dentro de sus contenedores */
+.list-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Estilos para imágenes responsive en tarjetas */
+.card-img-top {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+/* Corrección para imágenes en modal de portada */
+#coverPreview {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+/* Asegurar que los botones no se desborden en modales */
+.modal .btn-group {
+    flex-wrap: nowrap;
+}
+
+.modal .btn-group .btn {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Correcciones para los botones de portada en el modal */
+.form-check-label.w-100 {
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.form-check-label.w-100:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(44, 24, 16, 0.02);
+}
+
+.form-check-input:checked + .form-check-label.w-100 {
+    border-color: var(--primary-color);
+    background-color: rgba(44, 24, 16, 0.05);
+    box-shadow: 0 0 0 0.25rem rgba(44, 24, 16, 0.1);
+}
+
+/* Mejora la visualización de los radios */
+.form-check-input {
+    margin-top: 0.3rem;
+}
+
+/* Asegura que los placeholders se vean bien */
+.img-thumbnail {
+    object-fit: cover;
+}
+
+/* Ajustes para el modal de creación */
+#createListModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.sidebar-actions button {
+    min-width: 0;
+    white-space: normal;
+}
+
+.sidebar-actions .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 0.5rem 0;
+}
+
+/* Estilos para el gráfico de categorías */
+#categoriesChart {
+    position: relative;
+    height: 250px;
+    min-height: 250px;
+}
+
+#categoriesChart canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 250px;
+}
+
+/* Mejoras para la leyenda del gráfico */
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+.legend-label {
+    font-size: 0.85rem;
+    color: var(--text-color);
+}
+
+/* Ajustes para tooltips del gráfico */
+.chartjs-tooltip {
+    background-color: rgba(44, 24, 16, 0.95) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.chartjs-tooltip-key {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+}
+
+/* Estilos mejorados para el gráfico de categorías */
+#categoriesChart {
+    position: relative;
+    height: 280px;
+    min-height: 280px;
+}
+
+#categoriesChart canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 280px;
+}
+
+/* Leyenda personalizada */
+.chart-legend-custom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px;
+    background-color: rgba(245, 241, 230, 0.3);
+    border-radius: 8px;
+}
+
+.legend-item-custom {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(141, 110, 99, 0.2);
+}
+
+.legend-color-custom {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: inline-block;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.legend-label-custom {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.legend-percentage-custom {
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    margin-left: 4px;
+    font-weight: 600;
+}
+
+/* Tooltips del gráfico mejorados */
+.chartjs-tooltip {
+    background-color: rgba(44, 24, 16, 0.98) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 12px 15px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+    backdrop-filter: blur(10px);
+}
+
+.chartjs-tooltip-title {
+    font-weight: 600 !important;
+    margin-bottom: 5px !important;
+    color: #f5f1e6 !important;
+    font-size: 0.95rem !important;
+}
+
+.chartjs-tooltip-body {
+    font-size: 0.9rem !important;
+    color: #e0d6c2 !important;
+}
+
+/* Animaciones suaves para el gráfico */
+@keyframes sliceAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.chartjs-render-monitor {
+    animation: sliceAppear 0.6s ease-out;
+}
+
+/* Responsive para el gráfico */
+@media (max-width: 768px) {
+    #categoriesChart {
+        height: 240px;
+        min-height: 240px;
+    }
+    
+    .chart-legend-custom {
+        gap: 8px;
+    }
+    
+    .legend-item-custom {
+        padding: 3px 6px;
+    }
+    
+    .legend-label-custom {
+        font-size: 0.8rem;
+    }
+}
+
+/* Efecto hover en elementos de la leyenda */
+.legend-item-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+/* Contenedor del gráfico con fondo sutil */
+.chart-container {
+    position: relative;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(245, 241, 230, 0.3) 0%, rgba(245, 241, 230, 0.1) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(141, 110, 99, 0.2);
+}

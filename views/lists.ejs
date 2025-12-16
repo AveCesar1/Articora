@@ -1,0 +1,635 @@
+<%- include('partials/header', { 
+    title: 'Listas Curatoriales - Artícora', 
+    currentPage: 'lists',
+    cssFile: 'lists.css'
+}) %>
+
+<!-- Pasar datos del servidor al JavaScript -->
+<script id="listsData" type="application/json">
+  <%- JSON.stringify({
+    user: data.user,
+    myLists: data.myLists,
+    publicLists: data.publicLists,
+    knowledgeCategories: data.knowledgeCategories,
+    availableSources: data.availableSources,
+    deletedSources: data.deletedSources,
+    validContacts: data.validContacts
+  }) %>
+</script>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar con estadísticas y límites -->
+        <div class="col-lg-3 col-xl-2">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center">
+                        <i class="fas fa-list-check me-2 text-primary"></i>
+                        Mis listas
+                    </h5>
+                    
+                    <!-- Límites del usuario -->
+                    <div class="limits mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">Listas creadas:</small>
+                            <small class="fw-bold"><%= data.user.currentLists %>/<%= data.user.maxLists %></small>
+                        </div>
+                        <div class="progress mb-3" style="height: 6px;">
+                            <div class="progress-bar bg-info" 
+                                 style="width: <%= (data.user.currentLists / data.user.maxLists * 100) %>%"></div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">Fuentes por lista:</small>
+                            <small class="fw-bold"><%= data.user.maxSourcesPerList %></small>
+                        </div>
+                        
+                        <% if (data.user.canCreateCollaborative) { %>
+                        <div class="d-flex align-items-center mt-3">
+                            <i class="fas fa-users text-success me-2"></i>
+                            <small class="text-muted">Puedes crear listas colaborativas</small>
+                        </div>
+                        <% } %>
+                    </div>
+                    
+                    <!-- Botón nueva lista -->
+                    <button class="btn btn-primary w-100 mb-3" data-bs-toggle="modal" data-bs-target="#createListModal">
+                        <i class="fas fa-plus-circle me-2"></i> Nueva lista
+                    </button>
+                    
+                    <!-- Estadísticas rápidas -->
+                    <div class="quick-stats">
+                        <h6 class="text-muted mb-3">Estadísticas</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <small>Total visitas:</small>
+                            <small class="fw-bold">
+                                <%= data.myLists.reduce((sum, list) => sum + list.totalVisits, 0).toLocaleString() %>
+                            </small>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <small>Fuentes totales:</small>
+                            <small class="fw-bold">
+                                <%= data.myLists.reduce((sum, list) => sum + list.totalSources, 0) %>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Categorías más usadas -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">
+                        <i class="fas fa-tags me-2 text-muted"></i>
+                        Tus categorías
+                    </h6>
+                    <div class="category-tags">
+                        <% 
+                        // Calcular categorías más usadas
+                        const categoryCounts = {};
+                        data.myLists.forEach(list => {
+                            Object.keys(list.categoriesDistribution || {}).forEach(cat => {
+                                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+                            });
+                        });
+                        
+                        const topCategories = Object.entries(categoryCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 5);
+                        %>
+                        
+                        <% topCategories.forEach(([category, count]) => { 
+                            const catInfo = data.knowledgeCategories.find(c => c.name === category);
+                        %>
+                        <span class="badge bg-light text-dark me-1 mb-2" 
+                              style="border-left: 3px solid <%= catInfo ? catInfo.color : '#8d6e63' %>">
+                            <%= category %>
+                            <span class="badge bg-secondary rounded-pill ms-1"><%= count %></span>
+                        </span>
+                        <% }) %>
+                        
+                        <% if (topCategories.length === 0) { %>
+                        <p class="text-muted small mb-0">Aún no tienes categorías asignadas</p>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenido principal -->
+        <div class="col-lg-9 col-xl-10">
+            <!-- Header con búsqueda y filtros -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Listas Curatoriales</h1>
+                    <p class="text-muted mb-0">Organiza y comparte colecciones de fuentes bibliográficas</p>
+                </div>
+                
+                <!-- Barra de búsqueda -->
+                <div class="w-50">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" 
+                               id="searchLists" placeholder="Buscar listas por título...">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pestañas de navegación -->
+            <ul class="nav nav-tabs mb-4" id="listsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="my-lists-tab" data-bs-toggle="tab" 
+                            data-bs-target="#my-lists" type="button" role="tab">
+                        <i class="fas fa-list me-2"></i>Mis listas
+                        <span class="badge bg-primary rounded-pill ms-2"><%= data.myLists.length %></span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="public-lists-tab" data-bs-toggle="tab" 
+                            data-bs-target="#public-lists" type="button" role="tab">
+                        <i class="fas fa-globe me-2"></i>Listas públicas
+                        <span class="badge bg-secondary rounded-pill ms-2"><%= data.publicLists.length %></span>
+                    </button>
+                </li>
+            </ul>
+            
+            <!-- Contenido de pestañas -->
+            <div class="tab-content" id="listsTabContent">
+                <!-- Pestaña: Mis listas -->
+                <div class="tab-pane fade show active" id="my-lists" role="tabpanel">
+                    <% if (data.myLists.length === 0) { %>
+                    <div class="text-center py-5">
+                        <i class="fas fa-list-ul fa-4x text-muted mb-4"></i>
+                        <h4 class="text-muted mb-3">No tienes listas creadas</h4>
+                        <p class="text-muted mb-4">Comienza organizando tus fuentes favoritas en listas temáticas</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createListModal">
+                            <i class="fas fa-plus-circle me-2"></i> Crear mi primera lista
+                        </button>
+                    </div>
+                    <% } else { %>
+                    <div class="row" id="myListsContainer">
+                        <% data.myLists.forEach(list => { %>
+                        <div class="col-md-6 col-lg-4 mb-4 list-card" 
+                             data-title="<%= list.title.toLowerCase() %>"
+                             data-categories="<%= Object.keys(list.categoriesDistribution || {}).join(',') %>">
+                            <div class="card h-100 border-0 shadow-sm hover-lift">
+                                <!-- Portada de la lista -->
+                                <div class="list-cover" style="height: 180px; overflow: hidden;">
+                                    <img src="<%= list.coverImage %>" 
+                                         alt="Portada de <%= list.title %>"
+                                         class="img-fluid w-100 h-100 object-fit-cover">
+                                    <% if (list.isCollaborative) { %>
+                                    <span class="badge bg-success position-absolute top-0 end-0 m-2">
+                                        <i class="fas fa-users me-1"></i> Colaborativa
+                                    </span>
+                                    <% } %>
+                                    <% if (!list.isPublic) { %>
+                                    <span class="badge bg-secondary position-absolute top-0 start-0 m-2">
+                                        <i class="fas fa-lock me-1"></i> Privada
+                                    </span>
+                                    <% } %>
+                                </div>
+                                
+                                <div class="card-body">
+                                    <h5 class="card-title mb-2 text-truncate" title="<%= list.title %>">
+                                        <%= list.title %>
+                                    </h5>
+                                    
+                                    <p class="card-text small text-muted mb-3" style="height: 40px; overflow: hidden;">
+                                        <%= list.description || 'Sin descripción' %>
+                                    </p>
+                                    
+                                    <!-- Estadísticas rápidas -->
+                                    <div class="d-flex justify-content-between small mb-3">
+                                        <div class="text-center">
+                                            <div class="fw-bold"><%= list.totalSources %></div>
+                                            <div class="text-muted">Fuentes</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="fw-bold"><%= list.totalVisits.toLocaleString() %></div>
+                                            <div class="text-muted">Visitas</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="fw-bold">
+                                                <% 
+                                                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+                                                               'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                                                const lastMonthIndex = new Date().getMonth();
+                                                const lastMonthVisits = list.monthlyVisits?.[lastMonthIndex] || 0;
+                                                %>
+                                                <%= lastMonthVisits %>
+                                            </div>
+                                            <div class="text-muted">Este mes</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Categorías -->
+                                    <div class="mb-3">
+                                        <% Object.keys(list.categoriesDistribution || {}).slice(0, 3).forEach(category => { 
+                                            const catInfo = data.knowledgeCategories.find(c => c.name === category);
+                                        %>
+                                        <span class="badge bg-light text-dark me-1 mb-1" 
+                                              style="font-size: 0.7rem; border-left: 2px solid <%= catInfo ? catInfo.color : '#8d6e63' %>">
+                                            <%= category %>
+                                        </span>
+                                        <% }) %>
+                                        <% if (Object.keys(list.categoriesDistribution || {}).length > 3) { %>
+                                        <span class="badge bg-light text-dark" style="font-size: 0.7rem;">
+                                            +<%= Object.keys(list.categoriesDistribution || {}).length - 3 %>
+                                        </span>
+                                        <% } %>
+                                    </div>
+                                    
+                                    <!-- Botones de acción -->
+                                    <div class="d-flex justify-content-between">
+                                        <a href="/lists/<%= list.id %>" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i> Editar
+                                        </a>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-secondary share-btn" 
+                                                    data-list-id="<%= list.id %>"
+                                                    data-list-title="<%= list.title %>"
+                                                    title="Compartir">
+                                                <i class="fas fa-share-alt"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger delete-btn" 
+                                                    data-list-id="<%= list.id %>"
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-footer bg-transparent border-top-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            Actualizada: <%= new Date(list.lastModified).toLocaleDateString('es-ES') %>
+                                        </small>
+                                        <% if (list.collaborators && list.collaborators.length > 0) { %>
+                                        <div class="avatar-group">
+                                            <% list.collaborators.slice(0, 3).forEach(collab => { %>
+                                            <img src="<%= collab.avatar %>" 
+                                                 alt="<%= collab.name %>"
+                                                 class="avatar-xs rounded-circle"
+                                                 title="<%= collab.name %>">
+                                            <% }) %>
+                                            <% if (list.collaborators.length > 3) { %>
+                                            <span class="avatar-xs bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center">
+                                                +<%= list.collaborators.length - 3 %>
+                                            </span>
+                                            <% } %>
+                                        </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <% }) %>
+                    </div>
+                    <% } %>
+                </div>
+                
+                <!-- Pestaña: Listas públicas -->
+                <div class="tab-pane fade" id="public-lists" role="tabpanel">
+                    <% if (data.publicLists.length === 0) { %>
+                    <div class="text-center py-5">
+                        <i class="fas fa-globe-americas fa-4x text-muted mb-4"></i>
+                        <h4 class="text-muted mb-3">No hay listas públicas disponibles</h4>
+                        <p class="text-muted mb-4">Sé el primero en compartir una lista pública</p>
+                    </div>
+                    <% } else { %>
+                    <div class="row" id="publicListsContainer">
+                        <% data.publicLists.forEach(list => { %>
+                        <div class="col-md-6 col-lg-4 mb-4 list-card" 
+                             data-title="<%= list.title.toLowerCase() %>"
+                             data-creator="<%= list.creatorName.toLowerCase() %>">
+                            <div class="card h-100 border-0 shadow-sm hover-lift">
+                                <!-- Portada de la lista -->
+                                <div class="list-cover" style="height: 180px; overflow: hidden;">
+                                    <img src="<%= list.coverImage %>" 
+                                         alt="Portada de <%= list.title %>"
+                                         class="img-fluid w-100 h-100 object-fit-cover">
+                                    <% if (list.isCollaborative) { %>
+                                    <span class="badge bg-success position-absolute top-0 end-0 m-2">
+                                        <i class="fas fa-users me-1"></i> Colaborativa
+                                    </span>
+                                    <% } %>
+                                </div>
+                                
+                                <div class="card-body">
+                                    <h5 class="card-title mb-2 text-truncate" title="<%= list.title %>">
+                                        <%= list.title %>
+                                    </h5>
+                                    
+                                    <div class="d-flex align-items-center mb-2">
+                                        <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(list.creatorName) %>&background=8d6e63&color=fff" 
+                                             alt="<%= list.creatorName %>"
+                                             class="avatar-xs rounded-circle me-2">
+                                        <small class="text-muted"><%= list.creatorName %></small>
+                                    </div>
+                                    
+                                    <p class="card-text small text-muted mb-3" style="height: 40px; overflow: hidden;">
+                                        <%= list.description || 'Sin descripción' %>
+                                    </p>
+                                    
+                                    <!-- Estadísticas rápidas -->
+                                    <div class="d-flex justify-content-between small mb-3">
+                                        <div class="text-center">
+                                            <div class="fw-bold"><%= list.totalSources %></div>
+                                            <div class="text-muted">Fuentes</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="fw-bold"><%= list.totalVisits.toLocaleString() %></div>
+                                            <div class="text-muted">Visitas</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="fw-bold">
+                                                <% 
+                                                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+                                                               'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                                                const lastMonthIndex = new Date().getMonth();
+                                                const lastMonthVisits = list.monthlyVisits?.[lastMonthIndex] || 0;
+                                                %>
+                                                <%= lastMonthVisits %>
+                                            </div>
+                                            <div class="text-muted">Este mes</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Botones de acción -->
+                                    <div class="d-flex justify-content-between">
+                                        <a href="/lists/<%= list.id %>" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i> Ver lista
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-secondary share-btn" 
+                                                data-list-id="<%= list.id %>"
+                                                data-list-title="<%= list.title %>">
+                                            <i class="fas fa-share-alt me-1"></i> Compartir
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-footer bg-transparent border-top-0">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Creada: <%= new Date(list.createdAt).toLocaleDateString('es-ES') %>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <% }) %>
+                    </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Crear nueva lista -->
+<div class="modal fade" id="createListModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>Crear nueva lista
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createListForm">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Información básica -->
+                            <div class="mb-3">
+                                <label class="form-label">Título de la lista <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="listTitle" 
+                                       placeholder="Ej: Teorías de la Cognición" 
+                                       maxlength="50" required>
+                                <div class="form-text">
+                                    Máximo 50 caracteres. <span id="titleCount">0/50</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Descripción (opcional)</label>
+                                <textarea class="form-control" id="listDescription" 
+                                          rows="3" maxlength="500"
+                                          placeholder="Describe el propósito y contenido de esta lista..."></textarea>
+                                <div class="form-text">
+                                    Máximo 500 caracteres. <span id="descCount">0/500</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Configuración de privacidad -->
+                            <div class="mb-3">
+                                <label class="form-label">Visibilidad</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="visibility" 
+                                           id="visibilityPublic" value="public" checked>
+                                    <label class="form-check-label" for="visibilityPublic">
+                                        <i class="fas fa-globe-americas me-2 text-success"></i>
+                                        <strong>Pública</strong> - Cualquier usuario puede ver esta lista
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="visibility" 
+                                           id="visibilityPrivate" value="private">
+                                    <label class="form-check-label" for="visibilityPrivate">
+                                        <i class="fas fa-lock me-2 text-secondary"></i>
+                                        <strong>Privada</strong> - Solo tú puedes ver esta lista
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Configuración colaborativa (solo para validados) -->
+                            <% if (data.user.canCreateCollaborative) { %>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="collaborativeSwitch" role="switch">
+                                    <label class="form-check-label" for="collaborativeSwitch">
+                                        <i class="fas fa-users me-2 text-primary"></i>
+                                        <strong>Lista colaborativa</strong> - Permitir que otros usuarios editen esta lista
+                                    </label>
+                                </div>
+                                
+                                <div id="collaborativeSettings" class="mt-3" style="display: none;">
+                                    <label class="form-label mb-2">Invitar colaboradores</label>
+                                    <div class="input-group mb-2">
+                                        <select class="form-select" id="collaboratorSelect">
+                                            <option value="">Seleccionar usuario validado...</option>
+                                            <% data.validContacts.forEach(contact => { %>
+                                            <option value="<%= contact.id %>">
+                                                <%= contact.name %> (<%= contact.type === 'validated' ? 'Validado' : 'Registrado' %>)
+                                            </option>
+                                            <% }) %>
+                                        </select>
+                                        <button type="button" class="btn btn-outline-primary" id="addCollaboratorBtn">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="collaboratorsList" class="mb-3">
+                                        <!-- Lista dinámica de colaboradores -->
+                                    </div>
+                                    
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Máximo 5 colaboradores. Todos deben ser usuarios validados.
+                                    </small>
+                                </div>
+                            </div>
+                            <% } %>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <!-- Vista previa de portada -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Vista previa de portada</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="mb-3" style="height: 150px; overflow: hidden;">
+                                        <img id="coverPreview" 
+                                             src="https://placehold.co/300x200/5d4037/f5f1e6?text=Primera+Fuente" 
+                                             alt="Vista previa de portada"
+                                             class="img-fluid rounded">
+                                    </div>
+                                    
+                                    <label class="form-label">Tipo de portada</label>
+                                    <div class="d-flex flex-column gap-2">
+                                        <div class="form-check">
+                                            <input type="radio" class="form-check-input" name="coverType" 
+                                                   id="coverAuto" value="auto" checked>
+                                            <label class="form-check-label w-100 d-flex align-items-center" for="coverAuto">
+                                                <i class="fas fa-image me-2"></i>
+                                                <div>
+                                                    <strong>Automática</strong>
+                                                    <div class="small text-muted">Usa la portada de la primera fuente</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check">
+                                            <input type="radio" class="form-check-input" name="coverType" 
+                                                   id="coverCategory" value="category">
+                                            <label class="form-check-label w-100 d-flex align-items-center" for="coverCategory">
+                                                <i class="fas fa-tag me-2"></i>
+                                                <div>
+                                                    <strong>Por categoría</strong>
+                                                    <div class="small text-muted">Usa el ícono de la categoría principal</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="categorySelection" class="mt-3" style="display: none;">
+                                        <label class="form-label">Seleccionar categoría</label>
+                                        <select class="form-select form-select-sm" id="coverCategorySelect">
+                                            <% data.knowledgeCategories.forEach(category => { %>
+                                            <option value="<%= category.id %>" 
+                                                    data-color="<%= category.color %>"
+                                                    data-icon="<%= category.icon %>">
+                                                <%= category.name %>
+                                            </option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Resumen de límites -->
+                            <div class="card mt-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Límites actuales</h6>
+                                    <div class="small">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>Listas creadas:</span>
+                                            <span><%= data.user.currentLists %>/<%= data.user.maxLists %></span>
+                                        </div>
+                                        <div class="progress mb-3" style="height: 4px;">
+                                            <div class="progress-bar bg-info" 
+                                                 style="width: <%= (data.user.currentLists / data.user.maxLists * 100) %>%"></div>
+                                        </div>
+                                        
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>Fuentes por lista:</span>
+                                            <span>Máx. <%= data.user.maxSourcesPerList %></span>
+                                        </div>
+                                        
+                                        <% if (data.user.canCreateCollaborative) { %>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Colaboradores:</span>
+                                            <span>Máx. 5</span>
+                                        </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" form="createListForm">Crear lista</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Compartir lista -->
+<div class="modal fade" id="shareListModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-share-alt me-2"></i>Compartir lista
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Enlace permanente</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="shareLink" 
+                               value="https://articora.com/lists/1" readonly>
+                        <button class="btn btn-outline-secondary" type="button" id="copyLinkBtn">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">
+                        Cualquier usuario (incluso no registrados) puede acceder a este enlace.
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Compartir en redes</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary flex-fill">
+                            <i class="fab fa-twitter me-2"></i>Twitter
+                        </button>
+                        <button class="btn btn-outline-primary flex-fill">
+                            <i class="fab fa-facebook me-2"></i>Facebook
+                        </button>
+                        <button class="btn btn-outline-primary flex-fill">
+                            <i class="fab fa-linkedin me-2"></i>LinkedIn
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    La lista se compartirá en su estado actual. Los cambios futuros se reflejarán automáticamente.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: 'lists.js' }) %>
