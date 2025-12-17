@@ -1,0 +1,486 @@
+<%- include('partials/header', {
+    title: 'Panel de Administración - Artícora',
+    currentPage: 'admin',
+    cssFile: 'admin.css'
+}) %>
+
+<div class="container-fluid py-4" data-admin-data='{"manualReports":<%- JSON.stringify(manualReports || []) %>,"systemReports":<%- JSON.stringify(systemReports || []) %>,"stats":<%- JSON.stringify(stats || {}) %>}' >
+    <!-- Encabezado (diseño refinado) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-shield-alt fa-2x text-gold me-3" style="color:var(--accent-gold)"></i>
+                <div>
+                    <h1 class="h2 mb-1" style="font-family: 'Palatino Linotype', 'Book Antiqua', serif; font-size:1.5rem; color:var(--text);">Panel de Administración</h1>
+                    <p class="text-muted mb-0">Gestión de reportes y moderación de contenidos — interfaz refinada con jerarquía visual y control total.</p>
+                </div>
+            </div>
+            
+            <!-- Barra de herramientas (estructura actualizada) -->
+            <div class="card border-brown mb-4">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center" role="toolbar" aria-label="Barra de herramientas del panel de administración">
+                        <div class="d-flex gap-2" role="group" aria-label="Grupo de botones de navegación">
+                            <a href="/admin" class="btn btn-sm btn-brown" aria-label="Ir al panel principal">
+                                <i class="fas fa-home me-1"></i> Panel Principal
+                            </a>
+                            <a href="/compare/admin" class="btn btn-sm btn-outline-brown" aria-label="Ir al comparador de duplicados">
+                                <i class="fas fa-clone me-1"></i> Comparador de Duplicados
+                            </a>
+                            <button class="btn btn-sm btn-outline-brown" id="filterReports" aria-label="Filtrar reportes">
+                                <i class="fas fa-filter me-1"></i> Filtrar
+                            </button>
+                        </div>
+                        <div class="d-flex gap-2" role="group" aria-label="Grupo de botones de acciones rápidas">
+                            <button class="btn btn-sm btn-outline-brown" id="refreshData" aria-label="Actualizar datos">
+                                <i class="fas fa-sync-alt me-1"></i> Actualizar
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" id="bulkActions" aria-label="Acciones masivas">
+                                <i class="fas fa-tasks me-1"></i> Acciones Masivas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-danger text-white">
+                <div class="card-body" style="color: black;">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-number mb-0"><%= stats.totalPending %></h3>
+                            <p class="stat-label mb-0" >Reportes pendientes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-user-slash fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-number mb-0"><%= stats.highPriority %></h3>
+                            <p class="stat-label mb-0">Prioridad alta</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-info text-white">
+                <div class="card-body" style="color: black;">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-number mb-0"><%= stats.resolvedToday %></h3>
+                            <p class="stat-label mb-0">Resueltos hoy</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body" style="color: black;">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-number mb-0"><%= stats.avgResolutionTime %></h3>
+                            <p class="stat-label mb-0">Tiempo promedio</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pestañas principales -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manualReports" type="button" role="tab">
+                        <i class="fas fa-flag me-1"></i>
+                        Reportes Manuales
+                        <span class="badge bg-danger ms-1"><%= manualReports.length %></span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#systemReports" type="button" role="tab">
+                        <i class="fas fa-robot me-1"></i>
+                        Reportes Automáticos
+                        <span class="badge bg-warning text-dark ms-1"><%= systemReports.length %></span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tools-tab" data-bs-toggle="tab" data-bs-target="#adminTools" type="button" role="tab">
+                        <i class="fas fa-tools me-1"></i>
+                        Herramientas
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="adminTabContent">
+                <!-- Tab 1: Reportes Manuales -->
+                <div class="tab-pane fade show active" id="manualReports" role="tabpanel">
+                    <div class="card border-brown">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0" style="color: black;">
+                                <i class="fas fa-flag text-brown me-2"></i>
+                                Reportes realizados por usuarios
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="50">ID</th>
+                                            <th width="100">Tipo</th>
+                                            <th>Contenido/Usuario</th>
+                                            <th width="150">Motivo</th>
+                                            <th width="120">Reportado por</th>
+                                            <th width="120">Fecha</th>
+                                            <th width="100">Prioridad</th>
+                                            <th width="150">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% manualReports.forEach(report => { %>
+                                            <tr class="report-row <%= report.priority === 'alta' ? 'table-danger' : report.priority === 'media' ? 'table-warning' : '' %>" data-report-id="<%= report.id %>">
+                                                <td><span class="badge bg-secondary">#<%= report.id %></span></td>
+                                                <td>
+                                                    <span class="badge <%= report.type === 'source' ? 'bg-info' : report.type === 'user' ? 'bg-primary' : 'bg-secondary' %>">
+                                                        <% if (report.type === 'source') { %>
+                                                            <i class="fas fa-book me-1"></i>Fuente
+                                                        <% } else if (report.type === 'user') { %>
+                                                            <i class="fas fa-user me-1"></i>Usuario
+                                                        <% } else { %>
+                                                            <i class="fas fa-comment me-1"></i>Comentario
+                                                        <% } %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="report-content">
+                                                        <% if (report.type === 'source') { %>
+                                                            <a href="/post/<%= report.sourceId %>" class="text-brown fw-bold">
+                                                                <%= report.title %>
+                                                            </a>
+                                                        <% } else if (report.type === 'user') { %>
+                                                            <span class="fw-bold"><%= report.userName %></span>
+                                                            <small class="text-muted d-block">@<%= report.userId %></small>
+                                                        <% } else { %>
+                                                            <a href="/post/<%= report.sourceId %>" class="text-brown fw-bold">
+                                                                Comentario en: <%= report.sourceTitle %>
+                                                            </a>
+                                                        <% } %>
+                                                        <div class="report-description small text-muted mt-1">
+                                                            <%= report.description %>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-light text-dark border"><%= report.reason %></span>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted"><%= report.reportedBy %></small>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted"><%= report.reportDate %></small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge <%= report.priority === 'alta' ? 'bg-danger' : report.priority === 'media' ? 'bg-warning' : 'bg-info' %>">
+                                                        <%= report.priority %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <% if (report.type === 'source') { %>
+                                                            <a href="/post/<%= report.sourceId %>" class="btn btn-outline-brown" title="Ver fuente">
+                                                                <i class="fas fa-external-link-alt"></i>
+                                                            </a>
+                                                        <% } %>
+                                                        <button class="btn btn-outline-success resolve-report" data-report-id="<%= report.id %>" title="Marcar como resuelto">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-danger reject-report" data-report-id="<%= report.id %>" title="Rechazar reporte">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    Mostrando <%= manualReports.length %> reportes manuales
+                                </small>
+                                <button class="btn btn-sm btn-outline-brown" id="exportManualReports">
+                                    <i class="fas fa-download me-1"></i> Exportar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Reportes Automáticos -->
+                <div class="tab-pane fade" id="systemReports" role="tabpanel">
+                    <div class="card border-brown">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0" style="color: black;">
+                                <i class="fas fa-robot text-brown me-2"></i>
+                                Reportes generados automáticamente
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="50">ID</th>
+                                            <th width="120">Tipo</th>
+                                            <th>Detalles</th>
+                                            <th width="120">Detectado</th>
+                                            <th width="150">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% systemReports.forEach(report => { %>
+                                            <tr class="system-report-row" data-report-id="<%= report.id %>">
+                                                <td><span class="badge bg-secondary">#<%= report.id %></span></td>
+                                                <td>
+                                                    <% if (report.type === 'offensive-language') { %>
+                                                        <span class="badge bg-danger">
+                                                            <i class="fas fa-comment-slash me-1"></i>Lenguaje ofensivo
+                                                        </span>
+                                                    <% } else if (report.type === 'broken-url') { %>
+                                                        <span class="badge bg-warning text-dark">
+                                                            <i class="fas fa-link me-1"></i>URL rota
+                                                        </span>
+                                                    <% } else if (report.type === 'duplicate-detection') { %>
+                                                        <span class="badge bg-info">
+                                                            <i class="fas fa-clone me-1"></i>Posible duplicado
+                                                        </span>
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <div class="report-details">
+                                                        <% if (report.type === 'offensive-language') { %>
+                                                            <div class="fw-bold">Texto detectado:</div>
+                                                            <div class="text-danger small mb-1">"<%= report.detectedText %>"</div>
+                                                            <div class="small text-muted">
+                                                                Usuario: <%= report.context.userId %> | 
+                                                                Fuente: <a href="/post/<%= report.context.sourceId %>" class="text-brown">#<%= report.context.sourceId %></a> | 
+                                                                Fecha: <%= report.context.date %>
+                                                            </div>
+                                                        <% } else if (report.type === 'broken-url') { %>
+                                                            <div class="fw-bold">
+                                                                <a href="/post/<%= report.sourceId %>" class="text-brown">
+                                                                    <%= report.sourceTitle %>
+                                                                </a>
+                                                            </div>
+                                                            <div class="small text-muted">
+                                                                URL: <code><%= report.url %></code> | 
+                                                                Error: HTTP <%= report.errorCode %> | 
+                                                                Días con error: <%= report.errorDays %>
+                                                            </div>
+                                                        <% } else if (report.type === 'duplicate-detection') { %>
+                                                            <div class="fw-bold">Similitud: <%= report.similarity %>%</div>
+                                                            <div class="small text-muted">
+                                                                Fuentes: 
+                                                                <% report.sourceIds.forEach((id, index) => { %>
+                                                                    <a href="/post/<%= id %>" class="text-brown me-1">#<%= id %></a>
+                                                                <% }) %>
+                                                            </div>
+                                                            <div class="small text-muted">
+                                                                <a href="/compare/admin?ids=<%= report.sourceIds.join(',') %>" class="text-info">
+                                                                    <i class="fas fa-clone me-1"></i>Comparar en detalle
+                                                                </a>
+                                                            </div>
+                                                        <% } %>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted"><%= report.detectedDate %></small>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <% if (report.type === 'duplicate-detection') { %>
+                                                            <a href="/compare/admin?ids=<%= report.sourceIds.join(',') %>" class="btn btn-outline-brown" title="Analizar duplicados">
+                                                                <i class="fas fa-clone"></i>
+                                                            </a>
+                                                        <% } %>
+                                                        <% if (report.type === 'broken-url') { %>
+                                                            <button class="btn btn-outline-warning fix-url" data-report-id="<%= report.id %>" title="Marcar URL como reparada">
+                                                                <i class="fas fa-wrench"></i>
+                                                            </button>
+                                                        <% } %>
+                                                        <button class="btn btn-outline-success resolve-system-report" data-report-id="<%= report.id %>" title="Marcar como resuelto">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-danger ignore-system-report" data-report-id="<%= report.id %>" title="Ignorar reporte">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    Mostrando <%= systemReports.length %> reportes automáticos
+                                </small>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-brown" id="runSystemChecks">
+                                        <i class="fas fa-play me-1"></i> Ejecutar verificaciones
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-brown" id="exportSystemReports">
+                                        <i class="fas fa-download me-1"></i> Exportar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Herramientas de Administración -->
+                <div class="tab-pane fade" id="adminTools" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card border-brown h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0" style="color: black;">
+                                        <i class="fas fa-clone text-brown me-2"></i>
+                                        Gestión de Duplicados
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Herramienta avanzada para comparar y fusionar fuentes duplicadas.</p>
+                                    <div class="d-grid gap-2">
+                                        <a href="/compare/admin" class="btn btn-brown">
+                                            <i class="fas fa-external-link-alt me-1"></i> Ir al Comparador de Duplicados
+                                        </a>
+                                        <button class="btn btn-outline-brown" id="scanDuplicates">
+                                            <i class="fas fa-search me-1"></i> Escanear duplicados automáticamente
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card border-brown h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0" style="color: black;">
+                                        <i class="fas fa-cogs text-brown me-2"></i>
+                                        Configuración del Sistema
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Diccionario de lenguaje ofensivo</label>
+                                        <textarea class="form-control form-control-sm border-brown" rows="3" placeholder="Términos separados por comas..." id="offensiveDict"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Dominios equivalentes para URLs</label>
+                                        <textarea class="form-control form-control-sm border-brown" rows="3" placeholder="Dominios separados por comas..." id="equivalentDomains"></textarea>
+                                    </div>
+                                    <button class="btn btn-sm btn-brown w-100" id="saveSystemConfig">
+                                        <i class="fas fa-save me-1"></i> Guardar configuración
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card border-brown h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0" style="color: black;">
+                                        <i class="fas fa-chart-bar text-brown me-2"></i>
+                                        Estadísticas de Moderación
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="stats-grid">
+                                        <div class="stat-item">
+                                            <div class="stat-number" style="color: black;">24</div>
+                                            <div class="stat-label" style="color: black;">Reportes esta semana</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-number" style="color: black;">18</div>
+                                            <div class="stat-label" style="color: black;">Resueltos</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-number" style="color: black;">6</div>
+                                            <div class="stat-label" style="color: black;">Pendientes</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-number" style="color: black;">75%</div>
+                                            <div class="stat-label" style="color: black;">Tasa de resolución</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button class="btn btn-sm btn-outline-brown w-100" id="viewDetailedStats">
+                                            <i class="fas fa-chart-line me-1"></i> Ver estadísticas detalladas
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card border-brown h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0" style="color: black;">
+                                        <i class="fas fa-users text-brown me-2"></i>
+                                        Gestión de Usuarios
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Herramientas para administrar usuarios y permisos.</p>
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-brown" id="viewUserManagement">
+                                            <i class="fas fa-user-cog me-1"></i> Administrar usuarios
+                                        </button>
+                                        <button class="btn btn-outline-brown" id="viewVerificationQueue">
+                                            <i class="fas fa-user-check me-1"></i> Ver cola de verificación
+                                        </button>
+                                        <button class="btn btn-outline-brown" id="viewSuspendedUsers">
+                                            <i class="fas fa-user-slash me-1"></i> Ver usuarios suspendidos
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', {
+    jsFile: 'admin.js'
+}) %>

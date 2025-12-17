@@ -1,0 +1,445 @@
+<%- include('partials/header', {
+    title: 'Panel de Administración - Artícora',
+    currentPage: 'admin',
+    cssFile: 'admin.css'
+}) %>
+
+<div class="admin-container">
+    <!-- Header del panel -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-shield-alt fa-2x text-gold me-3"></i>
+                        <div>
+                            <h1 class="h2 mb-1">Panel de Administración</h1>
+                            <p class="text-muted mb-0">Gestión de reportes y moderación de contenido</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end">
+                        <div class="admin-actions">
+                            <button class="btn btn-outline-brown me-2" id="refreshData">
+                                <i class="fas fa-sync-alt me-1"></i> Actualizar
+                            </button>
+                            <button class="btn btn-brown" id="adminSettings">
+                                <i class="fas fa-cog me-1"></i> Configuración
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Estadísticas rápidas -->
+    <div class="admin-stats">
+        <div class="container-fluid">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-danger">
+                        <div class="stat-icon">
+                            <i class="fas fa-flag"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3><%= stats.pendingReports %></h3>
+                            <p>Reportes pendientes</p>
+                            <small class="text-muted"><%= stats.totalReports %> totales</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-warning">
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3><%= stats.autoAlerts %></h3>
+                            <p>Alertas automáticas</p>
+                            <small class="text-muted">8 nuevas hoy</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-success">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3><%= stats.resolvedToday %></h3>
+                            <p>Resueltos hoy</p>
+                            <small class="text-muted"><%= stats.avgResolutionTime %> promedio</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-info">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3><%= stats.topReportType %></h3>
+                            <p>Tipo más común</p>
+                            <small class="text-muted">42% de reportes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="admin-main">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Columna izquierda: Reportes -->
+                <div class="col-lg-8">
+                    <!-- Pestañas de reportes -->
+                    <div class="card border-brown shadow-sm mb-4">
+                        <div class="card-header bg-brown text-light">
+                            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pendingReports">
+                                        <i class="fas fa-clock me-1"></i> Pendientes
+                                        <span class="badge bg-danger ms-2"><%= reports.pending.length %></span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#resolvedReports">
+                                        <i class="fas fa-check-circle me-1"></i> Resueltos
+                                        <span class="badge bg-success ms-2"><%= reports.resolved.length %></span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#autoAlertsTab">
+                                        <i class="fas fa-robot me-1"></i> Alertas Auto
+                                        <span class="badge bg-warning ms-2"><%= autoAlerts.length %></span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="tab-content">
+                                <!-- Reportes pendientes -->
+                                <div class="tab-pane fade show active" id="pendingReports" role="tabpanel">
+                                    <div class="reports-list">
+                                        <% reports.pending.forEach(report => { %>
+                                            <div class="report-item" data-report-id="<%= report.id %>" data-type="<%= report.type %>">
+                                                <div class="report-header">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <span class="badge <%= report.type === 'fuente' ? 'bg-primary' : report.type === 'usuario' ? 'bg-success' : 'bg-info' %> me-2">
+                                                                <%= report.type %>
+                                                            </span>
+                                                            <span class="badge <%= report.priority === 'alta' ? 'bg-danger' : report.priority === 'media' ? 'bg-warning' : 'bg-secondary' %>">
+                                                                <%= report.priority %>
+                                                            </span>
+                                                            <span class="report-id small text-muted ms-2">#<%= report.id %></span>
+                                                        </div>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm btn-outline-brown dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                                <i class="fas fa-ellipsis-h"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li><a class="dropdown-item" href="#" data-action="view-details"><i class="fas fa-eye me-2"></i>Ver detalles</a></li>
+                                                                <li><a class="dropdown-item" href="#" data-action="assign-to-me"><i class="fas fa-user-check me-2"></i>Asignar a mí</a></li>
+                                                                <li><hr class="dropdown-divider"></li>
+                                                                <li><a class="dropdown-item text-danger" href="#" data-action="dismiss"><i class="fas fa-times me-2"></i>Descartar</a></li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                    <h6 class="report-title mt-2 mb-1">
+                                                        <%= report.reason %>
+                                                        <% if (report.type === 'fuente') { %>
+                                                            <small class="text-muted">- Fuente: <%= report.title %></small>
+                                                        <% } else if (report.type === 'usuario') { %>
+                                                            <small class="text-muted">- Usuario: <%= report.userName %></small>
+                                                        <% } %>
+                                                    </h6>
+                                                    <div class="report-meta small text-muted">
+                                                        <i class="far fa-user me-1"></i> Reportado por: <%= report.reportedBy %>
+                                                        <i class="far fa-clock me-1 ms-3"></i> <%= report.date %>
+                                                    </div>
+                                                </div>
+                                                <div class="report-body">
+                                                    <% if (report.type === 'comentario') { %>
+                                                        <div class="comment-preview bg-light p-2 rounded mb-2">
+                                                            <i class="fas fa-comment me-1"></i>
+                                                            <%= report.text.substring(0, 120) %>...
+                                                        </div>
+                                                    <% } %>
+                                                    
+                                                    <% if (report.details && report.details.comments) { %>
+                                                        <div class="report-notes bg-light p-2 rounded">
+                                                            <strong>Notas del reportero:</strong> <%= report.details.comments %>
+                                                        </div>
+                                                    <% } %>
+                                                </div>
+                                                <div class="report-footer">
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" class="btn btn-outline-success resolve-btn" data-resolution="approve">
+                                                            <i class="fas fa-check me-1"></i> Aprobar
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger resolve-btn" data-resolution="reject">
+                                                            <i class="fas fa-times me-1"></i> Rechazar
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-warning resolve-btn" data-resolution="postpone">
+                                                            <i class="fas fa-clock me-1"></i> Posponer
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-info resolve-btn" data-resolution="needs-info">
+                                                            <i class="fas fa-info-circle me-1"></i> Más info
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+
+                                <!-- Reportes resueltos -->
+                                <div class="tab-pane fade" id="resolvedReports" role="tabpanel">
+                                    <div class="resolved-list">
+                                        <% reports.resolved.forEach(report => { %>
+                                            <div class="resolved-item">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <span class="badge <%= report.type === 'fuente' ? 'bg-primary' : report.type === 'usuario' ? 'bg-success' : 'bg-info' %> me-2">
+                                                            <%= report.type %>
+                                                        </span>
+                                                        <strong><%= report.reason %></strong>
+                                                        <div class="small text-muted">
+                                                            Resuelto por: <%= report.resolvedBy %> | <%= report.date %>
+                                                        </div>
+                                                    </div>
+                                                    <span class="badge <%= report.resolution === 'comentario_eliminado' ? 'bg-success' : 'bg-danger' %>">
+                                                        <%= report.resolution %>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+
+                                <!-- Alertas automáticas -->
+                                <div class="tab-pane fade" id="autoAlertsTab" role="tabpanel">
+                                    <div class="auto-alerts-list">
+                                        <% autoAlerts.forEach(alert => { %>
+                                            <div class="alert-item <%= alert.type %>">
+                                                <div class="alert-header">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <% if (alert.type === 'lenguaje_ofensivo') { %>
+                                                                <i class="fas fa-comment-slash text-danger me-2"></i>
+                                                                <span class="badge bg-danger">Lenguaje ofensivo</span>
+                                                            <% } else if (alert.type === 'url_rota') { %>
+                                                                <i class="fas fa-link text-warning me-2"></i>
+                                                                <span class="badge bg-warning">URL rota</span>
+                                                            <% } else { %>
+                                                                <i class="fas fa-clone text-info me-2"></i>
+                                                                <span class="badge bg-info">Posible duplicado</span>
+                                                            <% } %>
+                                                            <span class="badge <%= alert.severity === 'alta' ? 'bg-danger' : alert.severity === 'media' ? 'bg-warning' : 'bg-success' %> ms-2">
+                                                                <%= alert.severity %>
+                                                            </span>
+                                                            <span class="small text-muted ms-2"><%= alert.detected %></span>
+                                                        </div>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm btn-outline-brown dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                                <i class="fas fa-ellipsis-h"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li><a class="dropdown-item" href="#" data-action="apply-suggestion"><i class="fas fa-check me-2"></i>Aplicar sugerencia</a></li>
+                                                                <li><a class="dropdown-item" href="#" data-action="ignore"><i class="fas fa-times me-2"></i>Ignorar alerta</a></li>
+                                                                <li><a class="dropdown-item" href="#" data-action="mark-reviewed"><i class="fas fa-eye me-2"></i>Marcar como revisado</a></li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="alert-body">
+                                                    <% if (alert.type === 'lenguaje_ofensivo') { %>
+                                                        <p class="mb-1">
+                                                            <strong>Palabras detectadas:</strong> 
+                                                            <%= alert.details.matchedWords.join(', ') %>
+                                                        </p>
+                                                        <p class="mb-1">
+                                                            <strong>Confianza:</strong> <%= (alert.details.confidence * 100).toFixed(0) %>%
+                                                        </p>
+                                                        <p class="mb-0">
+                                                            <strong>Sugerencia:</strong> <%= alert.suggestedAction === 'revisar_comentario' ? 'Revisar comentario' : 'Eliminar comentario' %>
+                                                        </p>
+                                                    <% } else if (alert.type === 'url_rota') { %>
+                                                        <p class="mb-1">
+                                                            <strong>URL:</strong> <%= alert.details.url %>
+                                                        </p>
+                                                        <p class="mb-1">
+                                                            <strong>Error:</strong> HTTP <%= alert.details.errorCode %> 
+                                                            (fallando desde hace <%= alert.details.daysFailing %> días)
+                                                        </p>
+                                                        <p class="mb-0">
+                                                            <strong>Sugerencia:</strong> Eliminar URL o notificar al autor
+                                                        </p>
+                                                    <% } else { %>
+                                                        <p class="mb-1">
+                                                            <strong>Fuentes posibles duplicadas:</strong> 
+                                                            #<%= alert.details.sourceIds.join(' y #') %>
+                                                        </p>
+                                                        <p class="mb-1">
+                                                            <strong>Similitud:</strong> <%= (alert.details.similarity * 100).toFixed(0) %>%
+                                                        </p>
+                                                        <p class="mb-0">
+                                                            <strong>Sugerencia:</strong> Revisar con comparador de metadatos
+                                                        </p>
+                                                    <% } %>
+                                                </div>
+                                                <div class="alert-footer">
+                                                    <% if (alert.type === 'duplicado_automatico') { %>
+                                                        <a href="/compare/admin" class="btn btn-sm btn-outline-brown">
+                                                            <i class="fas fa-exchange-alt me-1"></i> Ir al comparador
+                                                        </a>
+                                                    <% } else { %>
+                                                        <button class="btn btn-sm <%= alert.suggestedAction === 'eliminar_url' ? 'btn-danger' : 'btn-warning' %>">
+                                                            <i class="fas fa-bolt me-1"></i> 
+                                                            <% if (alert.suggestedAction === 'revisar_comentario') { %>
+                                                                Revisar comentario
+                                                            <% } else if (alert.suggestedAction === 'eliminar_url') { %>
+                                                                Eliminar URL
+                                                            <% } else { %>
+                                                                Aplicar sugerencia
+                                                            <% } %>
+                                                        </button>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros y búsqueda -->
+                    <div class="card border-brown shadow-sm">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label small">Tipo de reporte</label>
+                                    <select class="form-select form-select-sm border-brown" id="reportTypeFilter">
+                                        <option value="all">Todos los tipos</option>
+                                        <option value="fuente">Fuentes</option>
+                                        <option value="usuario">Usuarios</option>
+                                        <option value="comentario">Comentarios</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Prioridad</label>
+                                    <select class="form-select form-select-sm border-brown" id="priorityFilter">
+                                        <option value="all">Todas las prioridades</option>
+                                        <option value="alta">Alta</option>
+                                        <option value="media">Media</option>
+                                        <option value="baja">Baja</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Fecha</label>
+                                    <input type="date" class="form-control form-control-sm border-brown" id="dateFilter">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna derecha: Estadísticas y herramientas -->
+                <div class="col-lg-4">
+                    <!-- Estadísticas por tipo -->
+                    <div class="card border-brown shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">
+                                <i class="fas fa-chart-pie text-brown me-2"></i>
+                                Distribución de reportes
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="stats-distribution">
+                                <% adminStats.byType.forEach(stat => { %>
+                                    <div class="distribution-item mb-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="small"><%= stat.type %></span>
+                                            <span class="small fw-bold"><%= stat.count %> (<%= stat.percentage %>%)</span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar" 
+                                                 style="width: <%= stat.percentage %>%; 
+                                                        background-color: <%= stat.type === 'Fuentes' ? '#0d6efd' : stat.type === 'Usuarios' ? '#198754' : '#0dcaf0' %>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prioridades -->
+                    <div class="card border-brown shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">
+                                <i class="fas fa-exclamation-circle text-brown me-2"></i>
+                                Por prioridad
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="priority-stats">
+                                <% adminStats.byPriority.forEach(stat => { %>
+                                    <div class="priority-item d-flex align-items-center mb-2">
+                                        <div class="priority-color me-2" 
+                                             style="background-color: <%= stat.color %>; width: 12px; height: 12px; border-radius: 50%;">
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <span class="small"><%= stat.priority %></span>
+                                        </div>
+                                        <div class="priority-count">
+                                            <span class="badge rounded-pill" style="background-color: <%= stat.color %>;">
+                                                <%= stat.count %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acciones rápidas -->
+                    <div class="card border-brown shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">
+                                <i class="fas fa-bolt text-brown me-2"></i>
+                                Acciones rápidas
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="quick-actions">
+                                <button class="btn btn-sm btn-outline-brown w-100 mb-2" id="markAllReviewed">
+                                    <i class="fas fa-eye me-1"></i> Marcar todos como revisados
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger w-100 mb-2" id="clearOldReports">
+                                    <i class="fas fa-trash me-1"></i> Limpiar reportes antiguos
+                                </button>
+                                <button class="btn btn-sm btn-outline-success w-100 mb-2" id="exportReports">
+                                    <i class="fas fa-download me-1"></i> Exportar reportes
+                                </button>
+                                <button class="btn btn-sm btn-outline-info w-100" id="viewAuditLog">
+                                    <i class="fas fa-history me-1"></i> Ver registro de auditoría
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<%- include('partials/footer', {
+    jsFile: 'admin.js'
+}) %>

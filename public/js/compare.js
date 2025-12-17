@@ -1,7 +1,3 @@
-// ========================================
-// COMPARADOR DE FUENTES - JavaScript
-// ========================================
-
 document.addEventListener('DOMContentLoaded', function() {
     // Estado del comparador
     const state = {

@@ -1,0 +1,143 @@
+/* Variables específicas para admin */
+:root{
+    --primary-brown: #5d4037; /* bordes e íconos principales */
+    --accent-gold: #b7934c;  /* iconos dorados */
+    --bg: #f5f3f0;           /* fondo general */
+    --card-bg: #ffffff;      /* fondo de tarjetas */
+    --muted: #6b6b6b;        /* texto secundario */
+    --text: #2c1810;         /* texto principal (oscuro y cálido) */
+    --danger: #dc3545;
+    --warning: #ffc107;
+    --info: #17a2b8;
+    --success: #28a745;
+    --glass: rgba(255,255,255,0.6);
+    --shadow-strong: 0 8px 24px rgba(20,20,20,0.08);
+    --shadow-soft: 0 4px 12px rgba(20,20,20,0.06);
+    --radius-lg: 12px;
+    --radius-md: 8px;
+}
+
+/* Base */
+html,body{background:var(--bg);color:var(--text);font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Palatino Linotype', 'Book Antiqua', serif;}
+.container-fluid.py-4{padding-top:1.5rem;padding-bottom:1.5rem}
+
+/* Header refinements */
+.card.border-brown{border:1px solid var(--primary-brown)}
+
+/* Toolbar */
+.card-body.py-2{padding:.6rem 1rem}
+.d-flex.gap-2 .btn{height:2.5rem;min-width:2.5rem;padding:0 .9rem;border-radius:10px;border:1px solid rgba(93,64,55,0.08);background:linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));box-shadow:var(--shadow-soft);color:var(--primary-brown);display:inline-flex;align-items:center;gap:.5rem}
+.d-flex.gap-2 .btn i{color:var(--accent-gold)}
+
+/* Tarjetas de estadísticas */
+.stat-card{border:none;border-radius:var(--radius-lg);box-shadow:var(--shadow-strong);transition:transform .28s ease, box-shadow .28s ease;overflow:hidden}
+.stat-card .card-body{padding:1.15rem}
+.stat-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(20,20,20,0.12)}
+.stat-icon i{opacity:0.95}
+.stat-number{font-size:1.6rem;font-weight:700;color:#fff}
+.stat-label{font-size:0.85rem;color:rgba(255,255,255,0.95)}
+
+/* Colores individuales para estadísticas */
+.card.stat-card.bg-danger{background:linear-gradient(180deg,var(--danger),#b0232f)}
+.card.stat-card.bg-warning{background:linear-gradient(180deg,var(--warning),#e6a70a);color:#3b2b18}
+.card.stat-card.bg-info{background:linear-gradient(180deg,var(--info),#138f95)}
+.card.stat-card.bg-success{background:linear-gradient(180deg,var(--success),#1f8f3f)}
+
+/* Tablas de reportes */
+.table-responsive{max-height:620px;overflow:auto;border-radius:var(--radius-md);box-shadow:var(--shadow-soft);border:1px solid rgba(93,64,55,0.06);background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.4))}
+.table {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    background:rgba(255,255,255,0.9);
+    z-index:5;
+    border-bottom:2px solid rgba(0,0,0,0.04);
+    padding:.9rem 1rem;
+    font-weight:700;
+    color:var(--primary-brown);
+}
+
+.table tbody td {
+    padding:.8rem 1rem;
+    vertical-align:middle;
+    border-bottom:1px solid rgba(16,16,16,0.03);
+}
+
+.table tbody tr:hover {
+    background:linear-gradient(90deg, rgba(93,64,55,0.02), rgba(93,64,55,0.01));
+}
+
+/* Filas de reportes */
+.report-row.table-danger{background:rgba(220,53,69,0.06) !important}
+.report-row.table-warning{background:rgba(255,193,7,0.06) !important}
+
+/* Report content */
+.report-content{max-width:420px}
+.report-content a{color:var(--primary-brown);font-weight:600;text-decoration:none}
+.report-content a:hover{text-decoration:underline;color:var(--accent-gold)}
+.report-description{line-height:1.45;max-height:3.2em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2}
+.report-details code{font-size:.82rem;background:rgba(0,0,0,0.04);padding:.12rem .3rem;border-radius:6px;color:var(--primary-brown)}
+
+/* Action buttons - circular */
+.btn-group-sm .btn{width:40px;height:40px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(93,64,55,0.06);box-shadow:0 2px 8px rgba(20,20,20,0.04);transition:transform .18s ease}
+.btn-group-sm .btn i{color:var(--primary-brown)}
+.btn-group-sm .btn:hover{transform:translateY(-3px)}
+
+/* Grid de estadísticas en herramientas */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.stats-grid .stat-item{background:var(--card-bg);border-radius:10px;padding:1rem;border:1px solid rgba(93,64,55,0.04);box-shadow:var(--shadow-soft)}
+
+/* Formularios de configuración */
+.form-control-sm.border-brown{border:1px solid rgba(93,64,55,0.12);padding:.45rem .6rem;border-radius:8px}
+.form-control-sm.border-brown:focus{border-color:var(--accent-gold);box-shadow:0 6px 18px rgba(183,147,76,0.12)}
+
+/* Pestañas */
+.nav-tabs{border-bottom:none}
+.nav-tabs .nav-link{background:transparent;border:1px solid transparent;border-radius:10px;padding:.6rem 1rem;margin-right:.45rem;color:var(--muted)}
+.nav-tabs .nav-link.active{background:var(--card-bg);color:var(--primary-brown);box-shadow:var(--shadow-soft);border:1px solid rgba(93,64,55,0.06)}
+.nav-tabs .nav-link .badge{margin-left:.4rem}
+
+/* Badges personalizados */
+.badge.bg-light.text-dark.border{background:#fff;border:1px solid rgba(93,64,55,0.06);color:var(--primary-brown);font-weight:600}
+
+/* Preview panel */
+.preview-container{background:var(--card-bg);border-radius:12px;border:1px solid rgba(93,64,55,0.04);box-shadow:var(--shadow-soft)}
+.preview-header h5{font-family:'Palatino Linotype', 'Book Antiqua',serif;color:var(--primary-brown)}
+.cover-placeholder{width:96px;height:96px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(93,64,55,0.04), rgba(93,64,55,0.02));}
+
+/* Fusion panel */
+.card.border-warning{border:1px solid rgba(255,193,7,0.25)}
+
+/* Modal tweaks */
+.modal-content{border-radius:10px}
+
+/* Responsive tweaks */
+@media (max-width: 991.98px){
+    .table-responsive{max-height:500px}
+    .stats-grid{grid-template-columns:1fr}
+}
+@media (max-width: 767.98px){
+    .table-responsive{max-height:400px}
+    .stat-number{font-size:1.25rem}
+    .btn-group-sm .btn{width:36px;height:36px}
+    .d-flex.gap-2 .btn{height:2.2rem;padding:0 .6rem}
+}
+@media (max-width: 575.98px){
+    .stat-number{font-size:1rem}
+    .report-content,.report-details{max-width:160px}
+}
+
+/* Utilities */
+.text-brown{color:var(--primary-brown) !important}
+.bg-brown{background:var(--primary-brown) !important;color:#fff}
+
+.stat-label.mb-0{
+    color:var(--text) !important
+}
+.stat-number.mb-0{
+    color:var(--text) !important
+}
