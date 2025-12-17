@@ -1962,9 +1962,163 @@ app.get('/compare', (req, res) => {
     });
 });
 
-// Ruta específica para admin (para el futuro)
+// Ruta para comparador de administrador
 app.get('/compare/admin', (req, res) => {
-    res.send("hola, admin");
+    // Fuentes con metadatos para comparación masiva (sin calificaciones)
+    const mockSources = [
+        {
+            id: 1,
+            title: "Cognitive Science: An Introduction to the Study of Mind",
+            authors: ["Jay Friedenberg", "Gordon Silverman"],
+            year: 2021,
+            type: "Libro",
+            category: "Ciencias Cognitivas",
+            subcategory: "Neurociencia Cognitiva",
+            publisher: "SAGE Publications",
+            volume: "4",
+            number: "2",
+            pages: "480-495",
+            edition: "4",
+            doi: "10.1000/182",
+            keywords: ["ciencia cognitiva", "mente", "neurociencia", "cognición"],
+            url: "https://example.com/cognitive-science",
+            uploadDate: "2023-10-15",
+            uploadedBy: "usuario123",
+            verificationStatus: "verificado",
+            reports: 0,
+            lastModified: "2023-11-20",
+            history: [
+                { date: "2023-10-15", action: "Creación", user: "usuario123" },
+                { date: "2023-10-20", action: "Verificación aprobada", user: "admin1" },
+                { date: "2023-11-20", action: "Actualización de metadatos", user: "usuario123" }
+            ],
+            isDuplicate: true
+        },
+        {
+            id: 2,
+            title: "Cognitive Science: An Introduction to the Study of Mind",
+            authors: ["Jay Friedenberg", "Gordon Silverman"],
+            year: 2021,
+            type: "Libro",
+            category: "Ciencias Cognitivas",
+            subcategory: "Neurociencia Cognitiva",
+            publisher: "SAEG Publications",
+            volume: "4",
+            number: "2",
+            pages: "480-495",
+            edition: "4",
+            doi: "10.1000/182",
+            keywords: ["ciencia cognitiva", "mente", "neurociencia", "cognición"],
+            url: "https://another-example.com/cognitive-science",
+            uploadDate: "2023-11-01",
+            uploadedBy: "usuario456",
+            verificationStatus: "pendiente",
+            reports: 1,
+            lastModified: "2023-11-10",
+            history: [
+                { date: "2023-11-01", action: "Creación", user: "usuario456" },
+                { date: "2023-11-05", action: "Reporte por posible duplicado", user: "usuario789" },
+                { date: "2023-11-10", action: "Actualización de URL", user: "usuario456" }
+            ],
+            isDuplicate: true
+        },
+        {
+            id: 3,
+            title: "Deep Learning with Python",
+            authors: ["François Chollet"],
+            year: 2021,
+            type: "Libro",
+            category: "Ciencias Computacionales",
+            subcategory: "Aprendizaje Automático",
+            publisher: "Manning Publications",
+            volume: "2",
+            number: null,
+            pages: "384",
+            edition: "2",
+            doi: "10.1000/183",
+            keywords: ["deep learning", "python", "redes neuronales", "IA"],
+            url: "https://example.com/deep-learning",
+            uploadDate: "2023-11-05",
+            uploadedBy: "programadorAI",
+            verificationStatus: "verificado",
+            reports: 0,
+            lastModified: "2023-11-18",
+            history: [
+                { date: "2023-11-05", action: "Creación", user: "programadorAI" },
+                { date: "2023-11-10", action: "Verificación aprobada", user: "admin2" },
+                { date: "2023-11-18", action: "Corrección de autores", user: "programadorAI" }
+            ],
+            isDuplicate: false
+        },
+        {
+            id: 4,
+            title: "A Brief History of Time",
+            authors: ["Stephen Hawking"],
+            year: 1988,
+            type: "Libro",
+            category: "Ciencias Exactas",
+            subcategory: "Cosmología",
+            publisher: "Bantam Books",
+            volume: "1",
+            number: null,
+            pages: "256",
+            edition: "1",
+            doi: "10.1000/184",
+            keywords: ["cosmología", "big bang", "agujeros negros", "física teórica"],
+            url: "https://example.com/brief-history-time",
+            uploadDate: "2023-08-30",
+            uploadedBy: "fisico99",
+            verificationStatus: "verificado",
+            reports: 0,
+            lastModified: "2023-10-12",
+            history: [
+                { date: "2023-08-30", action: "Creación", user: "fisico99" },
+                { date: "2023-09-05", action: "Verificación aprobada", user: "admin1" },
+                { date: "2023-10-12", action: "Actualización de edición", user: "fisico99" }
+            ],
+            isDuplicate: false
+        },
+        {
+            id: 5,
+            title: "The Structure of Scientific Revolutions",
+            authors: ["Thomas S. Kuhn"],
+            year: 1962,
+            type: "Libro",
+            category: "Ciencias Humanistas",
+            subcategory: "Filosofía de la Ciencia",
+            publisher: "University of Chicago Press",
+            volume: "1",
+            number: null,
+            pages: "264",
+            edition: "1",
+            doi: "10.1000/185",
+            keywords: ["revoluciones científicas", "paradigma", "ciencia", "historia"],
+            url: "https://example.com/structure-revolutions",
+            uploadDate: "2023-10-08",
+            uploadedBy: "filosofo77",
+            verificationStatus: "rechazado",
+            reports: 3,
+            lastModified: "2023-11-22",
+            history: [
+                { date: "2023-10-08", action: "Creación", user: "filosofo77" },
+                { date: "2023-10-15", action: "Reporte por información falsa", user: "usuario123" },
+                { date: "2023-10-20", action: "Rechazo de verificación", user: "admin1" },
+                { date: "2023-11-22", action: "Intento de corrección", user: "filosofo77" }
+            ],
+            isDuplicate: false
+        }
+    ];
+
+    res.render('compare-admin', {
+        title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora',
+        currentPage: 'compare-admin',
+        cssFile: 'compare.css',
+        jsFile: 'compare-admin.js',
+        userType: 'admin',
+        availableSources: mockSources,
+        selectedSources: [],
+        totalSourcesCount: mockSources.length
+    });
 });
 
 ////////////////

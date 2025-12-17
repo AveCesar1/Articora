@@ -1,0 +1,349 @@
+<%- include('partials/header', {
+    title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora',
+    currentPage: 'compare-admin',
+    cssFile: 'compare.css'
+}) %>
+
+<script>
+    // Expose server data to client JS
+    window.availableSources = <%- JSON.stringify(availableSources || []).replace(/</g, '\\u003c') %>;
+</script>
+
+<div class="container-fluid py-4">
+    <!-- Header del comparador admin -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-clone fa-2x text-gold me-3"></i>
+                <div>
+                    <h1 class="h2 mb-1">Análisis y Comparación Masiva <span class="badge bg-danger ms-2">Admin</span></h1>
+                    <p class="text-muted mb-0">Detecta y fusiona publicaciones duplicadas</p>
+                </div>
+            </div>
+            <div class="card border-brown">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="alert alert-danger mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Modo de fusión:</strong> Selecciona 2-10 publicaciones, compara metadatos y fusiona duplicados conservando la más antigua como base.
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center h-100">
+                                <div class="source-counter">
+                                    <span class="counter-number" id="selectedCount">0</span>
+                                    <span class="counter-label">/10 seleccionadas</span>
+                                </div>
+                                <div class="ms-auto">
+                                    <button class="btn btn-outline-brown me-2" id="clearSelection">
+                                        <i class="fas fa-times me-1"></i> Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de selección -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-brown shadow-sm">
+                <div class="card-header bg-dark text-light">
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-mouse-pointer me-2"></i>
+                        Seleccionar publicaciones para comparar (2-10)
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="input-group mb-3">
+                                <span class="input-group-text bg-light border-brown">
+                                    <i class="fas fa-hashtag text-brown"></i>
+                                </span>
+                                <input type="number" 
+                                       class="form-control border-brown" 
+                                       id="idSearchInput" 
+                                       placeholder="Buscar por ID..."
+                                       min="1">
+                                <button class="btn btn-brown" type="button" id="searchByIdBtn">
+                                    <i class="fas fa-search me-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="input-group mb-3">
+                                <span class="input-group-text bg-light border-brown">
+                                    <i class="fas fa-font text-brown"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control border-brown" 
+                                       id="titleSearchInput" 
+                                       placeholder="Buscar por título...">
+                                <button class="btn btn-brown" type="button" id="searchByTitleBtn">
+                                    <i class="fas fa-search me-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-brown w-100" id="compareMetadata" disabled>
+                                <i class="fas fa-exchange-alt me-1"></i> Comparar metadatos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de publicaciones disponibles -->
+                    <div class="available-sources mt-3">
+                        <h6 class="mb-2 text-brown">
+                            <i class="fas fa-list me-1"></i>
+                            Publicaciones disponibles
+                        </h6>
+                        <div class="sources-list" id="availableSourcesList">
+                            <% availableSources.forEach(source => { %>
+                                <div class="source-checkbox-item" data-source-id="<%= source.id %>">
+                                    <div class="form-check">
+                                        <input class="form-check-input source-checkbox" 
+                                               type="checkbox" 
+                                               value="<%= source.id %>" 
+                                               id="source-<%= source.id %>"
+                                               <%= source.isDuplicate ? 'checked' : '' %>>
+                                        <label class="form-check-label" for="source-<%= source.id %>">
+                                            <div class="d-flex align-items-center">
+                                                <div class="source-preview">
+                                                    <strong>#<%= source.id %>:</strong> <%= source.title %>
+                                                    <% if (source.isDuplicate) { %>
+                                                        <span class="badge bg-warning text-dark ms-2">
+                                                            <i class="fas fa-exclamation-circle me-1"></i>Posible duplicado
+                                                        </span>
+                                                    <% } %>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <span class="badge <%= source.verificationStatus === 'verificado' ? 'bg-success' : source.verificationStatus === 'pendiente' ? 'bg-warning' : 'bg-danger' %>">
+                                                        <%= source.verificationStatus %>
+                                                    </span>
+                                                    <% if (source.reports > 0) { %>
+                                                        <span class="badge bg-danger ms-1">
+                                                            <i class="fas fa-flag me-1"></i><%= source.reports %>
+                                                        </span>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                            <div class="source-details small text-muted">
+                                                <%= source.authors.join(', ') %> | <%= source.year %> | <%= source.type %>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de comparación (inicialmente oculto) -->
+    <div class="row d-none" id="comparisonSection">
+        <div class="col-12">
+            <div class="card border-brown shadow-sm">
+                <div class="card-header bg-dark text-light d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-columns me-2"></i>
+                        Comparación de Metadatos
+                        <span class="badge bg-warning text-dark ms-2" id="differencesCount">0 diferencias</span>
+                    </h3>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="adminViewOptions" data-bs-toggle="dropdown">
+                            <i class="fas fa-sliders-h me-1"></i> Acciones
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="toggleHighlight">
+                                <i class="fas fa-highlighter me-2"></i> Alternar resaltado
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" id="markOldestAsBase">
+                                <i class="fas fa-history me-2"></i> Marcar más antigua como base
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" id="mergeSelected">
+                                <i class="fas fa-compress-arrows-alt me-2"></i> Fusionar seleccionados
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="row g-0">
+                        <!-- Panel izquierdo: Tabla comparativa -->
+                        <div class="col-md-8">
+                            <div class="comparison-table-container">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered mb-0" id="metadataComparisonTable">
+                                        <thead>
+                                            <tr>
+                                                <th class="bg-light sticky-header">Campo de Metadatos</th>
+                                                <!-- Las columnas se generan dinámicamente -->
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Las filas se generan dinámicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Panel derecho: Vista previa e historial -->
+                        <div class="col-md-4">
+                            <div class="preview-container">
+                                <div class="preview-header">
+                                    <h5 class="mb-0 p-3 border-bottom bg-light">Vista Previa</h5>
+                                </div>
+                                <div class="preview-body p-3">
+                                    <div class="text-center mb-3">
+                                        <div class="cover-placeholder bg-light border rounded p-4 mb-2">
+                                            <i class="fas fa-book fa-3x text-brown"></i>
+                                        </div>
+                                        <h6 id="previewTitle" class="text-brown">Título de la fuente</h6>
+                                        <p class="small text-muted mb-2" id="previewAuthors">Autores</p>
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <span class="badge bg-brown" id="previewId">#0</span>
+                                            <span class="badge bg-secondary" id="previewYear">0000</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="preview-metadata mb-4">
+                                        <h6 class="text-brown mb-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Información administrativa
+                                        </h6>
+                                        <div class="small">
+                                            <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                                                <span class="text-muted">Estado:</span>
+                                                <span id="previewStatus">-</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                                                <span class="text-muted">Subido por:</span>
+                                                <span id="previewUploader">-</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between py-1 border-bottom border-light">
+                                                <span class="text-muted">Fecha subida:</span>
+                                                <span id="previewDate">-</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between py-1">
+                                                <span class="text-muted">Reportes:</span>
+                                                <span id="previewReports">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="preview-history">
+                                        <h6 class="text-brown mb-2">
+                                            <i class="fas fa-history me-1"></i>
+                                            Historial Reciente
+                                        </h6>
+                                        <div class="history-list small" id="previewHistory">
+                                            <!-- Historial se carga dinámicamente -->
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-history fa-lg mb-2"></i>
+                                                <p class="mb-0">Selecciona una publicación</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="preview-footer p-3 border-top bg-light">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mergeBase" id="mergeBase">
+                                        <label class="form-check-label small" for="mergeBase">
+                                            <i class="fas fa-database me-1"></i>
+                                            Usar como base para fusión (más antigua)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de fusión (inicialmente oculto) -->
+    <div class="row d-none mt-4" id="mergeSection">
+        <div class="col-12">
+            <div class="card border-warning shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-compress-arrows-alt me-2"></i>
+                        Confirmar Fusión de Publicaciones
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Acción irreversible:</strong> Esta acción fusionará las publicaciones seleccionadas. Los comentarios, calificaciones y URLs de las fuentes nuevas se moverán a la fuente base, y las fuentes nuevas serán eliminadas permanentemente.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-brown mb-3">
+                                <i class="fas fa-database me-1"></i>
+                                Publicación base (se conservará)
+                            </h6>
+                            <div class="card border-success">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h5 id="baseTitle" class="text-success">Título base</h5>
+                                            <p class="small text-muted mb-2" id="baseDetails">Detalles</p>
+                                            <div class="text-success small">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                <span>Conservará todos sus datos actuales</span>
+                                            </div>
+                                            <div class="text-success small mt-1">
+                                                <i class="fas fa-arrow-down me-1"></i>
+                                                <span>Recibirá datos de las fuentes fusionadas</span>
+                                            </div>
+                                        </div>
+                                        <div class="ms-3">
+                                            <span class="badge bg-success">Base</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-brown mb-3">
+                                <i class="fas fa-trash-alt me-1"></i>
+                                Publicaciones a fusionar (serán eliminadas)
+                            </h6>
+                            <div class="fusion-list" id="fusionList">
+                                <!-- Lista de fuentes a fusionar -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-outline-brown" id="cancelMerge">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </button>
+                                <button class="btn btn-danger" id="confirmMerge">
+                                    <i class="fas fa-compress-arrows-alt me-1"></i> Confirmar fusión
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', {
+    jsFile: 'compare-admin.js'
+}) %>
