@@ -1688,6 +1688,285 @@ app.get('/lists/:id', (req, res) => {
     });
 });
 
+// Ruta para comparador de usuarios
+app.get('/compare', (req, res) => {
+    // Datos mock de fuentes para comparación (más ejemplos)
+    const mockSources = [
+        {
+            id: 1,
+            title: "Cognitive Science: An Introduction to the Study of Mind",
+            authors: ["Jay Friedenberg", "Gordon Silverman"],
+            year: 2021,
+            type: "Libro",
+            category: "Ciencias Cognitivas",
+            subcategory: "Neurociencia Cognitiva",
+            publisher: "SAGE Publications",
+            pages: "480",
+            edition: 4,
+            rating: 4.7,
+            readCount: 342,
+            trend: "increasing",
+            criteria: {
+                extension: 4.5,
+                completeness: 4.8,
+                detail: 4.6,
+                veracity: 4.9,
+                difficulty: 4.2
+            },
+            keywords: ["ciencia cognitiva", "mente", "neurociencia", "cognición"]
+        },
+        {
+            id: 2,
+            title: "The Social Construction of Reality: A Treatise in the Sociology of Knowledge",
+            authors: ["Peter L. Berger", "Thomas Luckmann"],
+            year: 1966,
+            type: "Libro",
+            category: "Ciencias Sociales",
+            subcategory: "Sociología del Conocimiento",
+            publisher: "Anchor Books",
+            pages: "240",
+            edition: 1,
+            rating: 4.8,
+            readCount: 512,
+            trend: "stable",
+            criteria: {
+                extension: 4.7,
+                completeness: 4.9,
+                detail: 4.5,
+                veracity: 4.8,
+                difficulty: 4.0
+            },
+            keywords: ["construcción social", "realidad", "sociología", "conocimiento"]
+        },
+        {
+            id: 3,
+            title: "Deep Learning with Python",
+            authors: ["François Chollet"],
+            year: 2021,
+            type: "Libro",
+            category: "Ciencias Computacionales",
+            subcategory: "Aprendizaje Automático",
+            publisher: "Manning Publications",
+            pages: "384",
+            edition: 2,
+            rating: 4.6,
+            readCount: 789,
+            trend: "increasing",
+            criteria: {
+                extension: 4.4,
+                completeness: 4.7,
+                detail: 4.8,
+                veracity: 4.5,
+                difficulty: 4.3
+            },
+            keywords: ["deep learning", "python", "redes neuronales", "IA"]
+        },
+        {
+            id: 4,
+            title: "A Brief History of Time: From the Big Bang to Black Holes",
+            authors: ["Stephen Hawking"],
+            year: 1988,
+            type: "Libro",
+            category: "Ciencias Exactas",
+            subcategory: "Cosmología",
+            publisher: "Bantam Books",
+            pages: "256",
+            edition: 1,
+            rating: 4.9,
+            readCount: 921,
+            trend: "stable",
+            criteria: {
+                extension: 4.2,
+                completeness: 4.8,
+                detail: 4.4,
+                veracity: 4.9,
+                difficulty: 3.8
+            },
+            keywords: ["cosmología", "big bang", "agujeros negros", "física teórica"]
+        },
+        {
+            id: 5,
+            title: "The Structure of Scientific Revolutions",
+            authors: ["Thomas S. Kuhn"],
+            year: 1962,
+            type: "Libro",
+            category: "Ciencias Humanistas",
+            subcategory: "Filosofía de la Ciencia",
+            publisher: "University of Chicago Press",
+            pages: "264",
+            edition: 1,
+            rating: 4.8,
+            readCount: 654,
+            trend: "stable",
+            criteria: {
+                extension: 4.3,
+                completeness: 4.7,
+                detail: 4.6,
+                veracity: 4.8,
+                difficulty: 4.1
+            },
+            keywords: ["revoluciones científicas", "paradigma", "ciencia", "historia"]
+        },
+        {
+            id: 6,
+            title: "Thinking, Fast and Slow",
+            authors: ["Daniel Kahneman"],
+            year: 2011,
+            type: "Libro",
+            category: "Ciencias Cognitivas",
+            subcategory: "Psicología Cognitiva",
+            publisher: "Farrar, Straus and Giroux",
+            pages: "499",
+            edition: 1,
+            rating: 4.7,
+            readCount: 1200,
+            trend: "increasing",
+            criteria: {
+                extension: 4.6,
+                completeness: 4.8,
+                detail: 4.5,
+                veracity: 4.9,
+                difficulty: 3.9
+            },
+            keywords: ["psicología", "decisiones", "cognición", "sesgos"]
+        },
+        {
+            id: 7,
+            title: "The Order of Things: An Archaeology of the Human Sciences",
+            authors: ["Michel Foucault"],
+            year: 1966,
+            type: "Libro",
+            category: "Ciencias Humanistas",
+            subcategory: "Filosofía",
+            publisher: "Gallimard",
+            pages: "387",
+            edition: 1,
+            rating: 4.8,
+            readCount: 850,
+            trend: "stable",
+            criteria: {
+                extension: 4.7,
+                completeness: 4.5,
+                detail: 4.8,
+                veracity: 4.9,
+                difficulty: 4.5
+            },
+            keywords: ["arqueología del saber", "ciencias humanas", "episteme", "Foucault"]
+        },
+        {
+            id: 8,
+            title: "The Theory of Communicative Action",
+            authors: ["Jürgen Habermas"],
+            year: 1981,
+            type: "Libro",
+            category: "Ciencias Sociales",
+            subcategory: "Sociología",
+            publisher: "Beacon Press",
+            pages: "465",
+            edition: 1,
+            rating: 4.6,
+            readCount: 720,
+            trend: "stable",
+            criteria: {
+                extension: 4.8,
+                completeness: 4.7,
+                detail: 4.6,
+                veracity: 4.8,
+                difficulty: 4.4
+            },
+            keywords: ["acción comunicativa", "teoría social", "Habermas", "racionalidad"]
+        },
+        {
+            id: 9,
+            title: "The Logic of Scientific Discovery",
+            authors: ["Karl Popper"],
+            year: 1934,
+            type: "Libro",
+            category: "Ciencias Humanistas",
+            subcategory: "Filosofía de la Ciencia",
+            publisher: "Routledge",
+            pages: "513",
+            edition: 1,
+            rating: 4.9,
+            readCount: 950,
+            trend: "stable",
+            criteria: {
+                extension: 4.5,
+                completeness: 4.8,
+                detail: 4.7,
+                veracity: 4.9,
+                difficulty: 4.3
+            },
+            keywords: ["filosofía de la ciencia", "falsabilidad", "Popper", "epistemología"]
+        },
+        {
+            id: 10,
+            title: "The Interpretation of Cultures",
+            authors: ["Clifford Geertz"],
+            year: 1973,
+            type: "Libro",
+            category: "Ciencias Sociales",
+            subcategory: "Antropología",
+            publisher: "Basic Books",
+            pages: "470",
+            edition: 1,
+            rating: 4.7,
+            readCount: 880,
+            trend: "increasing",
+            criteria: {
+                extension: 4.6,
+                completeness: 4.7,
+                detail: 4.8,
+                veracity: 4.8,
+                difficulty: 4.2
+            },
+            keywords: ["antropología", "cultura", "interpretación", "símbolos"]
+        }
+    ];
+
+    // Datos para la búsqueda (simplificado para autocompletar)
+    const searchOptions = mockSources.map(source => ({
+        id: source.id,
+        title: source.title,
+        authors: source.authors.join(', '),
+        year: source.year,
+        type: source.type,
+        category: source.category,
+        keywords: source.keywords.join(', ')
+    }));
+
+    // Ejemplos de búsqueda sugeridos
+    const searchExamples = [
+        "Cognitive Science",
+        "Stephen Hawking",
+        "Deep Learning",
+        "neurociencia",
+        "filosofía",
+        "sociología",
+        "Kuhn",
+        "Foucault",
+        "ciencias sociales",
+        "aprendizaje automático"
+    ];
+
+    res.render('compare-user', {
+        title: 'Comparador de Fuentes - Artícora',
+        currentPage: 'compare',
+        cssFile: 'compare.css',
+        jsFile: 'compare.js',
+        userType: 'user',
+        availableSources: searchOptions,
+        selectedSources: mockSources.slice(0, 3), // Por defecto mostramos 3 fuentes
+        searchExamples: searchExamples,
+        totalSourcesCount: mockSources.length
+    });
+});
+
+// Ruta específica para admin (para el futuro)
+app.get('/compare/admin', (req, res) => {
+    res.send("hola, admin");
+});
+
 ////////////////
 // PLATAFORMA //
 ////////////////

@@ -1,0 +1,390 @@
+<%- include('partials/header', {
+    title: 'Comparador de Fuentes - Artícora',
+    currentPage: 'compare',
+    cssFile: 'compare.css'
+}) %>
+
+<script>
+    // Expose server data to client JS in a safe way
+    window.availableSources = <%- JSON.stringify(availableSources || []).replace(/</g, '\\u003c') %>;
+    window.initialSources = <%- JSON.stringify(selectedSources || []).replace(/</g, '\\u003c') %>;
+</script>
+
+<div class="container-fluid py-4">
+    <!-- Header del comparador -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-balance-scale-left fa-2x text-gold me-3"></i>
+                <div>
+                    <h1 class="h2 mb-1">Comparador de Calificaciones</h1>
+                    <p class="text-muted mb-0">Selecciona entre 2 y 4 fuentes para comparar sus evaluaciones</p>
+                </div>
+            </div>
+            <div class="card border-brown">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="alert alert-accent">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Instrucciones:</strong> Compara fuentes por sus calificaciones comunitarias. 
+                                Haz clic en cualquier elemento para ver la fuente completa.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center h-100">
+                                <div class="source-counter">
+                                    <span class="counter-number" id="selectedCount">3</span>
+                                    <span class="counter-label">/4 fuentes seleccionadas</span>
+                                </div>
+                                <button class="btn btn-outline-brown ms-auto" id="clearSelection">
+                                    <i class="fas fa-times me-1"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de búsqueda -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-brown shadow-sm">
+                <div class="card-header bg-light">
+                    <h3 class="h5 mb-0" style="color: black;">
+                        <i class="fas fa-search text-brown me-2"></i>
+                        Buscar fuentes para comparar
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Pestañas de búsqueda -->
+                    <ul class="nav nav-tabs mb-4" id="searchTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="name-tab" data-bs-toggle="tab" data-bs-target="#nameSearch" type="button" role="tab">
+                                <i class="fas fa-font me-1"></i> Por nombre o autor
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="id-tab" data-bs-toggle="tab" data-bs-target="#idSearch" type="button" role="tab">
+                                <i class="fas fa-hashtag me-1"></i> Por ID
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Contenido de pestañas -->
+                    <div class="tab-content" id="searchTabContent">
+                        <!-- Búsqueda por nombre -->
+                        <div class="tab-pane fade show active" id="nameSearch" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-brown">
+                                            <i class="fas fa-book text-brown"></i>
+                                        </span>
+                                        <input type="text" 
+                                               class="form-control border-brown" 
+                                               id="nameSearchInput" 
+                                               placeholder="Ej: 'Cognitive Science', 'Stephen Hawking', 'neurociencia'"
+                                               autocomplete="off">
+                                        <button class="btn btn-brown" type="button" id="searchByNameBtn">
+                                            <i class="fas fa-search me-1"></i> Buscar
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted mt-1">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Busca por título, autor o palabras clave. Ejemplos: 
+                                        <% searchExamples.slice(0, 3).forEach((example, index) => { %>
+                                            "<%= example %>"<%= index < 2 ? ',' : '' %>
+                                        <% }) %>
+                                    </small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mt-2 mt-md-0">
+                                        <input class="form-check-input" type="checkbox" id="exactMatch">
+                                        <label class="form-check-label small" for="exactMatch">
+                                            Coincidencia exacta
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Sugerencias de búsqueda -->
+                            <!-- Sugerencias rápidas eliminadas por petición -->
+                            
+                            <!-- Resultados de búsqueda por nombre -->
+                            <div class="search-results mt-3" id="nameResults">
+                                <div class="list-group" id="nameResultsList">
+                                    <!-- Los resultados se cargan aquí dinámicamente -->
+                                    <div class="list-group-item search-placeholder">
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-search fa-2x text-muted mb-3"></i>
+                                            <h6 class="text-muted mb-2">Comienza a buscar fuentes</h6>
+                                            <p class="small text-muted mb-0">
+                                                Escribe en el campo de búsqueda o haz clic en una sugerencia para ver resultados
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Búsqueda por ID -->
+                        <div class="tab-pane fade" id="idSearch" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text bg-light border-brown">
+                                            <i class="fas fa-hashtag text-brown"></i>
+                                        </span>
+                                        <input type="number" 
+                                               class="form-control border-brown" 
+                                               id="idSearchInput" 
+                                               placeholder="Ej: 123, 456, 789"
+                                               min="1">
+                                        <button class="btn btn-brown" type="button" id="searchByIdBtn">
+                                            <i class="fas fa-search me-1"></i> Buscar por ID
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Ingresa el ID numérico de una fuente específica
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text bg-light border-brown">
+                                            <i class="fas fa-list-ol text-brown"></i>
+                                        </span>
+                                        <input type="text" 
+                                               class="form-control border-brown" 
+                                               id="multipleIdsInput" 
+                                               placeholder="Ej: 1,3,5 (máx. 4 fuentes)">
+                                        <button class="btn btn-outline-brown" type="button" id="addMultipleBtn">
+                                            <i class="fas fa-plus me-1"></i> Agregar múltiples
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Separa IDs con comas. Ejemplo: "2,4,6" para comparar 3 fuentes
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Ejemplos de IDs disponibles -->
+                            <div class="id-examples mt-3">
+                                <h6 class="mb-2 text-brown">
+                                    <i class="fas fa-list me-1"></i>
+                                    IDs de ejemplo disponibles
+                                </h6>
+                                <div class="id-examples-list">
+                                    <% for(let i = 1; i <= Math.min(10, totalSourcesCount); i++) { %>
+                                        <button class="btn btn-sm btn-outline-accent id-example" data-id="<%= i %>">
+                                            #<%= i %>
+                                        </button>
+                                    <% } %>
+                                </div>
+                            </div>
+                            
+                            <!-- Resultados de búsqueda por ID -->
+                            <div class="search-results mt-3" id="idResults">
+                                <div class="list-group" id="idResultsList">
+                                    <!-- Los resultados se cargan aquí dinámicamente -->
+                                    <div class="list-group-item search-placeholder">
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-hashtag fa-2x text-muted mb-3"></i>
+                                            <h6 class="text-muted mb-2">Busca por ID</h6>
+                                            <p class="small text-muted mb-0">
+                                                Ingresa un ID o haz clic en uno de los ejemplos
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resto del código permanece igual -->
+    <!-- Panel de comparación -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-brown shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-columns text-brown me-2"></i>
+                        Comparación de Calificaciones
+                        <span class="badge bg-brown ms-2" id="comparisonCount">3 fuentes</span>
+                    </h3>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-brown dropdown-toggle" type="button" id="viewOptions" data-bs-toggle="dropdown">
+                            <i class="fas fa-sliders-h me-1"></i> Opciones
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="toggleCriteria"><i class="fas fa-star me-2"></i> Mostrar/ocultar criterios</a></li>
+                            <li><a class="dropdown-item" href="#" id="toggleStats"><i class="fas fa-chart-bar me-2"></i> Mostrar/ocultar estadísticas</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="exportComparison"><i class="fas fa-download me-2"></i> Exportar comparación</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Contenedor de fuentes seleccionadas -->
+                <div class="card-body p-0">
+                    <div class="comparison-container" id="comparisonContainer">
+                        <!-- Las fuentes seleccionadas se muestran aquí -->
+                        <% if (selectedSources && selectedSources.length > 0) { %>
+                            <div class="comparison-grid" id="comparisonGrid">
+                                <% selectedSources.forEach((source, index) => { %>
+                                    <div class="source-column" data-source-id="<%= source.id %>">
+                                        <div class="source-header">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="badge bg-accent fs-6">#<%= source.id %></span>
+                                                <button class="btn btn-sm btn-outline-danger remove-source" data-index="<%= index %>" title="Eliminar fuente">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                            <h4 class="source-title mt-2 mb-2">
+                                                <a href="/post/<%= source.id %>" class="text-brown">
+                                                    <%= source.title %>
+                                                </a>
+                                            </h4>
+                                            <p class="source-authors mb-3 text-muted">
+                                                <i class="fas fa-user-edit me-1"></i>
+                                                <a href="/post/<%= source.id %>" class="text-decoration-none">
+                                                    <%= source.authors.join(', ') %>
+                                                </a>
+                                            </p>
+                                            <div class="source-type-badge mb-3">
+                                                <span class="badge bg-light text-brown border border-brown">
+                                                    <i class="fas fa-<%= source.type === 'Libro' ? 'book' : 'file-alt' %> me-1"></i>
+                                                    <%= source.type %> • <%= source.category %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Calificación promedio -->
+                                        <div class="source-rating mt-3">
+                                            <div class="rating-header">
+                                                <h6 class="mb-2 text-brown">
+                                                    <i class="fas fa-star text-warning me-1"></i>
+                                                    Calificación promedio
+                                                </h6>
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div class="average-rating">
+                                                        <span class="rating-number"><%= source.rating.toFixed(1) %></span>
+                                                        <span class="rating-max">/5.0</span>
+                                                    </div>
+                                                    <div class="stars">
+                                                        <% for(let i = 1; i <= 5; i++) { %>
+                                                            <% if (i <= Math.floor(source.rating)) { %>
+                                                                <i class="fas fa-star text-warning"></i>
+                                                            <% } else if (i === Math.ceil(source.rating) && source.rating % 1 !== 0) { %>
+                                                                <i class="fas fa-star-half-alt text-warning"></i>
+                                                            <% } else { %>
+                                                                <i class="far fa-star text-warning"></i>
+                                                            <% } %>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Desglose de criterios -->
+                                        <div class="source-criteria mt-4">
+                                            <h6 class="mb-3 text-brown">
+                                                <i class="fas fa-chart-pie me-1"></i>
+                                                Desglose por criterios
+                                            </h6>
+                                            <div class="criteria-list">
+                                                <% const criteria = [
+                                                    { key: 'extension', label: 'Extensión' },
+                                                    { key: 'completeness', label: 'Completitud' },
+                                                    { key: 'detail', label: 'Detalle' },
+                                                    { key: 'veracity', label: 'Veracidad' },
+                                                    { key: 'difficulty', label: 'Dificultad' }
+                                                ]; %>
+                                                <% criteria.forEach(function(c){ %>
+                                                    <% const value = (source.criteria && source.criteria[c.key]) ? source.criteria[c.key] : 0; %>
+                                                    <% const pct = Math.round((value / 5) * 100); %>
+                                                    <div class="criterion">
+                                                        <span class="criterion-name"><%= c.label %>:</span>
+                                                        <div class="criterion-bar">
+                                                            <div class="bar-fill" data-width="<%= pct %>"></div>
+                                                        </div>
+                                                        <div class="criterion-value"><%= value %></div>
+                                                    </div>
+                                                <% }); %>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Estadísticas de lectura -->
+                                        <div class="source-stats mt-4">
+                                            <h6 class="mb-3 text-brown">
+                                                <i class="fas fa-chart-line me-1"></i>
+                                                Estadísticas de lectura
+                                            </h6>
+                                            <div class="stats-grid">
+                                                <div class="stat-item">
+                                                    <div class="stat-value"><%= source.readCount.toLocaleString() %></div>
+                                                    <div class="stat-label">Veces leída</div>
+                                                </div>
+                                                <div class="stat-item">
+                                                    <div class="stat-value">
+                                                        <% if (source.trend === 'increasing') { %>
+                                                            <i class="fas fa-arrow-up text-success"></i> ↑
+                                                        <% } else if (source.trend === 'decreasing') { %>
+                                                            <i class="fas fa-arrow-down text-danger"></i> ↓
+                                                        <% } else { %>
+                                                            <i class="fas fa-minus text-warning"></i> →
+                                                        <% } %>
+                                                    </div>
+                                                    <div class="stat-label">Tendencia</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Palabras clave -->
+                                        <div class="source-keywords mt-4">
+                                            <h6 class="mb-2 text-brown">
+                                                <i class="fas fa-tags me-1"></i>
+                                                Palabras clave
+                                            </h6>
+                                            <div class="keyword-tags">
+                                                <% source.keywords.forEach(keyword => { %>
+                                                    <span class="keyword-tag"><%= keyword %></span>
+                                                <% }) %>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Acciones -->
+                                        <div class="source-actions mt-4 pt-3 border-top">
+                                            <a href="/post/<%= source.id %>" class="btn btn-sm btn-brown w-100">
+                                                <i class="fas fa-external-link-alt me-1"></i>
+                                                Ver fuente completa
+                                            </a>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <div class="empty-comparison text-center py-5">
+                                <i class="fas fa-balance-scale fa-4x text-muted mb-3"></i>
+                                <h4 class="text-muted mb-3">No hay fuentes para comparar</h4>
+                                <p class="text-muted">Usa el buscador para agregar fuentes a la comparación</p>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', {
+    jsFile: 'compare.js'
+}) %>
