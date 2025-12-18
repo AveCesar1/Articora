@@ -35,6 +35,35 @@
         .navbar-brand, .card-header, .footer-heading {
             font-family: 'Palatino Linotype', 'Book Antiqua', serif;
         }
+        
+        /* Estilos para perfil de usuario */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(to bottom, var(--gold-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .user-name {
+            color: #e0d6c2;
+            font-weight: 500;
+        }
+        
+        .user-profile:hover .user-name {
+            color: var(--gold-color);
+        }
     </style>
 </head>
 <body>
@@ -49,7 +78,8 @@
             <!-- Barra de búsqueda en el header -->
             <form class="d-flex mx-3 flex-grow-1" action="/search" method="GET">
                 <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Buscar documentos, artículos..." name="q" value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>">                    <button class="btn btn-outline-light" type="submit">
+                    <input type="text" class="form-control" placeholder="Buscar documentos, artículos..." name="q" value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>">
+                    <button class="btn btn-outline-light" type="submit">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
@@ -67,7 +97,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/lists">
+                        <a class="nav-link <%= currentPage === 'lists' ? 'active' : '' %>" href="/lists">
                             <i class="fas fa-book-open me-1"></i> Colecciones
                         </a>
                     </li>
@@ -77,15 +107,49 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'login' ? 'active' : '' %>" href="/login">
-                            <i class="fas fa-sign-in-alt me-1"></i> Iniciar Sesión
+                        <a class="nav-link <%= currentPage === 'chat' ? 'active' : '' %>" href="/chat">
+                            <i class="fas fa-comments me-1"></i> Chat
                         </a>
                     </li>
-                    <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
-                        <a class="nav-link btn btn-primary px-4 <%= currentPage === 'register' ? 'active' : '' %>" href="/register">
-                            <i class="fas fa-user-plus me-1"></i> Registrarse
-                        </a>
-                    </li>
+                    
+                    <% 
+                    // Variable hardcodeada para simular estado de sesión
+                    // Cambia a false para ver el botón de inicio de sesión
+                    const loggedIn = false; 
+                    
+                    // Nombre de usuario hardcodeado (aparece cuando loggedIn = true)
+                    const userName = "Ana García";
+                    const userInitials = "AG";
+                    %>
+                    
+                    <% if (loggedIn) { %>
+                        <!-- Perfil de usuario cuando está logueado -->
+                        <li class="nav-item">
+                            <a class="nav-link user-profile" href="/profile">
+                                <div class="user-avatar">
+                                    <%= userInitials %>
+                                </div>
+                                <span class="user-name d-none d-lg-inline"><%= userName %></span>
+                                <i class="fas fa-chevron-down ms-1 d-none d-lg-inline"></i>
+                            </a>
+                        </li>
+                    <% } else { %>
+                        <!-- Botón dinámico de inicio de sesión/registro -->
+                        <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+                            <% 
+                            // Determinar si estamos en la página de login
+                            const isLoginPage = currentPage === 'login';
+                            const dynamicHref = isLoginPage ? '/register' : '/login';
+                            const dynamicText = isLoginPage ? 'Registrarse' : 'Iniciar Sesión';
+                            const dynamicIcon = isLoginPage ? 'fa-user-plus' : 'fa-sign-in-alt';
+                            const activeClass = (currentPage === 'login' || currentPage === 'register') ? 'active' : '';
+                            %>
+                            
+                            <a class="nav-link btn btn-primary px-4 <%= activeClass %>" href="<%= dynamicHref %>">
+                                <i class="fas <%= dynamicIcon %> me-1"></i> <%= dynamicText %>
+                            </a>
+                        </li>
+                    <% } %>
                 </ul>
             </div>
         </div>
