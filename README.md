@@ -81,7 +81,6 @@ Para mejorar el mantenimiento y aislar responsabilidades se reorganizó la aplic
 
 - `routes/postRoutes.js`
   - Contenedor para las rutas POST. Está listo para recibir y mantener las rutas POST con sus datos por defecto.
-  - Si necesitas que traslade bloques POST concretos desde el `server.js` original, puedo moverlos sin eliminar sus datos.
 
 - `server.js`
   - Ahora actúa como orquestador: configura Express y EJS, carga middleware global, importa `lib/database.js` y registra las rutas desde `routes/*.js`.
