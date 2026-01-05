@@ -13,7 +13,9 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 
 - `public/` - Archivos estáticos (CSS, JS, imágenes)
 - `views/` - Plantillas EJS
-- `server.js` - Servidor principal
+- `server.js` - Servidor principal (punto de entrada)
+- `lib/` - Módulos reutilizables (p. ej. `database.js`)
+- `routes/` - Rutas separadas por tipo (`getRoutes.js`, `postRoutes.js`)
 
 ## 🔧 Comandos
 
@@ -60,3 +62,38 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 - CSS personalizado
 - JavaScript modular
 - Diseño responsivo
+
+---
+
+## 🧩 Estructura modular (Node.js)
+
+Para mejorar el mantenimiento y aislar responsabilidades se reorganizó la aplicación en módulos claros:
+
+- `lib/database.js`
+  - Contiene la conexión a SQLite (`better-sqlite3`), pragmas y helpers (`dbHelpers`).
+  - Expone la función `initialize()` para crear/optimizar la BD y el middleware `databaseMiddleware` que inyecta `req.db` en las rutas.
+  - Implementa ejecución robusta de scripts SQL (intenta `db.exec`, y si falla ejecuta CREATEs primero y luego INSERTs), y maneja cierre ordenado de la BD.
+
+- `routes/getRoutes.js`
+  - Todas las rutas públicas GET (páginas y vistas) se movieron aquí.
+  - Conserva los datos mock / valores por defecto tal como estaban en `server.js`.
+  - Exporta una función `(app) => { /* registra rutas GET */ }` que `server.js` invoca.
+
+- `routes/postRoutes.js`
+  - Contenedor para las rutas POST. Está listo para recibir y mantener las rutas POST con sus datos por defecto.
+  - Si necesitas que traslade bloques POST concretos desde el `server.js` original, puedo moverlos sin eliminar sus datos.
+
+- `server.js`
+  - Ahora actúa como orquestador: configura Express y EJS, carga middleware global, importa `lib/database.js` y registra las rutas desde `routes/*.js`.
+  - Inicia `initialize()` y, una vez lista la BD, arranca el servidor.
+
+### Ventajas de la separación
+- Código más legible y más fácil de depurar.
+- Permite reinicializar o testear la BD independientemente del servidor HTTP.
+- Facilita añadir nuevas rutas o agruparlas por funcionalidad (p. ej. `routes/admin.js`).
+- Evita que un fallo en una operación SQL deje la BD en un estado parcialmente creado sin trazabilidad (se mejoró el manejo de errores y logging).
+
+### Recomendaciones operativas
+- Si actualizas `database/init.sql` o `database/indexes.sql`, borra `database/articora.db` para forzar una re-inicialización limpia y luego ejecuta `npm run dev`.
+- Para añadir rutas POST, edita `routes/postRoutes.js` y registra los endpoints ahí; `server.js` los cargará automáticamente.
+- Para añadir nuevos helpers de BD, crea archivos en `lib/` y exporta lo necesario.
