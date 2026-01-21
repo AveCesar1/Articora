@@ -24,11 +24,14 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(databaseMiddleware);
 app.use(session({
-    secret: "clave_secreta",
+    name: 'articora.sid', 
+    secret: process.env.SESSION_SECRET || "clave_secreta_muy_segura", 
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false // Cambiar a true si se usa HTTPS
+        httpOnly: true, 
+        secure: false,  // true solo si usamos HTTPS
+        maxAge: 1000 * 60 * 60 * 24 // 24 horas
     }
 }));
 

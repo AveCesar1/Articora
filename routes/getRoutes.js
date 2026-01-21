@@ -1,8 +1,10 @@
-const authDoc = require('../middlewares/auth');
-const IsRegistered = authDoc.IsRegistered;
-const IsVerified = authDoc.IsVerified;
-const IsAdmini = authDoc.IsAdmin;
 
+const IsRegistered = require('../middlewares/auth');
+const checkRoles = require('../middlewares/checkrole');
+
+//Alias de middlewares
+const soloAdmin = checkRoles(['admin']);
+const soloValidado = checkRoles(['validado', 'admin']);
 module.exports = function (app) {
     // Rutas públicas GET extraídas desde server.js
 
@@ -167,7 +169,7 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/forgot-password', isRegistered, (req, res) => {
+    app.get('/forgot-password', IsRegistered, (req, res) => {
         res.render('forgot-password', {
             title: 'Recuperación de Contraseña - Artícora',
             currentPage: 'forgot-password',
@@ -278,7 +280,7 @@ module.exports = function (app) {
     });
 
     // CHAT
-    app.get('/chat', isRegistered, (req, res) => {
+    app.get('/chat', IsRegistered, (req, res) => {
         const userType = Math.random() > 0.5 ? 'validated' : 'registered';
         const isAdmin = Math.random() > 0.8;
         const chatData = {
@@ -435,7 +437,7 @@ module.exports = function (app) {
     });
 
     // POST
-    app.get('/post/:id', IsVerified, (req, res) => {
+    app.get('/post/:id', (req, res) => {
         const postId = req.params.id;
         const post = {
             id: postId,
@@ -500,14 +502,14 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/upload', IsVerified, (req, res) => {
+    app.get('/upload', soloValidado, (req, res) => {
         const categories = [
             { id: 1, name: 'Ciencias Cognitivas', color: '#8B4513', subcategories: [ { id: 101, name: 'Psicología Cognitiva' }, { id: 102, name: 'Neurociencia Cognitiva' }, { id: 103, name: 'Procesamiento del Lenguaje' }, { id: 104, name: 'Cognición Aplicada' }, { id: 105, name: 'IA Cognitiva' }, { id: 106, name: 'Filosofía de la Mente' } ] },
             { id: 2, name: 'Ciencias Sociales', color: '#2E8B57', subcategories: [ { id: 201, name: 'Sociología' }, { id: 202, name: 'Ciencia Política' }, { id: 203, name: 'Antropología' }, { id: 204, name: 'Economía' }, { id: 205, name: 'Historia' }, { id: 206, name: 'Geografía Humana' } ] },
             { id: 3, name: 'Ciencias Humanistas', color: '#6A5ACD', subcategories: [ { id: 301, name: 'Filosofía' }, { id: 302, name: 'Estudios Religiosos' }, { id: 303, name:'Literatura'}, { id :304 ,name:'Lingüística'}, {id :305 ,name:'Humanidades Digitales'}, {id :306 ,name:'Estudios Culturales'}, {id :307 ,name:'Humanidades Históricas'} ] },
             { id :4 ,name :'Disciplinas Creativas',color :'#FF6347',subcategories :[ 
                 {
-                    "id": "401",
+                    "id": "401", 
                     "name": "Artes Visuales"
                 },
                 {
@@ -577,7 +579,7 @@ module.exports = function (app) {
     });
 
     // COMPARE
-    app.get('/compare', IsVerified,(req, res) => {
+    app.get('/compare', soloValidado,(req, res) => {
         const mockSources = [ /* ... */ ];
         const searchOptions = mockSources.map(source => ({ id: source.id, title: source.title, authors: source.authors.join(', '), year: source.year, type: source.type, category: source.category, keywords: source.keywords.join(', ') }));
         const searchExamples = ["Cognitive Science", "Stephen Hawking", "Deep Learning", "neurociencia", "filosofía", "sociología", "Kuhn", "Foucault", "ciencias sociales", "aprendizaje automático"];
@@ -585,13 +587,13 @@ module.exports = function (app) {
         res.render('compare-user', { title: 'Comparador de Fuentes - Artícora', currentPage: 'compare', cssFile: 'compare.css', jsFile: 'compare.js', userType: 'user', availableSources: searchOptions, selectedSources: mockSources.slice(0, 3), searchExamples: searchExamples, totalSourcesCount: mockSources.length });
     });
 
-    app.get('/compare/admin',IsAdmini, (req, res) => {
+    app.get('/compare/admin', soloAdmin, (req, res) => {
         const mockSources = [ /* ... */ ];
         res.render('compare-admin', { title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora', currentPage: 'compare-admin', cssFile: 'compare.css', jsFile: 'compare-admin.js', userType: 'admin', availableSources: mockSources, selectedSources: [], totalSourcesCount: mockSources.length });
     });
 
     // ADMIN
-    app.get('/admin', IsAdmini, (req, res) => {
+    app.get('/admin', soloAdmin, (req, res) => {
         const manualReports = [ /* ...full mock objects as in original... */ ];
         const systemReports = [ /* ... */ ];
         const stats = { totalPending: manualReports.filter(r => r.status === 'pendiente').length + systemReports.filter(r => r.status === 'pendiente').length, pendingManual: manualReports.filter(r => r.status === 'pendiente').length, pendingSystem: systemReports.filter(r => r.status === 'pendiente').length, highPriority: manualReports.filter(r => r.priority === 'alta' && r.status === 'pendiente').length, resolvedToday: 3, avgResolutionTime: "2.5 días" };
