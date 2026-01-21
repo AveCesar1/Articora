@@ -1,3 +1,4 @@
+
 module.exports = function (app) {
     // Ejemplo de placeholder (no modificar datos por defecto aquí)
     // app.post('/api/example', (req, res) => {
