@@ -1,3 +1,8 @@
+const authDoc = require('../middlewares/auth');
+const IsRegistered = authDoc.IsRegistered;
+const IsVerified = authDoc.IsVerified;
+const IsAdmini = authDoc.IsAdmin;
+
 module.exports = function (app) {
     // Rutas públicas GET extraídas desde server.js
 
@@ -28,7 +33,7 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/profile', (req, res) => {
+    app.get('/profile', IsRegistered,(req, res) => {
         const userData = {
             username: 'leonardo.serna',
             fullName: 'Leonardo Serna Sánchez',
@@ -93,7 +98,7 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/profile/config', (req, res) => {
+    app.get('/profile/config', IsRegistered, (req, res) => {
         // Mismos datos del perfil
         const userData = {
             username: 'leonardo.serna',
@@ -153,7 +158,7 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/verify-email', (req, res) => {
+    app.get('/verify-email', IsRegistered,(req, res) => {
         res.render('verify-email', {
             title: 'Verificación de Correo - Artícora',
             currentPage: 'verify-email',
@@ -162,7 +167,7 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/forgot-password', (req, res) => {
+    app.get('/forgot-password', isRegistered, (req, res) => {
         res.render('forgot-password', {
             title: 'Recuperación de Contraseña - Artícora',
             currentPage: 'forgot-password',
@@ -273,7 +278,7 @@ module.exports = function (app) {
     });
 
     // CHAT
-    app.get('/chat', (req, res) => {
+    app.get('/chat', isRegistered, (req, res) => {
         const userType = Math.random() > 0.5 ? 'validated' : 'registered';
         const isAdmin = Math.random() > 0.8;
         const chatData = {
@@ -430,7 +435,7 @@ module.exports = function (app) {
     });
 
     // POST
-    app.get('/post/:id', (req, res) => {
+    app.get('/post/:id', IsVerified, (req, res) => {
         const postId = req.params.id;
         const post = {
             id: postId,
@@ -495,12 +500,37 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/upload', (req, res) => {
+    app.get('/upload', IsVerified, (req, res) => {
         const categories = [
             { id: 1, name: 'Ciencias Cognitivas', color: '#8B4513', subcategories: [ { id: 101, name: 'Psicología Cognitiva' }, { id: 102, name: 'Neurociencia Cognitiva' }, { id: 103, name: 'Procesamiento del Lenguaje' }, { id: 104, name: 'Cognición Aplicada' }, { id: 105, name: 'IA Cognitiva' }, { id: 106, name: 'Filosofía de la Mente' } ] },
             { id: 2, name: 'Ciencias Sociales', color: '#2E8B57', subcategories: [ { id: 201, name: 'Sociología' }, { id: 202, name: 'Ciencia Política' }, { id: 203, name: 'Antropología' }, { id: 204, name: 'Economía' }, { id: 205, name: 'Historia' }, { id: 206, name: 'Geografía Humana' } ] },
-            { id: 3, name: 'Ciencias Humanistas', color: '#6A5ACD', subcategories: [ { id: 301, name: 'Filosofía' }, { id: 302, name: 'Estudios Religiosos' }, { id: 303, name: 'Literatura' }, { id: 304, name: 'Lingüística' }, { id: 305, name: 'Humanidades Digitales' }, { id: 306, name: 'Estudios Culturales' }, { id: 307, name: 'Humanidades Históricas' } ] },
-            { id: 4, name: 'Disciplinas Creativas', color: '#FF6347', subcategories: [ { id: 401, name: 'Artes Visuales' }, { id: 402, name: 'Música' }, { id: 403, name: 'Artes Escénicas' }, { id: 404, name: 'Escritura Creativa' }, { id: 405, name: 'Diseño' }, { id: 406, name: 'Teoría del Arte' } ] },
+            { id: 3, name: 'Ciencias Humanistas', color: '#6A5ACD', subcategories: [ { id: 301, name: 'Filosofía' }, { id: 302, name: 'Estudios Religiosos' }, { id: 303, name:'Literatura'}, { id :304 ,name:'Lingüística'}, {id :305 ,name:'Humanidades Digitales'}, {id :306 ,name:'Estudios Culturales'}, {id :307 ,name:'Humanidades Históricas'} ] },
+            { id :4 ,name :'Disciplinas Creativas',color :'#FF6347',subcategories :[ 
+                {
+                    "id": "401",
+                    "name": "Artes Visuales"
+                },
+                {
+                    "id": "402",
+                    "name": "Música"
+                },
+                {
+                    "id": "403",
+                    "name": "Artes Escénicas"
+                },
+                {
+                    "id": "404",
+                    "name": "Escritura Creativa"
+                },
+                {
+                    "id": "405",
+                    "name": "Diseño"
+                },
+                {
+                    "id": "406",
+                    "name": "Teoría del Arte"
+                }
+            ]},
             { id: 5, name: 'Ciencias Computacionales', color: '#4682B4', subcategories: [ { id: 501, name: 'Computación Teórica' }, { id: 502, name: 'Ingeniería de Software' }, { id: 503, name: 'Inteligencia Artificial' }, { id: 504, name: 'Ciberseguridad' }, { id: 505, name: 'Infraestructura Digital' }, { id: 506, name: 'Computación Científica' }, { id: 507, name: 'Robótica' } ] },
             { id: 6, name: 'Ciencias Exactas', color: '#20B2AA', subcategories: [ { id: 601, name: 'Matemáticas Puras' }, { id: 602, name: 'Matemáticas Aplicadas' }, { id: 603, name: 'Física Teórica' }, { id: 604, name: 'Física Experimental' }, { id: 605, name: 'Lógica Formal' }, { id: 606, name: 'Estadística' }, { id: 607, name: 'Química Teórica' } ] },
             { id: 7, name: 'Ciencias Naturales', color: '#32CD32', subcategories: [ { id: 701, name: 'Biología' }, { id: 702, name: 'Ecología' }, { id: 703, name: 'Química' }, { id: 704, name: 'Ciencias de la Tierra' }, { id: 705, name: 'Astronomía' }, { id: 706, name: 'Biotecnología' }, { id: 707, name: 'Ciencias de la Vida' } ] },
@@ -513,7 +543,7 @@ module.exports = function (app) {
     });
 
     // LISTS
-    app.get('/lists', (req, res) => {
+    app.get('/lists', IsRegistered, (req, res) => {
         const userType = Math.random() > 0.5 ? 'validated' : 'registered';
         const listsData = {
             user: { id: 1, name: 'Usuario Demo', type: userType, isAdmin: false, avatar: 'https://ui-avatars.com/api/?name=Usuario+Demo&background=8d6e63&color=fff', maxLists: userType === 'validated' ? 10 : 3, maxSourcesPerList: userType === 'validated' ? 50 : 15, currentLists: 3, canCreateCollaborative: userType === 'validated' },
@@ -529,7 +559,7 @@ module.exports = function (app) {
         res.render('lists', { title: 'Listas Curatoriales - Artícora', currentPage: 'lists', cssFile: 'lists.css', data: listsData });
     });
 
-    app.get('/lists/:id', (req, res) => {
+    app.get('/lists/:id', IsRegistered, (req, res) => {
         const listId = parseInt(req.params.id);
         const userType = Math.random() > 0.5 ? 'validated' : 'registered';
         const userId = 1;
@@ -547,7 +577,7 @@ module.exports = function (app) {
     });
 
     // COMPARE
-    app.get('/compare', (req, res) => {
+    app.get('/compare', IsVerified,(req, res) => {
         const mockSources = [ /* ... */ ];
         const searchOptions = mockSources.map(source => ({ id: source.id, title: source.title, authors: source.authors.join(', '), year: source.year, type: source.type, category: source.category, keywords: source.keywords.join(', ') }));
         const searchExamples = ["Cognitive Science", "Stephen Hawking", "Deep Learning", "neurociencia", "filosofía", "sociología", "Kuhn", "Foucault", "ciencias sociales", "aprendizaje automático"];
@@ -555,13 +585,13 @@ module.exports = function (app) {
         res.render('compare-user', { title: 'Comparador de Fuentes - Artícora', currentPage: 'compare', cssFile: 'compare.css', jsFile: 'compare.js', userType: 'user', availableSources: searchOptions, selectedSources: mockSources.slice(0, 3), searchExamples: searchExamples, totalSourcesCount: mockSources.length });
     });
 
-    app.get('/compare/admin', (req, res) => {
+    app.get('/compare/admin',IsAdmini, (req, res) => {
         const mockSources = [ /* ... */ ];
         res.render('compare-admin', { title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora', currentPage: 'compare-admin', cssFile: 'compare.css', jsFile: 'compare-admin.js', userType: 'admin', availableSources: mockSources, selectedSources: [], totalSourcesCount: mockSources.length });
     });
 
     // ADMIN
-    app.get('/admin', (req, res) => {
+    app.get('/admin', IsAdmini, (req, res) => {
         const manualReports = [ /* ...full mock objects as in original... */ ];
         const systemReports = [ /* ... */ ];
         const stats = { totalPending: manualReports.filter(r => r.status === 'pendiente').length + systemReports.filter(r => r.status === 'pendiente').length, pendingManual: manualReports.filter(r => r.status === 'pendiente').length, pendingSystem: systemReports.filter(r => r.status === 'pendiente').length, highPriority: manualReports.filter(r => r.priority === 'alta' && r.status === 'pendiente').length, resolvedToday: 3, avgResolutionTime: "2.5 días" };
