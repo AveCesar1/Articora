@@ -11,7 +11,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(15) UNIQUE NOT NULL CHECK(LENGTH(username) BETWEEN 5 AND 15),
-    email VARCHAR(255) UNIQUE NOT NULL CHECK(email LIKE '%@%'),
+    email VARCHAR(255) UNIQUE NOT NULL,
     password TEXT NOT NULL,
     profile_picture TEXT,
     bio TEXT,

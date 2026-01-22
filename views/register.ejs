@@ -7,7 +7,7 @@
                     <h4 class="mb-0">Crear una cuenta en Artícora</h4>
                 </div>
                 <div class="card-body p-4">
-                    <form id="registerForm">
+                    <form id="registerForm" action="/register" method="POST">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="username" class="form-label">Nombre de usuario *</label>
@@ -54,6 +54,14 @@
                         <hr class="my-4">
                         <p class="text-center mb-0">¿Ya tienes una cuenta? <a href="/login">Inicia sesión aquí</a></p>
                     </form>
+                    <div id="error-message" class="alert alert-danger d-none d-flex align-items-center" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="error-text"></span>
+                    </div>
+                    <div id="success-message" class="alert alert-success d-none d-flex align-items-center" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="success-text"></span>
+                    </div>
                 </div>
             </div>
             <div class="text-center mt-4">

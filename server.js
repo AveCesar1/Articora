@@ -36,8 +36,8 @@ app.use(session({
 }));
 
 // Import routes
-require('./routes/getRoutes')(app);
 require('./routes/postRoutes')(app);
+require('./routes/getRoutes')(app);
 
 const PORT = process.env.PORT || 3000;
 
