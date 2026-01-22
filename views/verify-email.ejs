@@ -15,11 +15,13 @@
                     <h4 class="mb-2">Verifica tu cuenta</h4>
                     <p class="text-muted">
                         Hemos enviado un código de 6 dígitos a:<br>
-                        <strong>leonardo.serna@ejemplo.com</strong>
+                        <strong id="emailDisplay"><%= email || 'No especificado' %></strong>
                     </p>
                 </div>
 
                 <form id="verifyForm">
+                    <input type="hidden" id="email" value="<%= email %>">
+                    
                     <div class="mb-4">
                         <label for="otpCode" class="form-label">Código de Verificación (OTP)</label>
                         <div class="otp-input-container text-center">
@@ -57,8 +59,8 @@
                 <div class="mt-4 pt-3 border-top text-center">
                     <p class="small text-muted mb-0">
                         <i class="fas fa-info-circle me-1"></i>
-                        Si no recibes el código, revisa tu carpeta de spam o 
-                        <a href="#" class="text-gold">solicita un nuevo código</a>.
+                        Si no ves el código, revisa la terminal del servidor o
+                        <a href="#" id="resendLink" class="text-gold">solicita un nuevo código</a>.
                     </p>
                 </div>
             </div>

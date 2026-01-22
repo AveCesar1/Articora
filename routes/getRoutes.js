@@ -160,12 +160,21 @@ module.exports = function (app) {
         });
     });
 
-    app.get('/verify-email', IsRegistered,(req, res) => {
+    app.get('/verify-email', (req, res) => {
+        const email = req.query.email || '';
+        
+        // Verificar si hay registro pendiente para este email
+        if (!req.session.pendingRegistration || req.session.pendingRegistration.email !== email) {
+            // Redirigir al registro si no hay registro pendiente
+            return res.redirect('/register?error=no_pending_registration');
+        }
+        
         res.render('verify-email', {
             title: 'Verificación de Correo - Artícora',
             currentPage: 'verify-email',
             cssFile: 'verify-email.css',
-            jsFile: 'verify-email.js'
+            jsFile: 'verify-email.js',
+            email: email
         });
     });
 

@@ -76,14 +76,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;
 
+                // En la parte donde manejas el éxito:
                 if (result.success) {
                     // Mostrar mensaje de éxito
                     showSuccess(result.message);
-
-                    // Redirigir a login después de 3 segundos
+                    
+                    // Redirigir a página de verificación después de 2 segundos
                     setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 3000);
+                        if (result.redirectTo) {
+                            window.location.href = result.redirectTo;
+                        } else {
+                            window.location.href = `/verify-email?email=${encodeURIComponent(formData.email)}`;
+                        }
+                    }, 2000);
                 } else {
                     // Mostrar mensaje de error
                     showError(result.message);

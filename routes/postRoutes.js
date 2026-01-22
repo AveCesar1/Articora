@@ -16,9 +16,7 @@ module.exports = function (app) {
         // Validaciones...
         
         try {
-            console.log('Verificando usuario existente...');
-            
-            // Usa req.db en lugar de db
+            // Verificar si el usuario o correo ya existen (en BD real)
             const hashedEmailForCheck = crypto.createHash('sha256').update(email).digest('hex');
             const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(username, hashedEmailForCheck);
             
@@ -27,30 +25,183 @@ module.exports = function (app) {
                 return res.status(400).json({ success: false, message: 'El nombre de usuario o correo ya están registrados.' });
             }
 
-            // Hashear contraseña
+            // Hashear contraseña para almacenamiento temporal
             const salt = await bcrypt.genSalt(12);
             const hashedPassword = await bcrypt.hash(password, salt);
 
-            // Hashear email
-            const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
-            
-            console.log('Insertando usuario en BD...');
-            
-            // Usa req.db aquí también
-            const result = req.db.prepare('INSERT INTO users (username, email, password, is_verified) VALUES (?, ?, ?, ?)')
-                .run(username, hashedEmail, hashedPassword, 0);
-            
-            console.log('Usuario insertado con ID:', result.lastInsertRowid);
-            
-            // Simular envío de código de verificación
-            console.log(`Código de verificación enviado a ${email}`);
+            // Generar código de verificación
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutos
 
-            res.status(201).json({ success: true, message: 'Usuario registrado exitosamente. Por favor, verifica tu correo electrónico.' });
+            // Almacenar datos temporalmente en la sesión
+            req.session.pendingRegistration = {
+                username,
+                email,
+                password: hashedPassword, // Almacenamos el hash, no la contraseña en texto
+                verificationCode,
+                expiresAt,
+                attempts: 0 // Intentos de verificación
+            };
+
+            console.log(`=========================================`);
+            console.log(`CÓDIGO DE VERIFICACIÓN para ${email}:`);
+            console.log(`Código: ${verificationCode}`);
+            console.log(`Expira: ${new Date(expiresAt).toLocaleString()}`);
+            console.log(`=========================================`);
+
+            res.status(201).json({ 
+                success: true, 
+                message: 'Usuario registrado exitosamente. Por favor, verifica tu correo electrónico.',
+                redirectTo: `/verify-email?email=${encodeURIComponent(email)}`
+            });
+            
         } catch (error) {
             console.error('Error en el endpoint /register:', error.message, error.stack);
             res.status(500).json({ success: false, message: 'Error interno del servidor.' });
         }
     });
+
+    // Endpoint para verificar código y crear usuario
+    app.post('/verify-email', async (req, res) => {
+        const { email, code } = req.body;
+        
+        if (!email || !code) {
+            return res.status(400).json({ success: false, message: 'Faltan datos requeridos.' });
+        }
+        
+        try {
+            console.log(`Verificando código para ${email}: ${code}`);
+            
+            // Verificar si hay registro pendiente
+            if (!req.session.pendingRegistration) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'No hay registro pendiente. Por favor, regístrate de nuevo.' 
+                });
+            }
+            
+            const pending = req.session.pendingRegistration;
+            
+            // Verificar que el email coincida
+            if (pending.email !== email) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'El email no coincide con el registro pendiente.' 
+                });
+            }
+            
+            // Verificar expiración
+            if (Date.now() > pending.expiresAt) {
+                delete req.session.pendingRegistration;
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'El código ha expirado. Por favor, solicita uno nuevo.' 
+                });
+            }
+            
+            // Verificar intentos (máximo 3 intentos)
+            if (pending.attempts >= 3) {
+                delete req.session.pendingRegistration;
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Demasiados intentos fallidos. Por favor, regístrate de nuevo.' 
+                });
+            }
+            
+            // Verificar código
+            if (pending.verificationCode !== code) {
+                // Incrementar intentos fallidos
+                req.session.pendingRegistration.attempts += 1;
+                
+                const remainingAttempts = 3 - req.session.pendingRegistration.attempts;
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Código incorrecto. Te quedan ${remainingAttempts} intento(s).` 
+                });
+            }
+            
+            // Insertar usuario en BD
+            const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
+
+            try {
+                console.log('Verificando conexión a la base de datos:', req.db);
+
+                const result = req.db.prepare(`
+                    INSERT INTO users (
+                        username, email, password, profile_picture, bio, available_for_messages, 
+                        academic_level, is_validated, is_verified, created_at, last_login, 
+                        account_active, login_attempts, locked_until
+                    ) VALUES (?, ?, ?, NULL, NULL, 0, NULL, 0, 1, datetime('now'), NULL, 1, 0, NULL)
+                `).run(
+                    pending.username, 
+                    hashedEmail, 
+                    pending.password
+                );
+
+                console.log(`Usuario ${pending.username} insertado con ID: ${result.lastInsertRowid}`);
+
+                // Limpiar registro pendiente de la sesión
+                delete req.session.pendingRegistration;
+
+                res.json({ 
+                    success: true, 
+                    message: '¡Correo verificado exitosamente! Ahora puedes iniciar sesión.',
+                    redirectTo: '/login'
+                });
+            } catch (error) {
+                console.error('Error al insertar usuario en la base de datos:', error);
+                res.status(500).json({ success: false, message: 'Error interno del servidor al crear el usuario.' });
+            }
+        } catch (error) {
+            console.error('Error en verificación:', error);
+            res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+        }
+    });
+
+    // Endpoint para reenviar código
+    app.post('/resend-verification', async (req, res) => {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email es requerido.' });
+        }
+        
+        try {
+            // Verificar si hay registro pendiente para este email
+            if (!req.session.pendingRegistration || req.session.pendingRegistration.email !== email) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'No hay registro pendiente para este email.' 
+                });
+            }
+            
+            // Generar nuevo código
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutos
+            
+            // Actualizar registro pendiente
+            req.session.pendingRegistration.verificationCode = verificationCode;
+            req.session.pendingRegistration.expiresAt = expiresAt;
+            req.session.pendingRegistration.attempts = 0; // Resetear intentos
+            
+            console.log(`=========================================`);
+            console.log(`NUEVO CÓDIGO DE VERIFICACIÓN para ${email}:`);
+            console.log(`Código: ${verificationCode}`);
+            console.log(`Expira: ${new Date(expiresAt).toLocaleString()}`);
+            console.log(`=========================================`);
+            
+            res.json({ 
+                success: true, 
+                message: 'Se ha enviado un nuevo código de verificación.',
+                expiresAt: expiresAt
+            });
+            
+        } catch (error) {
+            console.error('Error al reenviar código:', error);
+            res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+        }
+    });
+
 
     // Inicio de sesión
     app.post('/login', async (req, res) => {
