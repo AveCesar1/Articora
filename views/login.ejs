@@ -7,22 +7,22 @@
                     <h4 class="mb-0">Iniciar sesión en Artícora</h4>
                 </div>
                 <div class="card-body p-4">
-                    <form id="loginForm">
+                    <form id="loginForm" action="/login" method="post">
                         <div class="mb-3">
                             <label for="username" class="form-label">Nombre de usuario o correo</label>
-                            <input type="text" class="form-control" id="username" placeholder="Ingresa tu usuario o correo" required>
+                            <input type="text" name="username" class="form-control" id="username" placeholder="Ingresa tu usuario o correo" required>
                         </div>
                         <div class="mb-3">
                             <label for="password" class="form-label">Contraseña</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" id="password" placeholder="Ingresa tu contraseña" required>
+                                <input type="password" name="password" class="form-control" id="password" placeholder="Ingresa tu contraseña" required>
                                 <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('password')">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
                         <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <input type="checkbox" name="rememberMe" class="form-check-input" id="rememberMe">
                             <label class="form-check-label" for="rememberMe">Recordarme</label>
                         </div>
                         <div class="d-grid">

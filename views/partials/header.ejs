@@ -112,25 +112,11 @@
                         </a>
                     </li>
                     
-                    <% 
-                    // Variable hardcodeada para simular estado de sesión
-                    // Cambia a false para ver el botón de inicio de sesión
-                    const loggedIn = false; 
-                    
-                    // Nombre de usuario hardcodeado (aparece cuando loggedIn = true)
-                    const userName = "Ana García";
-                    const userInitials = "AG";
-                    %>
-                    
-                    <% if (loggedIn) { %>
-                        <!-- Perfil de usuario cuando está logueado -->
-                        <li class="nav-item">
-                            <a class="nav-link user-profile" href="/profile">
-                                <div class="user-avatar">
-                                    <%= userInitials %>
-                                </div>
-                                <span class="user-name d-none d-lg-inline"><%= userName %></span>
-                                <i class="fas fa-chevron-down ms-1 d-none d-lg-inline"></i>
+                    <% if (typeof loggedIn !== 'undefined' && loggedIn) { %>
+                        <!-- Usuario autenticado: mostrar enlace a cuenta (no se muestran datos sensibles) -->
+                        <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+                            <a class="nav-link btn btn-outline-light px-4" href="/profile">
+                                <i class="fas fa-user me-1"></i> Mi cuenta
                             </a>
                         </li>
                     <% } else { %>
