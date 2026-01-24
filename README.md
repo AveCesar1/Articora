@@ -75,12 +75,13 @@ Para mejorar el mantenimiento y aislar responsabilidades se reorganizó la aplic
   - Implementa ejecución robusta de scripts SQL (intenta `db.exec`, y si falla ejecuta CREATEs primero y luego INSERTs), y maneja cierre ordenado de la BD.
 
 - `routes/getRoutes.js`
-  - Todas las rutas públicas GET (páginas y vistas) se movieron aquí.
+  - Todas las rutas públicas GET (páginas y vistas) son llamadas de la carpeta /gets.
   - Conserva los datos mock / valores por defecto tal como estaban en `server.js`.
   - Exporta una función `(app) => { /* registra rutas GET */ }` que `server.js` invoca.
 
 - `routes/postRoutes.js`
-  - Contenedor para las rutas POST. Está listo para recibir y mantener las rutas POST con sus datos por defecto.
+  - Contenedor para las rutas POST (carpeta /posts). 
+  - Está listo para recibir y mantener las rutas POST con sus datos por defecto.
 
 - `server.js`
   - Ahora actúa como orquestador: configura Express y EJS, carga middleware global, importa `lib/database.js` y registra las rutas desde `routes/*.js`.
