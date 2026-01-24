@@ -67,33 +67,18 @@ Plataforma web para la curación colaborativa de fuentes bibliográficas académ
 
 ## 🧩 Estructura modular (Node.js)
 
-Para mejorar el mantenimiento y aislar responsabilidades se reorganizó la aplicación en módulos claros:
+La aplicación se organizó en módulos pequeños y conectados para facilitar el mantenimiento y para que el flujo back-end esté claro y localizado.
 
-- `lib/database.js`
-  - Contiene la conexión a SQLite (`better-sqlite3`), pragmas y helpers (`dbHelpers`).
-  - Expone la función `initialize()` para crear/optimizar la BD y el middleware `databaseMiddleware` que inyecta `req.db` en las rutas.
-  - Implementa ejecución robusta de scripts SQL (intenta `db.exec`, y si falla ejecuta CREATEs primero y luego INSERTs), y maneja cierre ordenado de la BD.
+- `server.js` — Orquesta la aplicación: configura Express/EJS, carga middlewares globales, expone el `transporter` de nodemailer en `app.locals`, y registra rutas usando los loaders en `routes/`.
 
-- `routes/getRoutes.js`
-  - Todas las rutas públicas GET (páginas y vistas) son llamadas de la carpeta /gets.
-  - Conserva los datos mock / valores por defecto tal como estaban en `server.js`.
-  - Exporta una función `(app) => { /* registra rutas GET */ }` que `server.js` invoca.
+- `lib/database.js` — Núcleo de la base de datos: `initialize()` para crear/optimizar la BD y `databaseMiddleware` que inyecta `req.db`. Aquí están los helpers SQL reutilizables.
 
-- `routes/postRoutes.js`
-  - Contenedor para las rutas POST (carpeta /posts). 
-  - Está listo para recibir y mantener las rutas POST con sus datos por defecto.
+- `routes/getRoutes.js` y `routes/postRoutes.js` — Loaders: cada uno requiere automáticamente los ficheros en `routes/gets/` y `routes/posts/`. Cada fichero de rutas exporta una función `(app) => { /* registra endpoints */ }` para mantener las rutas agrupadas por responsabilidad.
 
-- `server.js`
-  - Ahora actúa como orquestador: configura Express y EJS, carga middleware global, importa `lib/database.js` y registra las rutas desde `routes/*.js`.
-  - Inicia `initialize()` y, una vez lista la BD, arranca el servidor.
+- `middlewares/` — Middlewares compartidos (p. ej. `auth.js`, `checkrole.js`). `auth.js` contiene la lógica de autenticación: verificación de credenciales con `bcrypt` (salt=12), creación/verificación de JWT (`process.env.JWT_SECRET`) y population de `req.session`/`res.locals`.
 
-### Ventajas de la separación
-- Código más legible y más fácil de depurar.
-- Permite reinicializar o testear la BD independientemente del servidor HTTP.
-- Facilita añadir nuevas rutas o agruparlas por funcionalidad (p. ej. `routes/admin.js`).
-- Evita que un fallo en una operación SQL deje la BD en un estado parcialmente creado sin trazabilidad (se mejoró el manejo de errores y logging).
+- `views/emails/` — Plantillas de correo (por ejemplo `verification.ejs`) usadas por las rutas de registro/verificación junto al `transporter` de nodemailer.
 
-### Recomendaciones operativas
-- Si actualizas `database/init.sql` o `database/indexes.sql`, borra `database/articora.db` para forzar una re-inicialización limpia y luego ejecuta `npm run dev`.
-- Para añadir rutas POST, edita `routes/postRoutes.js` y registra los endpoints ahí; `server.js` los cargará automáticamente.
-- Para añadir nuevos helpers de BD, crea archivos en `lib/` y exporta lo necesario.
+Estado y dónde mirar
+- El backend core y la autenticación ya están implementados: la inicialización de la BD, el flujo de registro/verification por correo, login con cookie JWT (`token`, httpOnly) y logout están en `server.js`, `routes/posts/userPosts.js` y `middlewares/auth.js`.
+- Para entender o cambiar el comportamiento de autenticación/email revisa esos tres archivos.
