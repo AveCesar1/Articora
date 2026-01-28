@@ -3,13 +3,18 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const ejs = require('ejs');
 const path = require('path');
+const { sanitizeText } = require('../../middlewares/sanitize');
 
 module.exports = function (app) {
     // Registro de usuario
     app.post('/register', async (req, res) => {
         console.log('POST /register recibido:', req.body);
         
-        const { username, email, password, confirmPassword } = req.body;
+        let { username, email, password, confirmPassword } = req.body;
+
+        // Sanitize inputs (do not sanitize password)
+        username = sanitizeText(username);
+        email = sanitizeText(email).toLowerCase();
 
         // Validaciones...
         // Username: 5-15 chars, letters and numbers only
@@ -74,7 +79,7 @@ module.exports = function (app) {
                 try {
                     const verifyUrl = `${req.protocol}://${req.get('host')}/verify-email?email=${encodeURIComponent(email)}`;
                     // Render email HTML from EJS template
-                    const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'emails', 'verification.ejs'), {
+                    const html = await ejs.renderFile(path.join(__dirname, '..', '..', 'views', 'emails', 'verification.ejs'), {
                         username,
                         verificationCode,
                         verifyUrl
@@ -116,7 +121,9 @@ module.exports = function (app) {
 
     // Endpoint para verificar código y crear usuario
     app.post('/verify-email', async (req, res) => {
-        const { email, code } = req.body;
+        let { email, code } = req.body;
+        email = sanitizeText(email).toLowerCase();
+        code = sanitizeText(code);
         
         if (!email || !code) {
             return res.status(400).json({ success: false, message: 'Faltan datos requeridos.' });
@@ -213,7 +220,8 @@ module.exports = function (app) {
 
     // Endpoint para reenviar código
     app.post('/resend-verification', async (req, res) => {
-        const { email } = req.body;
+        let { email } = req.body;
+        email = sanitizeText(email).toLowerCase();
         
         if (!email) {
             return res.status(400).json({ success: false, message: 'Email es requerido.' });
@@ -286,8 +294,11 @@ module.exports = function (app) {
     
     // Inicio de sesión
     app.post('/login', async (req, res) => {
-        const { username, password } = req.body;
+        let { username, password } = req.body;
         const rememberMe = req.body.rememberMe;
+
+        // Sanitize username input (could be email or username)
+        username = sanitizeText(username);
 
         if (!username || !password) {
             // If this is a normal browser form submit, redirect back to login
