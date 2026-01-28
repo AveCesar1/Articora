@@ -58,6 +58,20 @@ CREATE TABLE IF NOT EXISTS user_dashboard_settings (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS documentos_verificacion (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL,
+  ruta_archivo TEXT NOT NULL,
+  iv TEXT NOT NULL,
+  tipo VARCHAR(50),
+  original_name TEXT,
+  mime VARCHAR(100),
+  fecha_subida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expira_en TIMESTAMP,
+  verificacion_completada BOOLEAN DEFAULT 0,
+  FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- ============================================
 -- MODULE 2: CATEGORIES AND SUBCATEGORIES
 -- ============================================
