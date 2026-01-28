@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT NOT NULL,
     profile_picture TEXT,
     bio TEXT,
+    institution VARCHAR(255),
+    department VARCHAR(255),
+    affiliation_type VARCHAR(50),
     available_for_messages BOOLEAN DEFAULT 0,
     academic_level VARCHAR(20),
     is_validated BOOLEAN DEFAULT 0,
@@ -41,6 +44,18 @@ CREATE TABLE IF NOT EXISTS user_validations (
     admin_notes TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (admin_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_dashboard_settings (
+    user_id INTEGER PRIMARY KEY,
+    radar_chart_public BOOLEAN DEFAULT 0,
+    show_recent_study BOOLEAN DEFAULT 1,
+    show_my_references BOOLEAN DEFAULT 1,
+    show_most_read BOOLEAN DEFAULT 1,
+    show_global_trends BOOLEAN DEFAULT 1,
+    widget_order TEXT DEFAULT '["recent_study","my_references","most_read","global_trends"]',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- ============================================
