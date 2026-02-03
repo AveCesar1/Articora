@@ -4,9 +4,10 @@ const jwt = require('jsonwebtoken');
 const ejs = require('ejs');
 const path = require('path');
 const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() });
 const fs = require('fs');
 const { sanitizeText } = require('../../middlewares/sanitize');
+const autenticacion = require('../../middlewares/auth');
+const { db } = require('../../lib/database');
 
 module.exports = function (app) {
     app.post('/register', async (req, res) => {
@@ -510,17 +511,17 @@ module.exports = function (app) {
     setInterval(async () => {
     try {
         const now = new Date().toISOString();
-        const rows = req.db ? req.db.prepare(`
+        const rows = db.prepare(`
             SELECT * FROM documentos_verificacion
             WHERE expira_en < ?
             OR verificacion_completada = 1
-        `).all(now) : [];
+        `).all(now);
 
         rows.forEach(r => {
-        try { if (fs.existsSync(r.ruta_archivo)) fs.unlinkSync(r.ruta_archivo); } catch (e) { console.error('rm file', e); }
+        try { if (fs.existsSync(r.ruta_archivo)) fs.unlinkSync(r.ruta_archivo); } catch (e) { console.error('error deleting file', e); }
         });
 
-        if (req.db) req.db.prepare(`
+        db.prepare(`
             DELETE FROM documentos_verificacion
             WHERE expira_en < ? 
             OR verificacion_completada = 1
