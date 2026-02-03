@@ -37,16 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.transform = 'translateY(0) scale(1)';
         });
     });
-    
-    // Botón de editar perfil
-    const editProfileBtn = document.querySelector('.btn-primary');
-    if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Función de edición de perfil en desarrollo. En una implementación real, esto abriría un formulario de edición.');
-        });
-    }
-    
+        
     // Mostrar tooltips para badges de estado
     const statusBadges = document.querySelectorAll('.status-badge');
     statusBadges.forEach(badge => {
