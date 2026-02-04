@@ -60,7 +60,7 @@ module.exports = function (app) {
 
             const userData = {
                 username: userRow.username,
-                fullName: userRow.full_name || '',
+                fullName: userRow.full_name || userRow.username,
                 email: userRow.email,
                 academicStatus: userRow.is_validated ? 'Validado' : 'No validado',
                 academicDegree: userRow.academic_level || '',
@@ -93,55 +93,24 @@ module.exports = function (app) {
     });
 
     app.get('/profile/config', IsRegistered, (req, res) => {
-        // Mismos datos del perfil
-        const userData = {
-            username: 'leonardo.serna',
-            fullName: 'Leonardo Serna Sánchez',
-            email: 'leonardo.serna@example.com',
-            academicStatus: 'Validado',
-            academicDegree: 'Maestría en Ciencias de la Computación',
-            institution: 'Centro de Enseñanza Técnica Industrial',
-            joinDate: '15 de agosto de 2023',
-            bio: 'Investigador en el área de Ciencias Computacionales con enfoque en IA y procesamiento de lenguaje natural. Especial interés en modelos de recomendación académica y análisis de redes de colaboración científica.',
-            availableForMessages: true,
-            stats: {
-                sourcesAdded: 42,
-                reviewsWritten: 28,
-                readingLists: 5,
-                collaborations: 12
-            },
-            readingStats: {
-                cognitiveSciences: 12,
-                socialSciences: 8,
-                humanities: 5,
-                creativeDisciplines: 3,
-                computationalSciences: 25,
-                exactSciences: 10,
-                naturalSciences: 7,
-                appliedSciences: 15
-            },
-            recentActivity: [
-                { 
-                    icon: 'fas fa-star',
-                    title: 'Calificó "Advances in Neural Information Processing Systems"',
-                    description: '4.5 estrellas en veracidad y 4.0 en nivel de detalle',
-                    time: 'Hace 2 días'
-                },
-                { 
-                    icon: 'fas fa-bookmark',
-                    title: 'Añadió "Journal of Machine Learning Research" a su lista',
-                    description: 'Lista: "Lecturas pendientes de IA avanzada"',
-                    time: 'Hace 4 días'
-                },
-                { 
-                    icon: 'fas fa-comment',
-                    title: 'Comentó en la discusión de "Nature Communications"',
-                    description: 'Participó en el debate sobre metodologías de investigación',
-                    time: 'Hace 1 semana'
-                }
-            ],
-            interests: ['Inteligencia Artificial', 'Procesamiento de Lenguaje Natural', 'Ciencia de Datos', 'Ética en IA', 'Sistemas de Recomendación']
-        };
+        const userId = req.session.userId;
+        const db = req.db;
+        if(!userId) return res.redirect('/login');
+        const userRow = db.prepare(
+            `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages
+             FROM users WHERE id = ?`
+        ).get(userId);
+        const userData ={
+            username: userRow.username,
+            fullName: userRow.full_name || userRow.username,
+            email: userRow.email,
+            bio: userRow.bio || '',
+            institution: userRow.institution || '',
+            academicDegree: userRow.academic_level || '',
+            availableForMessages: !!userRow.available_for_messages,
+            interests: [],
+        }
+        
         
         res.render('profile-config', { 
             title: 'Configuración del Perfil - Artícora',
