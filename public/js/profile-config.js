@@ -167,12 +167,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Cambio de contraseña
-    const changePasswordForm = document.getElementById('changePasswordForm');
+    // Cambio de contraseña - Validación de fortaleza y controles
     const newPasswordInput = document.getElementById('newPassword');
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const strengthBar = document.getElementById('strengthBar');
     const strengthText = document.getElementById('strengthText');
+    const changePasswordForm = document.getElementById('changePasswordForm');
     
     // Funciones para mostrar/ocultar contraseña
     function setupPasswordToggle(toggleBtnId, passwordInputId) {
@@ -291,65 +291,249 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Validación del formulario de cambio de contraseña
-    if (changePasswordForm) {
-        changePasswordForm.addEventListener('submit', function(e) {
+    // ====== FORMULARIOS CON COMUNICACIÓN AL SERVIDOR ======
+
+    // Formulario: Editar Perfil
+    const editProfileForm = document.getElementById('editProfileForm');
+    if (editProfileForm) {
+        editProfileForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const currentPassword = document.getElementById('currentPassword').value;
-            const newPassword = newPasswordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-            
-            // Validaciones
-            if (!currentPassword) {
-                alert('Por favor, ingresa tu contraseña actual.');
-                return;
-            }
-            
-            if (newPassword.length < 8) {
-                alert('La nueva contraseña debe tener al menos 8 caracteres.');
-                return;
-            }
-            
-            if (newPassword !== confirmPassword) {
-                alert('Las nuevas contraseñas no coinciden.');
-                return;
-            }
-            
-            // Simular cambio de contraseña
-            alert('Contraseña cambiada exitosamente. En una implementación real, esto enviaría los datos al servidor.');
-            
-            // Resetear formulario
-            changePasswordForm.reset();
-            if (strengthBar) {
-                strengthBar.style.width = '0%';
-                strengthText.textContent = 'Débil';
-            }
-            
-            // Resetear iconos de requisitos
-            document.querySelectorAll('.requirement i').forEach(icon => {
-                icon.className = 'fas fa-circle text-muted me-2';
+            // Recolectar intereses
+            const interests = [];
+            document.querySelectorAll('.interests-edit-container .interest-tag').forEach(tag => {
+                const text = tag.textContent.trim();
+                if (text && !text.includes('×')) {
+                    interests.push(text);
+                }
             });
+
+            const formData = {
+                email: document.getElementById('email').value,
+                bio: document.getElementById('bio').value,
+                interests: interests,
+                academicDegree: document.getElementById('academicDegree')?.value || '',
+                institution: document.getElementById('institution')?.value || '',
+                first_name: document.getElementById('firstName')?.value || '',
+                last_name: document.getElementById('lastName')?.value || ''
+            };
+
+            try {
+                const response = await fetch('/profile/config-profile/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('success', 'Perfil actualizado correctamente');
+                } else {
+                    showAlert('danger', data.message || 'Error al actualizar el perfil');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showAlert('danger', 'Error de conexión con el servidor');
+            }
         });
     }
 
-    // Manejo de otros formularios
-    const forms = [
-        'editProfileForm',
-        'privacySettingsForm',
-        'dashboardSettingsForm',
-        'notificationSettingsForm'
-    ];
-    
-    forms.forEach(formId => {
-        const form = document.getElementById(formId);
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                alert('Configuración guardada (simulación). En una implementación real, los datos se enviarían al servidor.');
-            });
+    // Formulario: Cambiar Contraseña
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                showAlert('danger', 'Las nuevas contraseñas no coinciden');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                showAlert('danger', 'La nueva contraseña debe tener al menos 8 caracteres');
+                return;
+            }
+
+            try {
+                const response = await fetch('/profile/config-profile/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        currentPassword: currentPassword,
+                        newPassword: newPassword
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('success', 'Contraseña actualizada correctamente');
+                    changePasswordForm.reset();
+                    if (strengthBar) {
+                        strengthBar.style.width = '0%';
+                        strengthText.textContent = 'Débil';
+                    }
+                } else {
+                    showAlert('danger', data.message || 'Error al cambiar la contraseña');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showAlert('danger', 'Error de conexión con el servidor');
+            }
+        });
+    }
+
+    // Formulario: Privacidad
+    const privacySettingsForm = document.getElementById('privacySettingsForm');
+    if (privacySettingsForm) {
+        privacySettingsForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                profileVisibility: document.querySelector('input[name="profileVisibility"]:checked').value,
+                availableForMessages: document.getElementById('availableForMessages').checked,
+                allowGroupInvites: document.getElementById('allowGroupInvites').checked,
+                filterMessages: document.getElementById('filterMessages').checked,
+                showReadingStats: document.getElementById('showReadingStats').checked,
+                showRecentActivity: document.getElementById('showRecentActivity').checked,
+                showListsPublic: document.getElementById('showListsPublic').checked,
+                showEmail: document.getElementById('showEmail').checked,
+                showInstitution: document.getElementById('showInstitution').checked,
+                showJoinDate: document.getElementById('showJoinDate').checked
+            };
+
+            try {
+                const response = await fetch('/profile/config-profile/privacy-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('success', 'Configuración de privacidad actualizada');
+                } else {
+                    showAlert('danger', data.message || 'Error al actualizar privacidad');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showAlert('danger', 'Error de conexión con el servidor');
+            }
+        });
+    }
+
+    // Formulario: Dashboard
+    const dashboardSettingsForm = document.getElementById('dashboardSettingsForm');
+    if (dashboardSettingsForm) {
+        dashboardSettingsForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                radarChartPublic: document.getElementById('radarChartPublic')?.checked || false,
+                showRecentStudy: document.getElementById('showRecentStudy')?.checked || false,
+                showMyReferences: document.getElementById('showMyReferences')?.checked || false,
+                showMostRead: document.getElementById('showMostRead')?.checked || false,
+                showGlobalTrends: document.getElementById('showGlobalTrends')?.checked || false,
+                widgetOrder: ['recent_study', 'my_references', 'most_read', 'global_trends']
+            };
+
+            try {
+                const response = await fetch('/profile/config-profile/dashboard-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('success', 'Configuración del dashboard actualizada');
+                } else {
+                    showAlert('danger', data.message || 'Error al actualizar dashboard');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showAlert('danger', 'Error de conexión con el servidor');
+            }
+        });
+    }
+
+    // Formulario: Notificaciones
+    const notificationSettingsForm = document.getElementById('notificationSettingsForm');
+    if (notificationSettingsForm) {
+        notificationSettingsForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                emailMessages: document.getElementById('emailMessages').checked,
+                emailComments: document.getElementById('emailComments').checked,
+                emailVerification: document.getElementById('emailVerification').checked,
+                emailNewsletter: document.getElementById('emailNewsletter').checked,
+                platformMessages: document.getElementById('platformMessages').checked,
+                platformComments: document.getElementById('platformComments').checked,
+                platformRatings: document.getElementById('platformRatings').checked,
+                platformSystem: document.getElementById('platformSystem').checked,
+                notificationFrequency: document.getElementById('notificationFrequency').value,
+                urgentNotifications: document.getElementById('urgentNotifications').checked
+            };
+
+            try {
+                const response = await fetch('/profile/config-profile/notification-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('success', 'Configuración de notificaciones actualizada');
+                } else {
+                    showAlert('danger', data.message || 'Error al actualizar notificaciones');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showAlert('danger', 'Error de conexión con el servidor');
+            }
+        });
+    }
+
+    // Función auxiliar para mostrar alertas
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.setAttribute('role', 'alert');
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+
+        // Insertar al inicio del contenedor principal
+        const container = document.querySelector('.container.py-5');
+        if (container) {
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Auto-desaparecer en 5 segundos
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
         }
-    });
+    }
 
     // Carga de imagen de perfil
     const profilePictureInput = document.getElementById('profilePicture');
