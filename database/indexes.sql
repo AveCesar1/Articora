@@ -286,3 +286,9 @@ WHERE is_public = 1 AND total_sources > 0;
 -- Solo contactos disponibles para mensajes
 CREATE INDEX idx_available_contacts ON users(available_for_messages, is_validated) 
 WHERE available_for_messages = 1 AND is_validated = 1;
+
+-- Crear índices para optimización
+CREATE INDEX IF NOT EXISTS idx_user_interests_user_id ON user_interests(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_interests_interest ON user_interests(interest);
+CREATE INDEX IF NOT EXISTS idx_privacy_settings_user_id ON user_privacy_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_settings_user_id ON user_notification_settings(user_id);

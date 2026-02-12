@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password TEXT NOT NULL,
     profile_picture TEXT,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    full_name VARCHAR(100),
     bio TEXT,
     institution VARCHAR(255),
     department VARCHAR(255),
@@ -439,6 +442,55 @@ CREATE TABLE IF NOT EXISTS system_alerts (
     resolved_by INTEGER,
     FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- ============================================
+-- MODULE 12: CONFIGURATION TABLES FOR USER PROFILES
+-- ============================================
+
+-- Tabla para almacenar intereses de usuario
+CREATE TABLE IF NOT EXISTS user_interests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    interest VARCHAR(100) NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, interest)
+);
+
+-- Tabla para configuración de privacidad del usuario
+CREATE TABLE IF NOT EXISTS user_privacy_settings (
+    user_id INTEGER PRIMARY KEY,
+    profile_visibility VARCHAR(50) DEFAULT 'public',
+    available_for_messages BOOLEAN DEFAULT 1,
+    allow_group_invites BOOLEAN DEFAULT 1,
+    filter_messages BOOLEAN DEFAULT 0,
+    show_reading_stats BOOLEAN DEFAULT 1,
+    show_recent_activity BOOLEAN DEFAULT 1,
+    show_lists_public BOOLEAN DEFAULT 1,
+    show_email BOOLEAN DEFAULT 0,
+    show_institution BOOLEAN DEFAULT 1,
+    show_join_date BOOLEAN DEFAULT 1,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Tabla para configuración de notificaciones del usuario
+CREATE TABLE IF NOT EXISTS user_notification_settings (
+    user_id INTEGER PRIMARY KEY,
+    email_messages BOOLEAN DEFAULT 1,
+    email_comments BOOLEAN DEFAULT 1,
+    email_verification BOOLEAN DEFAULT 1,
+    email_newsletter BOOLEAN DEFAULT 0,
+    platform_messages BOOLEAN DEFAULT 1,
+    platform_comments BOOLEAN DEFAULT 1,
+    platform_ratings BOOLEAN DEFAULT 1,
+    platform_system BOOLEAN DEFAULT 1,
+    notification_frequency VARCHAR(20) DEFAULT 'daily',
+    urgent_notifications BOOLEAN DEFAULT 1,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 
 -- ============================================
 -- INITIAL DATA

@@ -37,12 +37,12 @@ module.exports = function (app) {
             if (!userId) return res.redirect('/login');
 
             const userRow = db.prepare(
-                `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, is_validated, created_at
+                `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, is_validated, created_at, first_name, last_name
                  FROM users WHERE id = ?`
             ).get(userId);
 
             if (!userRow) return res.redirect('/login');
-            //Estas pueden cambiar a lo largo del tiempo... No lo se
+            
             const sourcesAdded = db.prepare('SELECT COUNT(*) as c FROM sources WHERE uploaded_by = ?').get(userId).c || 0;
             const reviewsWritten = db.prepare('SELECT COUNT(*) as c FROM ratings WHERE user_id = ?').get(userId).c || 0;
             const readingLists = db.prepare('SELECT COUNT(*) as c FROM curatorial_lists WHERE user_id = ?').get(userId).c || 0;
@@ -97,14 +97,15 @@ module.exports = function (app) {
         const db = req.db;
         if(!userId) return res.redirect('/login');
         const userRow = db.prepare(
-            `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages
+            `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, first_name, last_name
              FROM users WHERE id = ?`
         ).get(userId);
         const userData ={
             username: userRow.username,
-            fullName: userRow.full_name || userRow.username,
             email: userRow.email,
             bio: userRow.bio || '',
+            first_name: userRow.first_name || '',
+            last_name: userRow.last_name || '',
             institution: userRow.institution || '',
             academicDegree: userRow.academic_level || '',
             availableForMessages: !!userRow.available_for_messages,
