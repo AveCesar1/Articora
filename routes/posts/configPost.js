@@ -50,6 +50,7 @@ module.exports = function (app) {
             if (interests && Array.isArray(interests) && interests.length > 0) {
                 // Insertar nuevos intereses
                 const insertInterest = db.prepare('INSERT INTO user_interests (user_id, interest) VALUES (?, ?)');
+        
                 for (const interest of interests) {
                     if (interest.trim()) {
                         insertInterest.run(userId, interest.trim());

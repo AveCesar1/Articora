@@ -456,7 +456,7 @@ CREATE TABLE IF NOT EXISTS user_interests (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(user_id, interest)
 );
-
+ 
 -- Tabla para configuración de privacidad del usuario
 CREATE TABLE IF NOT EXISTS user_privacy_settings (
     user_id INTEGER PRIMARY KEY,
