@@ -40,6 +40,7 @@ module.exports = function (app) {
                 `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, is_validated, created_at, first_name, last_name
                  FROM users WHERE id = ?`
             ).get(userId);
+            const InterestsRows = db.prepare('SELECT interest FROM user_interests WHERE user_id = ?').get(userId);
 
             if (!userRow) return res.redirect('/login');
             
@@ -76,7 +77,7 @@ module.exports = function (app) {
                 },
                 readingStats: readingStats,
                 recentActivity: [],
-                interests: []
+                interests: InterestsRows ? [InterestsRows.interest] : []
             };
 
             res.render('profile', {
@@ -100,6 +101,7 @@ module.exports = function (app) {
             `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, first_name, last_name
              FROM users WHERE id = ?`
         ).get(userId);
+        const InterestsRows = db.prepare('SELECT interest FROM user_interests WHERE user_id = ?').get(userId);
         const userData ={
             username: userRow.username,
             email: userRow.email,
@@ -109,7 +111,7 @@ module.exports = function (app) {
             institution: userRow.institution || '',
             academicDegree: userRow.academic_level || '',
             availableForMessages: !!userRow.available_for_messages,
-            interests: [],
+            interests: InterestsRows ? [InterestsRows.interest] : [],
         }
         
         
