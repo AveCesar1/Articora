@@ -173,7 +173,7 @@ module.exports = function (app) {
             citationFormats
         });
     });
-
+    
     app.get('/upload', soloValidado, (req, res) => {
         const categories = [
             { id: 1, name: 'Ciencias Cognitivas', color: '#8B4513', subcategories: [{ id: 101, name: 'Psicología Cognitiva' }, { id: 102, name: 'Neurociencia Cognitiva' }, { id: 103, name: 'Procesamiento del Lenguaje' }, { id: 104, name: 'Cognición Aplicada' }, { id: 105, name: 'IA Cognitiva' }, { id: 106, name: 'Filosofía de la Mente' }] },

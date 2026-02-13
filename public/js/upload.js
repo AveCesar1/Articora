@@ -585,338 +585,242 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupFieldAutocomplete(fieldId, hintId) {
         const field = document.getElementById(fieldId);
         const hint = document.getElementById(hintId);
-        
         if (!field || !hint) return;
-        
+
+        // Only one suggestion shown at a time
+        let currentSuggestion = '';
+
         field.addEventListener('input', function() {
             const value = this.value.toLowerCase();
             const suggestions = dictionaries[fieldId];
-            
+
             if (value.length < 2 || !suggestions) {
+                currentSuggestion = '';
                 hint.classList.remove('active');
                 return;
             }
-            
+
             const match = suggestions.find(s => s.toLowerCase().startsWith(value));
-            
+
             if (match) {
-                const remaining = match.substring(value.length);
-                hint.textContent = remaining;
+                hint.textContent = match;
                 hint.classList.add('active');
+                currentSuggestion = match;
             } else {
+                currentSuggestion = '';
                 hint.classList.remove('active');
             }
         });
-        
+
         field.addEventListener('keydown', function(e) {
-            if ((e.key === 'Tab' || e.key === 'Enter') && hint.classList.contains('active')) {
+            if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
-                const fullSuggestion = this.value + hint.textContent;
-                this.value = fullSuggestion;
+                this.value = currentSuggestion;
                 hint.classList.remove('active');
-                
-                if (fieldId === 'title') {
-                    updateTitleCounter();
-                    validateTitle();
-                } else if (fieldId === 'publisher') {
-                    updatePublisherCounter();
-                }
+                currentSuggestion = '';
+                this.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
-        
+
         field.addEventListener('blur', function() {
-            setTimeout(() => hint.classList.remove('active'), 200);
+            setTimeout(() => hint.classList.remove('active'), 150);
         });
     }
 
     function setupAuthorAutocomplete(input) {
         const hint = document.getElementById('authorAutocomplete');
-        
+        if (!input || !hint) return;
+
+        let currentSuggestion = '';
+
         input.addEventListener('input', function() {
             const value = this.value.toLowerCase();
             const suggestions = dictionaries.author;
-            
+
             if (value.length < 2) {
+                currentSuggestion = '';
                 hint.classList.remove('active');
                 return;
             }
-            
+
             const match = suggestions.find(s => s.toLowerCase().startsWith(value));
-            
+
             if (match) {
-                const remaining = match.substring(value.length);
-                hint.textContent = remaining;
-                hint.style.top = `${this.offsetTop + this.offsetHeight}px`;
-                hint.style.left = `${this.offsetLeft}px`;
+                hint.textContent = match;
                 hint.classList.add('active');
+                currentSuggestion = match;
+                hint.dataset.targetInput = this.dataset.index || '';
             } else {
+                currentSuggestion = '';
                 hint.classList.remove('active');
             }
         });
-        
+
         input.addEventListener('keydown', function(e) {
-            if ((e.key === 'Tab' || e.key === 'Enter') && hint.classList.contains('active')) {
+            if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
-                const fullSuggestion = this.value + hint.textContent;
-                this.value = fullSuggestion;
+                this.value = currentSuggestion;
                 hint.classList.remove('active');
+                currentSuggestion = '';
+                this.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
-        
+
         input.addEventListener('blur', function() {
-            setTimeout(() => hint.classList.remove('active'), 200);
+            setTimeout(() => hint.classList.remove('active'), 150);
         });
     }
 
     function setupKeywordsAutocomplete() {
         const field = document.getElementById('keywords');
         const hint = document.getElementById('keywordsAutocomplete');
-        
+        if (!field || !hint) return;
+
+        let currentSuggestion = '';
+
         field.addEventListener('input', function() {
             const value = this.value.toLowerCase();
             const lastComma = value.lastIndexOf(',');
             const currentWord = lastComma === -1 ? value.trim() : value.substring(lastComma + 1).trim();
-            
+
             if (currentWord.length < 2) {
+                currentSuggestion = '';
                 hint.classList.remove('active');
                 return;
             }
-            
+
             const match = dictionaries.keywords.find(k => k.toLowerCase().startsWith(currentWord));
-            
+
             if (match) {
-                const remaining = match.substring(currentWord.length);
-                hint.textContent = remaining;
+                hint.textContent = match;
                 hint.classList.add('active');
+                currentSuggestion = match;
             } else {
+                currentSuggestion = '';
                 hint.classList.remove('active');
             }
         });
-        
+
         field.addEventListener('keydown', function(e) {
-            if ((e.key === 'Tab' || e.key === 'Enter') && hint.classList.contains('active')) {
+            if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
                 const value = this.value;
                 const lastComma = value.lastIndexOf(',');
-                
                 if (lastComma === -1) {
-                    this.value = hint.textContent ? value + hint.textContent : value;
+                    this.value = matchCaseAppend(value, currentSuggestion);
                 } else {
-                    const before = value.substring(0, lastComma + 1);
-                    const after = value.substring(lastComma + 1);
-                    const newWord = after.trim() + hint.textContent;
-                    this.value = before + ' ' + newWord;
+                    this.value = value.substring(0, lastComma + 1) + ' ' + currentSuggestion;
                 }
-                
                 hint.classList.remove('active');
+                currentSuggestion = '';
+                this.dispatchEvent(new Event('input'));
             }
         });
-        
+
         field.addEventListener('blur', function() {
-            setTimeout(() => hint.classList.remove('active'), 200);
+            setTimeout(() => hint.classList.remove('active'), 150);
         });
-    }
 
-    // ==================== CAMPOS DEPENDIENTES ====================
-
-    function handleSourceTypeChange() {
-        const type = sourceType.value;
-        const publisherRequired = document.getElementById('publisherRequired');
-        const editionRequired = document.getElementById('editionRequired');
-        const keywordsRequired = document.getElementById('keywordsRequired');
-        const publisherHelp = document.getElementById('publisherHelp');
-        
-        // Revista/Editorial: obligatorio para libros y artículos
-        const needsPublisher = ['book', 'chapter', 'paper'].includes(type);
-        publisherRequired.classList.toggle('d-none', !needsPublisher);
-        
-        // Edición: obligatorio para libros
-        const needsEdition = type === 'book';
-        editionRequired.classList.toggle('d-none', !needsEdition);
-        
-        // Palabras clave: obligatorio para artículos, preprint y actas
-        const needsKeywords = ['paper', 'preprint', 'proceedings'].includes(type);
-        keywordsRequired.classList.toggle('d-none', !needsKeywords);
-        
-        // Actualizar texto de ayuda
-        if (type === 'book') {
-            publisherHelp.textContent = 'Nombre de la editorial (obligatorio para libros).';
-        } else if (type === 'paper' || type === 'chapter') {
-            publisherHelp.textContent = 'Nombre de la revista o editorial (obligatorio).';
-        } else {
-            publisherHelp.textContent = 'Nombre de la revista o editorial (opcional).';
+        function matchCaseAppend(current, suggestion) {
+            // Preserve capitalization of current word start
+            if (!current) return suggestion;
+            const firstChar = current[0];
+            if (firstChar === firstChar.toUpperCase()) {
+                return suggestion.replace(/^./, c => c.toUpperCase());
+            }
+            return suggestion;
         }
-        
-        // Validar campos afectados
-        validateKeywords();
-        updateFormProgress();
-    }
-
-    // ==================== VERIFICACIÓN DE DUPLICADOS ====================
-
-    function checkTitleDuplicates(title) {
-        // Simular verificación TF-IDF
-        setTimeout(() => {
-            // En un caso real, aquí se haría la petición al servidor
-            const hasDuplicates = Math.random() > 0.7; // 30% de chance de encontrar duplicados
-            
-            if (hasDuplicates) {
-                showDuplicateModal('title', title);
-            }
-        }, 1000);
-    }
-
-    function checkTitleAuthorDuplicates() {
-        if (!isTitleChecked || !isAuthorsChecked) return;
-        
-        const title = document.getElementById('title').value.trim();
-        const authors = Array.from(document.querySelectorAll('.author-input'))
-            .map(input => input.value.trim())
-            .filter(a => a);
-        
-        // Simular verificación
-        setTimeout(() => {
-            const hasDuplicates = Math.random() > 0.8; // 20% de chance
-            
-            if (hasDuplicates) {
-                showDuplicateModal('title-author', { title, authors });
-            }
-        }, 1500);
-    }
-
-    function checkExactDuplicate() {
-        if (!isTitleChecked || !isAuthorsChecked || !isEditionChecked) return;
-        
-        const title = document.getElementById('title').value.trim();
-        const authors = Array.from(document.querySelectorAll('.author-input'))
-            .map(input => input.value.trim())
-            .filter(a => a);
-        const edition = document.getElementById('edition').value.trim();
-        
-        // Simular verificación exacta
-        setTimeout(() => {
-            const isExactDuplicate = Math.random() > 0.9; // 10% de chance
-            
-            if (isExactDuplicate) {
-                showRedirectMessage('Esta fuente ya existe. Será redirigido a la ficha existente en 5 segundos.', '/post/123');
-            }
-        }, 2000);
-    }
-
-    function performDuplicateCheck() {
-        if (!validateAllFields()) {
-            alert('Por favor, complete todos los campos obligatorios correctamente.');
-            return;
-        }
-        
-        duplicateCheckState = 'checking';
-        updateDuplicateStatus();
-        
-        validateBtn.disabled = true;
-        validateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verificando...';
-        
-        // Simular verificación final
-        setTimeout(() => {
-            const isDuplicate = Math.random() > 0.85; // 15% de chance
-            
-            if (isDuplicate) {
-                duplicateCheckState = 'duplicate';
-                showRedirectMessage('Esta fuente ya existe. Será redirigido a la ficha existente en 5 segundos.', '/post/123');
-            } else {
-                duplicateCheckState = 'clear';
-                showSuccessAlert();
-            }
-            
-            updateDuplicateStatus();
-            validateBtn.disabled = false;
-            validateBtn.innerHTML = '<i class="fas fa-search me-2"></i> Verificar duplicados';
-            updateSubmitButton();
-        }, 3000);
-    }
-
-    function showDuplicateModal(type, data) {
-        const modal = new bootstrap.Modal(document.getElementById('duplicateModal'));
-        const content = document.getElementById('duplicateModalContent');
-        
-        let html = '';
-        
-        if (type === 'title') {
-            html = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>¿Es su fuente alguna de estas?</strong>
-                    <p class="mb-0 mt-2">Se encontraron fuentes con títulos similares:</p>
-                </div>
-                <div class="list-group mt-3">
-                    <a href="#" class="list-group-item list-group-item-action">
-                        <strong>"${data}" y sus implicaciones en la ciencia cognitiva</strong><br>
-                        <small class="text-muted">Autor: Smith, John | Año: 2020</small>
-                    </a>
-                    <a href="#" class="list-group-item list-group-item-action">
-                        <strong>"${data}" en el siglo XXI: Una revisión</strong><br>
-                        <small class="text-muted">Autores: Johnson, Emily; Brown, Michael | Año: 2022</small>
-                    </a>
-                </div>
-                <p class="mt-3">Si su fuente corresponde a alguna de estas, seleccione "Sí, es la misma fuente".</p>
-            `;
-        } else if (type === 'title-author') {
-            html = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>¿Ya existen registros titulados "${data.title}" del autor(es) ${data.authors.join(', ')}?</strong>
-                </div>
-                <div class="list-group mt-3">
-                    <a href="#" class="list-group-item list-group-item-action">
-                        <strong>"${data.title}"</strong><br>
-                        <small class="text-muted">Autores: ${data.authors.join('; ')} | Edición: 1 | Año: 2021</small>
-                    </a>
-                </div>
-                <p class="mt-3">Si su fuente corresponde a esta edición, seleccione "Sí, es la misma fuente".</p>
-            `;
-        }
-        
-        content.innerHTML = html;
-        
-        // Configurar botones del modal
-        document.getElementById('confirmDuplicate').onclick = function() {
-            modal.hide();
-            showRedirectMessage('Esta fuente ya existe. Será redirigido a la ficha existente en 5 segundos.', '/post/456');
-        };
-        
-        document.getElementById('confirmNotDuplicate').onclick = function() {
-            modal.hide();
-            duplicateCheckState = 'clear';
-            updateDuplicateStatus();
-            updateSubmitButton();
-        };
-        
-        modal.show();
     }
 
     // ==================== MANEJO DEL ENVÍO ====================
 
-    function handleFormSubmit(e) {
+    async function handleFormSubmit(e) {
         e.preventDefault();
-        
+
         if (!validateAllFields()) {
             alert('Por favor, corrija los errores en el formulario.');
             return;
         }
-        
+
         if (duplicateCheckState !== 'clear') {
             alert('Debe verificar los duplicados antes de enviar.');
             return;
         }
-        
-        // Simular envío
+
+        // Build payload from form fields
+        const payload = {};
+        payload.title = sanitizeForSend(document.getElementById('title').value);
+        payload.sourceType = document.getElementById('sourceType').value;
+        payload.year = document.getElementById('year').value;
+        payload.publisher = document.getElementById('publisher').value;
+        payload.edition = document.getElementById('edition').value;
+        payload.pages = document.getElementById('pages').value;
+        payload.doi = document.getElementById('doi').value;
+        payload.volume = document.getElementById('volume').value;
+        payload.number = document.getElementById('number').value;
+
+        // Authors
+        payload.authors = Array.from(document.querySelectorAll('.author-input'))
+            .map(i => i.value.trim())
+            .filter(Boolean);
+
+        // Keywords -> array
+        payload.keywords = document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean);
+
+        // URLs
+        const urlInputs = Array.from(document.querySelectorAll('.url-input'));
+        const primaryUrlInput = urlInputs.find(i => i.dataset.type === 'primary') || urlInputs[0];
+        payload.primary_url = primaryUrlInput ? primaryUrlInput.value.trim() : '';
+
+        // Categories: pick the first selected category and first selected subcategory
+        const selectedCategory = document.querySelector('.category-checkbox:checked');
+        const selectedSubcategory = document.querySelector('.subcategory-checkbox:checked');
+        payload.category_id = selectedCategory ? parseInt(selectedCategory.value, 10) : null;
+        payload.subcategory_id = selectedSubcategory ? parseInt(selectedSubcategory.value, 10) : null;
+
+        // Disable submit and show spinner
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Subiendo...';
-        
-        setTimeout(() => {
-            alert('¡Fuente subida exitosamente! En un entorno real, se guardaría en la base de datos y se generaría la portada con LaTeX.');
-            // Redirigir al detalle de la fuente
-            window.location.href = '/post/789';
-        }, 2000);
+
+        try {
+            const res = await fetch('/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const data = await res.json();
+
+            if (!data || !data.success) {
+                const msg = data && data.message ? data.message : 'Error al subir la fuente.';
+                alert(msg);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i> Subir fuente';
+                return;
+            }
+
+            // Success: redirect to the new source page
+            const sourceId = data.sourceId;
+            showSuccessAlert();
+            setTimeout(() => {
+                window.location.href = `/post/${sourceId}`;
+            }, 1000);
+        } catch (err) {
+            console.error('Upload error', err);
+            alert('Ocurrió un error al comunicarse con el servidor. Intente nuevamente.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i> Subir fuente';
+        }
+    }
+
+    function sanitizeForSend(s) {
+        return (s || '').replace(/\u0000/g, '').trim();
     }
 
     // ==================== UTILIDADES ====================

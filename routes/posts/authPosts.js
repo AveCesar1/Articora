@@ -9,6 +9,9 @@ const { sanitizeText } = require('../../middlewares/sanitize');
 const autenticacion = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
 
+// Usa esto como condicional para activar los debuggings.
+const debugging = global.debugging;
+
 module.exports = function (app) {
     app.post('/register', async (req, res) => {
         console.log('POST /register recibido:', req.body);
@@ -346,6 +349,24 @@ module.exports = function (app) {
                 expiresIn: '1h',
             });
 
+            // Debug ALL user data
+            if (debugging) console.log('User data:', {
+                id: user.id,
+                username: user.username,
+                is_validated: user.is_validated,
+                is_verified: user.is_verified
+            });
+
+            // Set session variables for authentication and role
+            req.session.userId = user.id;
+            req.session.is_validated = user.is_validated;
+
+            // Debugging for session variables
+            if (debugging) console.log('Session after login:', {
+                userId: req.session.userId,
+                is_validated: req.session.is_validated
+            });
+
             // Configurar cookie HTTP-only y Secure. Extiende duración si "rememberMe" está activo.
             const oneHour = 60 * 60 * 1000;
             const longRemember = 30 * 24 * 60 * 60 * 1000; // 30 días
@@ -356,7 +377,7 @@ module.exports = function (app) {
                 secure: process.env.NODE_ENV === 'production',
                 maxAge,
             });
-
+            
             // If request expects HTML (normal form), redirect to dashboard; otherwise return JSON
             if (req.headers.accept && req.headers.accept.includes('text/html')) {
                 return res.redirect('/dashboard');

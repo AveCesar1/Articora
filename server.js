@@ -21,6 +21,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Debugging flag
+const debugging = true; // Set to true to enable debugging outputs
+global.debugging = debugging;
+
 // Create application
 const app = express();
 app.locals.transporter = transporter;

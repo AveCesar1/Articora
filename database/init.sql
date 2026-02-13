@@ -104,10 +104,19 @@ CREATE TABLE IF NOT EXISTS source_types (
     name VARCHAR(50) UNIQUE NOT NULL
 );
 
+-- New: authors as separate entities (normalized)
+CREATE TABLE IF NOT EXISTS authors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    last_name VARCHAR(150),
+    first_name VARCHAR(150),
+    full_name VARCHAR(300) NOT NULL,
+    affiliation TEXT
+);
+
+-- SOURCES table (authors moved to separate tables)
 CREATE TABLE IF NOT EXISTS sources (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
-    authors TEXT NOT NULL,
     publication_year INTEGER,
     journal_publisher VARCHAR(300),
     volume VARCHAR(20),
@@ -137,6 +146,16 @@ CREATE TABLE IF NOT EXISTS sources (
     FOREIGN KEY (category_id) REFERENCES categories(id),
     FOREIGN KEY (subcategory_id) REFERENCES subcategories(id),
     FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);
+
+-- Linking table between sources and authors to preserve order
+CREATE TABLE IF NOT EXISTS source_authors (
+    source_id INTEGER NOT NULL,
+    author_id INTEGER NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    PRIMARY KEY (source_id, author_id),
+    FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS source_urls (
