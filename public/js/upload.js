@@ -91,6 +91,56 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFormProgress();
     }
 
+    // ==================== MANEJO DE CAMPOS DEPENDIENTES DEL TIPO ====================
+
+    function handleSourceTypeChange() {
+        const type = sourceType.value;
+        const editionRequiredSpan = document.getElementById('editionRequired');
+        const publisherRequiredSpan = document.getElementById('publisherRequired');
+        const keywordsRequiredSpan = document.getElementById('keywordsRequired');
+        const publisherHelp = document.getElementById('publisherHelp');
+        const editionInput = document.getElementById('edition');
+        const publisherInput = document.getElementById('publisher');
+        const keywordsInput = document.getElementById('keywords');
+
+        // Por defecto ocultar todos los asteriscos
+        editionRequiredSpan.classList.add('d-none');
+        publisherRequiredSpan.classList.add('d-none');
+        keywordsRequiredSpan.classList.add('d-none');
+
+        // Resetear placeholders y textos de ayuda
+        publisherHelp.innerHTML = 'Nombre de la revista (para artículos) o editorial (para libros). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
+        editionInput.placeholder = 'Ej: 1';
+        publisherInput.placeholder = 'Nombre de la revista o editorial';
+        keywordsInput.placeholder = 'Separadas por comas, ej: cognición, memoria, aprendizaje';
+
+        // Según el tipo, activar campos obligatorios y ajustar textos
+        if (type === 'book') {
+            editionRequiredSpan.classList.remove('d-none');
+            publisherRequiredSpan.classList.remove('d-none');
+            publisherHelp.innerHTML = 'Editorial (obligatorio para libros). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
+            editionInput.placeholder = 'Obligatorio';
+            publisherInput.placeholder = 'Obligatorio';
+        } else if (type === 'paper' || type === 'preprint' || type === 'proceedings') {
+            publisherRequiredSpan.classList.remove('d-none');
+            keywordsRequiredSpan.classList.remove('d-none');
+            publisherHelp.innerHTML = 'Revista (obligatorio para artículos). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
+            publisherInput.placeholder = 'Obligatorio';
+            keywordsInput.placeholder = 'Mínimo 3 palabras clave';
+        } else {
+            // Otros tipos (ej. thesis, report) podrían tener otras reglas
+            // Por ahora, no se exigen estos campos
+        }
+
+        // Disparar validaciones para actualizar la interfaz
+        if (type) {
+            validatePublisher();
+            validateEdition();
+            validateKeywords();
+        }
+        updateFormProgress();
+    }
+
     // ==================== CONTADORES DE CARACTERES ====================
 
     function updateTitleCounter() {
@@ -131,6 +181,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Año
         document.getElementById('year').addEventListener('blur', validateYear);
+        
+        // Editorial
+        document.getElementById('publisher').addEventListener('blur', validatePublisher);
         
         // Edición
         document.getElementById('edition').addEventListener('blur', validateEdition);
@@ -196,15 +249,44 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    function validatePublisher() {
+        const publisherInput = document.getElementById('publisher');
+        const errorElement = document.getElementById('publisherError');
+        const value = publisherInput.value.trim();
+        const type = sourceType.value;
+        
+        // Casos donde es obligatorio
+        const required = (type === 'book' || type === 'paper' || type === 'preprint' || type === 'proceedings');
+        
+        if (required && !value) {
+            showError(publisherInput, errorElement, 'Este campo es obligatorio para el tipo de fuente seleccionado.');
+            return false;
+        }
+        
+        if (value && value.length > 300) {
+            showError(publisherInput, errorElement, 'Máximo 300 caracteres.');
+            return false;
+        }
+        
+        showSuccess(publisherInput, errorElement);
+        return true;
+    }
+
     function validateEdition() {
         const editionInput = document.getElementById('edition');
         const errorElement = document.getElementById('editionError');
         const value = editionInput.value.trim();
+        const type = sourceType.value;
         
-        // Solo validar si hay valor
+        const required = (type === 'book');
+        
+        if (required && !value) {
+            showError(editionInput, errorElement, 'La edición es obligatoria para libros.');
+            return false;
+        }
+        
         if (value) {
             const numValue = parseInt(value);
-            
             if (isNaN(numValue) || numValue < 1) {
                 showError(editionInput, errorElement, 'La edición debe ser un número entero positivo.');
                 return false;
@@ -282,31 +364,37 @@ document.addEventListener('DOMContentLoaded', function() {
         const keywordsInput = document.getElementById('keywords');
         const errorElement = document.getElementById('keywordsError');
         const value = keywordsInput.value.trim();
-        
-        // Solo validar para tipos que requieren palabras clave
         const type = sourceType.value;
+        
+        // Tipos que requieren palabras clave
         const requiresKeywords = ['paper', 'preprint', 'proceedings'].includes(type);
         
-        if (!requiresKeywords) {
-            clearValidation(keywordsInput, errorElement);
-            return true;
-        }
-        
-        if (!value) {
-            showError(keywordsInput, errorElement, 'Se requieren palabras clave para este tipo de fuente.');
-            return false;
-        }
-        
-        const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
-        
-        if (keywords.length < 3) {
-            showError(keywordsInput, errorElement, 'Mínimo 3 palabras clave requeridas.');
-            return false;
-        }
-        
-        if (keywords.length > 10) {
-            showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
-            return false;
+        if (requiresKeywords) {
+            if (!value) {
+                showError(keywordsInput, errorElement, 'Se requieren palabras clave para este tipo de fuente.');
+                return false;
+            }
+            
+            const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+            
+            if (keywords.length < 3) {
+                showError(keywordsInput, errorElement, 'Mínimo 3 palabras clave requeridas.');
+                return false;
+            }
+            
+            if (keywords.length > 10) {
+                showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
+                return false;
+            }
+        } else {
+            // No obligatorio, pero si hay contenido se valida el formato (opcional)
+            if (value) {
+                const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+                if (keywords.length > 10) {
+                    showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
+                    return false;
+                }
+            }
         }
         
         showSuccess(keywordsInput, errorElement);
@@ -831,6 +919,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!validateTitle()) isValid = false;
         if (!validateAuthors()) isValid = false;
         if (!validateYear()) isValid = false;
+        if (!validatePublisher()) isValid = false;
         if (!validateEdition()) isValid = false;
         if (!validatePages()) isValid = false;
         if (!validateDOI()) isValid = false;
@@ -971,6 +1060,34 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             alert.classList.add('d-none');
         }, 5000);
+    }
+
+    // Funciones placeholder para verificación de duplicados (deben implementarse según backend)
+    function checkTitleDuplicates(title) {
+        // Aquí se llamaría a un endpoint para sugerir duplicados
+        console.log('Checking title duplicates for:', title);
+    }
+
+    function checkTitleAuthorDuplicates() {
+        // Similar
+        console.log('Checking title+author duplicates');
+    }
+
+    function checkExactDuplicate() {
+        // Similar
+        console.log('Checking exact duplicate');
+    }
+
+    function performDuplicateCheck() {
+        // Simulación de verificación
+        duplicateCheckState = 'checking';
+        updateDuplicateStatus();
+        setTimeout(() => {
+            // Simular que no hay duplicados
+            duplicateCheckState = 'clear';
+            updateDuplicateStatus();
+            updateFormProgress();
+        }, 1500);
     }
 
     // Actualizar resumen inicial

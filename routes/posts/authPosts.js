@@ -13,6 +13,7 @@ const { db } = require('../../lib/database');
 const debugging = global.debugging;
 
 module.exports = function (app) {
+    // Endpoints relacionados con autenticación y registro de usuarios
     app.post('/register', async (req, res) => {
         console.log('POST /register recibido:', req.body);
 
@@ -188,6 +189,7 @@ module.exports = function (app) {
 
             // Insertar usuario en BD
             const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
+            
 
             try {
                 console.log('Verificando conexión a la base de datos:', req.db);
@@ -307,11 +309,7 @@ module.exports = function (app) {
         username = sanitizeText(username);
 
         if (!username || !password) {
-            // If this is a normal browser form submit, redirect back to login
-            if (req.headers.accept && req.headers.accept.includes('text/html')) {
-                return res.redirect('/login?error=missing_fields');
-            }
-            return res.status(400).json({ success: false, message: 'Todos los campos son obligatorios.' });
+            return res.redirect('/login?error=missing_fields');
         }
 
         try {
@@ -330,18 +328,18 @@ module.exports = function (app) {
             }
 
             if (!user) {
-                return res.status(400).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+                return res.redirect('/login?error=invalid_credentials');
             }
 
             // Verificar contraseña
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
-                return res.status(400).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+                return res.redirect('/login?error=invalid_credentials');
             }
 
             // Verificar si el usuario está verificado
             if (!user.is_verified) {
-                return res.status(403).json({ success: false, message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' });
+                return res.redirect('/login?error=not_verified');
             }
 
             // Generar token JWT

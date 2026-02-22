@@ -387,19 +387,23 @@ CREATE TABLE IF NOT EXISTS tfidf_vectors (
     FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS autocomplete_dictionary (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    language VARCHAR(10) NOT NULL,
-    word VARCHAR(100) NOT NULL,
-    frequency INTEGER DEFAULT 1,
-    field VARCHAR(20),
-    UNIQUE(language, word, field)
-);
-
 CREATE TABLE IF NOT EXISTS equivalent_domains (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     base_domain VARCHAR(100) NOT NULL,
     equivalent_domain VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE global_idf (
+    term VARCHAR(100) PRIMARY KEY,
+    idf REAL NOT NULL,
+    doc_freq INTEGER NOT NULL,        -- número de fuentes que contienen el término
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE source_norms (
+    source_id INTEGER PRIMARY KEY,
+    norm REAL NOT NULL,                -- √(∑ weight²) para similitud de coseno rápida
+    FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
 );
 
 -- ============================================
@@ -528,31 +532,91 @@ INSERT INTO source_types (name) VALUES
 ('Audiovisual Material');
 
 INSERT INTO categories (name, description, icon_name) VALUES 
-('Cognitive Sciences', 'Psychology, Neuroscience, Learning Sciences, Education, Linguistics', 'brain'),
-('Social Sciences', 'Sociology, Political Science, Anthropology, Economics, History', 'users'),
-('Humanities', 'Philosophy, Theology, Literary Studies, Theoretical Linguistics, Ethics', 'book-open'),
-('Creative Disciplines', 'Visual Arts, Music, Theater, Dance, Creative Writing, Design', 'palette'),
-('Computational Sciences', 'Computer Science, Software Engineering, Information Systems, Cybersecurity', 'cpu'),
-('Exact Sciences', 'Pure and Applied Mathematics, Theoretical and Experimental Physics, Formal Logic', 'calculator'),
-('Natural Sciences', 'Biology, Chemistry, Geology, Astronomy, Environmental Sciences', 'leaf'),
-('Applied Sciences', 'Engineering, Medicine, Architecture, Medical Technology, Materials Science', 'flask');
+('Ciencias Cognitivas', 'Psicología, Neurociencia, Ciencias del Aprendizaje, Educación, Lingüística', 'brain'),
+('Ciencias Sociales', 'Sociología, Ciencia Política, Antropología, Economía, Historia', 'users'),
+('Ciencias Humanistas', 'Filosofía, Teología, Estudios Literarios, Lingüística Teórica, Ética', 'book-open'),
+('Disciplinas Creativas', 'Artes Visuales, Música, Teatro, Danza, Escritura Creativa, Diseño', 'palette'),
+('Ciencias Computacionales', 'Ciencias de la Computación, Ingeniería de Software, Sistemas de Información, Ciberseguridad', 'cpu'),
+('Ciencias Exactas', 'Matemáticas Puras y Aplicadas, Física Teórica y Experimental, Lógica Formal', 'calculator'),
+('Ciencias Naturales', 'Biología, Química, Geología, Astronomía, Ciencias Ambientales', 'leaf'),
+('Ciencias Aplicadas', 'Ingeniería, Medicina, Arquitectura, Tecnología Médica, Ciencia de Materiales', 'flask');
 
-INSERT INTO subcategories (category_id, name) VALUES 
-(1, 'Cognitive Psychology'),
-(1, 'Neuroscience'),
-(1, 'Language Processing'),
-(2, 'Sociology'),
-(2, 'Political Science'),
-(2, 'Economics'),
-(5, 'Artificial Intelligence'),
-(5, 'Cybersecurity'),
-(5, 'Software Engineering'),
-(6, 'Mathematics'),
-(6, 'Physics'),
-(7, 'Biology'),
-(7, 'Chemistry'),
-(8, 'Engineering'),
-(8, 'Medicine');
+-- Subcategorías de Ciencias Cognitivas (category_id = 1)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(101, 1, 'Psicología Cognitiva'),
+(102, 1, 'Neurociencia Cognitiva'),
+(103, 1, 'Procesamiento del Lenguaje'),
+(104, 1, 'Cognición Aplicada'),
+(105, 1, 'IA Cognitiva'),
+(106, 1, 'Filosofía de la Mente');
+
+-- Subcategorías de Ciencias Sociales (category_id = 2)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(201, 2, 'Sociología'),
+(202, 2, 'Ciencia Política'),
+(203, 2, 'Antropología'),
+(204, 2, 'Economía'),
+(205, 2, 'Historia'),
+(206, 2, 'Geografía Humana');
+
+-- Subcategorías de Ciencias Humanistas (category_id = 3)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(301, 3, 'Filosofía'),
+(302, 3, 'Estudios Religiosos'),
+(303, 3, 'Literatura'),
+(304, 3, 'Lingüística'),
+(305, 3, 'Humanidades Digitales'),
+(306, 3, 'Estudios Culturales'),
+(307, 3, 'Humanidades Históricas');
+
+-- Subcategorías de Disciplinas Creativas (category_id = 4)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(401, 4, 'Artes Visuales'),
+(402, 4, 'Música'),
+(403, 4, 'Artes Escénicas'),
+(404, 4, 'Escritura Creativa'),
+(405, 4, 'Diseño'),
+(406, 4, 'Teoría del Arte');
+
+-- Subcategorías de Ciencias Computacionales (category_id = 5)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(501, 5, 'Computación Teórica'),
+(502, 5, 'Ingeniería de Software'),
+(503, 5, 'Inteligencia Artificial'),
+(504, 5, 'Ciberseguridad'),
+(505, 5, 'Infraestructura Digital'),
+(506, 5, 'Computación Científica'),
+(507, 5, 'Robótica');
+
+-- Subcategorías de Ciencias Exactas (category_id = 6)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(601, 6, 'Matemáticas Puras'),
+(602, 6, 'Matemáticas Aplicadas'),
+(603, 6, 'Física Teórica'),
+(604, 6, 'Física Experimental'),
+(605, 6, 'Lógica Formal'),
+(606, 6, 'Estadística'),
+(607, 6, 'Química Teórica');
+
+-- Subcategorías de Ciencias Naturales (category_id = 7)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(701, 7, 'Biología'),
+(702, 7, 'Ecología'),
+(703, 7, 'Química'),
+(704, 7, 'Ciencias de la Tierra'),
+(705, 7, 'Astronomía'),
+(706, 7, 'Biotecnología'),
+(707, 7, 'Ciencias de la Vida');
+
+-- Subcategorías de Ciencias Aplicadas (category_id = 8)
+INSERT INTO subcategories (id, category_id, name) VALUES
+(801, 8, 'Ingenierías'),
+(802, 8, 'Ciencias de la Salud'),
+(803, 8, 'Arquitectura'),
+(804, 8, 'Materiales y Nano'),
+(805, 8, 'Agro y Veterinaria'),
+(806, 8, 'Ingeniería Biomédica'),
+(807, 8, 'Ingeniería Ambiental');
 
 INSERT INTO equivalent_domains (base_domain, equivalent_domain) VALUES 
 ('amazon.com', 'amazon.co.uk'),

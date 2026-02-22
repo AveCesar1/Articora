@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const fs = require('fs');
+const { spawn } = require('child_process');
 require('dotenv').config();
 const session = require('express-session');
 // Import database module
@@ -89,6 +90,14 @@ if (require.main === module) {
         process.exit(1);
     });
 }
+
+const cron = require('node-cron');
+cron.schedule('0 2 * * *', () => {
+  console.log('Recalculando IDF...');
+  const python = spawn('python3', ['tfidf/recalc_idf.py']);
+  python.stdout.on('data', (data) => console.log(data.toString()));
+  python.stderr.on('data', (data) => console.error(data.toString()));
+});
 
 // Cerrar la base de datos correctamente al salir
 process.on('SIGINT', () => {

@@ -95,6 +95,26 @@
     display: block;
 }
 
+/* Autocomplete hint overlay (global for inputs) */
+.ac-hint {
+    background: transparent;
+    color: rgba(0,0,0,0.65);
+    pointer-events: none;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 0.25rem;
+}
+
+.ac-hint .ac-hidden { color: transparent; }
+.ac-hint .ac-suffix { color: rgba(0,0,0,0.35); }
+
+/* Ensure author-input positioned relatively so overlay aligns */
+.author-field .author-input, .author-input { position: relative; z-index: 2; }
+
+/* small tweak: make autocomplete hint visually consistent on dark/light */
+.ac-hint { background-clip: padding-box; }
+
 /* Resumen de validación */
 .validation-summary {
     background-color: var(--light-color);

@@ -176,41 +176,112 @@ module.exports = function (app) {
     
     app.get('/upload', soloValidado, (req, res) => {
         const categories = [
-            { id: 1, name: 'Ciencias Cognitivas', color: '#8B4513', subcategories: [{ id: 101, name: 'Psicología Cognitiva' }, { id: 102, name: 'Neurociencia Cognitiva' }, { id: 103, name: 'Procesamiento del Lenguaje' }, { id: 104, name: 'Cognición Aplicada' }, { id: 105, name: 'IA Cognitiva' }, { id: 106, name: 'Filosofía de la Mente' }] },
-            { id: 2, name: 'Ciencias Sociales', color: '#2E8B57', subcategories: [{ id: 201, name: 'Sociología' }, { id: 202, name: 'Ciencia Política' }, { id: 203, name: 'Antropología' }, { id: 204, name: 'Economía' }, { id: 205, name: 'Historia' }, { id: 206, name: 'Geografía Humana' }] },
-            { id: 3, name: 'Ciencias Humanistas', color: '#6A5ACD', subcategories: [{ id: 301, name: 'Filosofía' }, { id: 302, name: 'Estudios Religiosos' }, { id: 303, name: 'Literatura' }, { id: 304, name: 'Lingüística' }, { id: 305, name: 'Humanidades Digitales' }, { id: 306, name: 'Estudios Culturales' }, { id: 307, name: 'Humanidades Históricas' }] },
+            { 
+                id: 1, name: 'Ciencias Cognitivas', color: '#8B4513', subcategories: [
+                    { id: 101, name: 'Psicología Cognitiva' }, 
+                    { id: 102, name: 'Neurociencia Cognitiva' }, 
+                    { id: 103, name: 'Procesamiento del Lenguaje' }, 
+                    { id: 104, name: 'Cognición Aplicada' }, 
+                    { id: 105, name: 'IA Cognitiva' }, 
+                    { id: 106, name: 'Filosofía de la Mente' }
+                ] 
+            },
+            { 
+                id: 2, 
+                name: 'Ciencias Sociales', 
+                color: '#2E8B57', 
+                subcategories: [
+                    { id: 201, name: 'Sociología' }, 
+                    { id: 202, name: 'Ciencia Política' }, 
+                    { id: 203, name: 'Antropología' }, 
+                    { id: 204, name: 'Economía' }, 
+                    { id: 205, name: 'Historia' }, 
+                    { id: 206, name: 'Geografía Humana' }
+                ] 
+            },
+            { 
+                id: 3, 
+                name: 'Ciencias Humanistas', 
+                color: '#6A5ACD', 
+                subcategories: [
+                    { id: 301, name: 'Filosofía' }, 
+                    { id: 302, name: 'Estudios Religiosos' }, 
+                    { id: 303, name: 'Literatura' }, 
+                    { id: 304, name: 'Lingüística' }, 
+                    { id: 305, name: 'Humanidades Digitales' }, 
+                    { id: 306, name: 'Estudios Culturales' }, 
+                    { id: 307, name: 'Humanidades Históricas' }
+                ] 
+            },
             {
-                id: 4, name: 'Disciplinas Creativas', color: '#FF6347', subcategories: [
-                    {
-                        "id": "401",
-                        "name": "Artes Visuales"
-                    },
-                    {
-                        "id": "402",
-                        "name": "Música"
-                    },
-                    {
-                        "id": "403",
-                        "name": "Artes Escénicas"
-                    },
-                    {
-                        "id": "404",
-                        "name": "Escritura Creativa"
-                    },
-                    {
-                        "id": "405",
-                        "name": "Diseño"
-                    },
-                    {
-                        "id": "406",
-                        "name": "Teoría del Arte"
-                    }
+                id: 4, 
+                name: 'Disciplinas Creativas', 
+                color: '#FF6347', 
+                subcategories: [
+                    { id: 401, name: 'Artes Visuales' },
+                    { id: 402, name: 'Música' },
+                    { id: 403, name: 'Artes Escénicas' },
+                    { id: 404, name: 'Escritura Creativa' },
+                    { id: 405, name: 'Diseño' },
+                    { id: 406, name: 'Teoría del Arte' }
                 ]
             },
-            { id: 5, name: 'Ciencias Computacionales', color: '#4682B4', subcategories: [{ id: 501, name: 'Computación Teórica' }, { id: 502, name: 'Ingeniería de Software' }, { id: 503, name: 'Inteligencia Artificial' }, { id: 504, name: 'Ciberseguridad' }, { id: 505, name: 'Infraestructura Digital' }, { id: 506, name: 'Computación Científica' }, { id: 507, name: 'Robótica' }] },
-            { id: 6, name: 'Ciencias Exactas', color: '#20B2AA', subcategories: [{ id: 601, name: 'Matemáticas Puras' }, { id: 602, name: 'Matemáticas Aplicadas' }, { id: 603, name: 'Física Teórica' }, { id: 604, name: 'Física Experimental' }, { id: 605, name: 'Lógica Formal' }, { id: 606, name: 'Estadística' }, { id: 607, name: 'Química Teórica' }] },
-            { id: 7, name: 'Ciencias Naturales', color: '#32CD32', subcategories: [{ id: 701, name: 'Biología' }, { id: 702, name: 'Ecología' }, { id: 703, name: 'Química' }, { id: 704, name: 'Ciencias de la Tierra' }, { id: 705, name: 'Astronomía' }, { id: 706, name: 'Biotecnología' }, { id: 707, name: 'Ciencias de la Vida' }] },
-            { id: 8, name: 'Ciencias Aplicadas', color: '#DAA520', subcategories: [{ id: 801, name: 'Ingenierías' }, { id: 802, name: 'Ciencias de la Salud' }, { id: 803, name: 'Arquitectura' }, { id: 804, name: 'Materiales y Nano' }, { id: 805, name: 'Agro y Veterinaria' }, { id: 806, name: 'Ingeniería Biomédica' }, { id: 807, name: 'Ingeniería Ambiental' }] }
+            { 
+                id: 5, 
+                name: 'Ciencias Computacionales', 
+                color: '#4682B4', 
+                subcategories: [
+                    { id: 501, name: 'Computación Teórica' }, 
+                    { id: 502, name: 'Ingeniería de Software' }, 
+                    { id: 503, name: 'Inteligencia Artificial' }, 
+                    { id: 504, name: 'Ciberseguridad' }, 
+                    { id: 505, name: 'Infraestructura Digital' }, 
+                    { id: 506, name: 'Computación Científica' }, 
+                    { id: 507, name: 'Robótica' }
+                ]
+            },
+            { 
+                id: 6, 
+                name: 'Ciencias Exactas', 
+                color: '#20B2AA', 
+                subcategories: [
+                    { id: 601, name: 'Matemáticas Puras' }, 
+                    { id: 602, name: 'Matemáticas Aplicadas' }, 
+                    { id: 603, name: 'Física Teórica' }, 
+                    { id: 604, name: 'Física Experimental' }, 
+                    { id: 605, name: 'Lógica Formal' }, 
+                    { id: 606, name: 'Estadística' }, 
+                    { id: 607, name: 'Química Teórica' }
+                ]
+            },
+            { 
+                id: 7, 
+                name: 'Ciencias Naturales', 
+                color: '#32CD32', 
+                subcategories: [
+                    { id: 701, name: 'Biología' }, 
+                    { id: 702, name: 'Ecología' }, 
+                    { id: 703, name: 'Química' }, 
+                    { id: 704, name: 'Ciencias de la Tierra' }, 
+                    { id: 705, name: 'Astronomía' }, 
+                    { id: 706, name: 'Biotecnología' }, 
+                    { id: 707, name: 'Ciencias de la Vida' }
+                ]
+            },
+            { 
+                id: 8, 
+                name: 'Ciencias Aplicadas', 
+                color: '#DAA520', 
+                subcategories: [
+                    { id: 801, name: 'Ingenierías' }, 
+                    { id: 802, name: 'Ciencias de la Salud' }, 
+                    { id: 803, name: 'Arquitectura' }, 
+                    { id: 804, name: 'Materiales y Nano' }, 
+                    { id: 805, name: 'Agro y Veterinaria' }, 
+                    { id: 806, name: 'Ingeniería Biomédica' }, 
+                    { id: 807, name: 'Ingeniería Ambiental' }
+                ]
+            }
         ];
 
         const sourceTypes = [
@@ -1131,3 +1202,26 @@ module.exports = function (app) {
         });
     });
 };
+
+
+// Función para buscar
+function searchWithPython(query) {
+  return new Promise((resolve, reject) => {
+    const pythonProcess = exec('python3', ['tfidf/search.py', query]);
+    let output = '';
+    pythonProcess.stdout.on('data', (data) => { output += data; });
+    pythonProcess.stderr.on('data', (data) => { console.error(`Python error: ${data}`); });
+    pythonProcess.on('close', (code) => {
+      if (code === 0) {
+        try {
+          const results = JSON.parse(output);
+          resolve(results);
+        } catch (e) {
+          reject(e);
+        }
+      } else {
+        reject(new Error(`Python exited with code ${code}`));
+      }
+    });
+  });
+}

@@ -12,12 +12,28 @@ module.exports = function (app) {
         });
     });
 
+    // New /login route that checks for error query parameter and passes appropriate message to template
+    // We have three types of errors that can be passed via the "error" query parameter:
+    // - invalid_credentials
+    // - missing_fields
+    // - not_verified
     app.get('/login', (req, res) => {
-        res.render('login', { 
+        res.render('login', {
             title: 'Iniciar Sesión - Artícora',
             currentPage: 'login',
             cssFile: 'login.css',
-            jsFile: 'login.js'
+            jsFile: 'login.js',
+            errorMessage: (() => {
+                const error = req.query.error;
+                if (error === 'missing_fields') {
+                    return 'Por favor, completa todos los campos.';
+                } else if (error === 'invalid_credentials') {
+                    return 'Usuario o contraseña incorrectos.';
+                } else if (error === 'not_verified') {
+                    return 'Por favor, verifica tu correo electrónico antes de iniciar sesión.';
+                }
+                return '';
+             })()
         });
     });
 
@@ -27,100 +43,6 @@ module.exports = function (app) {
             currentPage: 'register',
             cssFile: 'register.css',
             jsFile: 'register.js'
-        });
-    });
-
-    app.get('/profile', IsRegistered, (req, res) => {
-        try {
-            const db = req.db;
-            const userId = req.session.userId;
-            if (!userId) return res.redirect('/login');
-
-            const userRow = db.prepare(
-                `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, is_validated, created_at, first_name, last_name
-                 FROM users WHERE id = ?`
-            ).get(userId);
-            const InterestsRows = db.prepare('SELECT interest FROM user_interests WHERE user_id = ?').get(userId);
-
-            if (!userRow) return res.redirect('/login');
-            
-            const sourcesAdded = db.prepare('SELECT COUNT(*) as c FROM sources WHERE uploaded_by = ?').get(userId).c || 0;
-            const reviewsWritten = db.prepare('SELECT COUNT(*) as c FROM ratings WHERE user_id = ?').get(userId).c || 0;
-            const readingLists = db.prepare('SELECT COUNT(*) as c FROM curatorial_lists WHERE user_id = ?').get(userId).c || 0;
-            const collaborations = db.prepare('SELECT COUNT(*) as c FROM list_collaborators WHERE user_id = ?').get(userId).c || 0;
-
-            const readingStatsRow = db.prepare('SELECT * FROM reading_stats WHERE user_id = ?').get(userId) || {};
-            let readingStats = {};
-            try {
-                if (readingStatsRow.category_distribution) {
-                    readingStats = JSON.parse(readingStatsRow.category_distribution);
-                }
-            } catch (e) {
-                readingStats = {};
-            }
-
-            const userData = {
-                username: userRow.username,
-                fullName: userRow.full_name || userRow.username,
-                email: userRow.email,
-                academicStatus: userRow.is_validated ? 'Validado' : 'No validado',
-                academicDegree: userRow.academic_level || '',
-                institution: userRow.institution || '',
-                joinDate: userRow.created_at ? new Date(userRow.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-                bio: userRow.bio || '',
-                availableForMessages: !!userRow.available_for_messages,
-                stats: {
-                    sourcesAdded,
-                    reviewsWritten,
-                    readingLists,
-                    collaborations
-                },
-                readingStats: readingStats,
-                recentActivity: [],
-                interests: InterestsRows ? [InterestsRows.interest] : []
-            };
-
-            res.render('profile', {
-                title: 'Perfil - Artícora',
-                currentPage: 'profile',
-                cssFile: 'profile.css',
-                jsFile: 'profile.js',
-                user: userData
-            });
-        } catch (err) {
-            console.error('Error al obtener perfil de usuario:', err);
-            return res.redirect('/login');
-        }
-    });
-
-    app.get('/profile/config', IsRegistered, (req, res) => {
-        const userId = req.session.userId;
-        const db = req.db;
-        if(!userId) return res.redirect('/login');
-        const userRow = db.prepare(
-            `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, first_name, last_name
-             FROM users WHERE id = ?`
-        ).get(userId);
-        const InterestsRows = db.prepare('SELECT interest FROM user_interests WHERE user_id = ?').get(userId);
-        const userData ={
-            username: userRow.username,
-            email: userRow.email,
-            bio: userRow.bio || '',
-            first_name: userRow.first_name || '',
-            last_name: userRow.last_name || '',
-            institution: userRow.institution || '',
-            academicDegree: userRow.academic_level || '',
-            availableForMessages: !!userRow.available_for_messages,
-            interests: InterestsRows ? [InterestsRows.interest] : [],
-        }
-        
-        
-        res.render('profile-config', { 
-            title: 'Configuración del Perfil - Artícora',
-            currentPage: 'profile-config',
-            cssFile: 'profile-config.css',
-            jsFile: 'profile-config.js',
-            user: userData
         });
     });
 

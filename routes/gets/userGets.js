@@ -1,5 +1,8 @@
 const IsRegistered = require('../../middlewares/auth');
 
+// Usa esto como condicional para activar los debuggings.
+const debugging = global.debugging;
+
 // Middleware local: comprueba si un usuario está disponible para recibir mensajes
 function checkDisponibilidad(req, res, next) {
     const id = parseInt(req.params.id, 10);
@@ -14,7 +17,7 @@ function checkDisponibilidad(req, res, next) {
         req.checkedUserId = row.id;
         return next();
     } catch (err) {
-        console.error('checkDisponibilidad error:', err);
+        if (debugging) console.error('checkDisponibilidad error:', err);
         return res.status(500).json({ error: 'internal_error' });
     }
 }
@@ -212,4 +215,97 @@ module.exports = function (app) {
         res.json({ id: req.checkedUserId, available: req.userAvailability });
     });
     */
+
+    app.get('/profile', IsRegistered, (req, res) => {
+        try {
+            const db = req.db;
+            const userId = req.session.userId;
+            if (!userId) return res.redirect('/login');
+
+            const userRow = db.prepare(
+                `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, is_validated, created_at, first_name, last_name
+                 FROM users WHERE id = ?`
+            ).get(userId);
+            const InterestsRows = db.prepare('SELECT interest FROM user_interests WHERE user_id = ?').get(userId);
+
+            if (!userRow) return res.redirect('/login');
+            
+            const sourcesAdded = db.prepare('SELECT COUNT(*) as c FROM sources WHERE uploaded_by = ?').get(userId).c || 0;
+            const reviewsWritten = db.prepare('SELECT COUNT(*) as c FROM ratings WHERE user_id = ?').get(userId).c || 0;
+            const readingLists = db.prepare('SELECT COUNT(*) as c FROM curatorial_lists WHERE user_id = ?').get(userId).c || 0;
+            const collaborations = db.prepare('SELECT COUNT(*) as c FROM list_collaborators WHERE user_id = ?').get(userId).c || 0;
+
+            const readingStatsRow = db.prepare('SELECT * FROM reading_stats WHERE user_id = ?').get(userId) || {};
+            let readingStats = {};
+            try {
+                if (readingStatsRow.category_distribution) {
+                    readingStats = JSON.parse(readingStatsRow.category_distribution);
+                }
+            } catch (e) {
+                readingStats = {};
+            }
+
+            const userData = {
+                username: userRow.username,
+                fullName: userRow.full_name || userRow.username,
+                academicStatus: userRow.is_validated ? 'Validado' : 'No validado',
+                academicDegree: userRow.academic_level || '',
+                institution: userRow.institution || '',
+                joinDate: userRow.created_at ? new Date(userRow.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                bio: userRow.bio || '',
+                availableForMessages: !!userRow.available_for_messages,
+                stats: {
+                    sourcesAdded,
+                    reviewsWritten,
+                    readingLists,
+                    collaborations
+                },
+                readingStats: readingStats,
+                recentActivity: [],
+                interests: InterestsRows ? [InterestsRows.interest] : []
+            };
+
+            res.render('profile', {
+                title: 'Perfil - Artícora',
+                currentPage: 'profile',
+                cssFile: 'profile.css',
+                jsFile: 'profile.js',
+                user: userData
+            });
+        } catch (err) {
+            console.error('Error al obtener perfil de usuario:', err);
+            return res.redirect('/login');
+        }
+    });
+
+    app.get('/profile/config', IsRegistered, (req, res) => {
+        const userId = req.session.userId;
+        const db = req.db;
+        if(!userId) return res.redirect('/login');
+        const userRow = db.prepare(
+            `SELECT id, username, email, profile_picture, bio, institution, academic_level, available_for_messages, first_name, last_name
+             FROM users WHERE id = ?`
+        ).get(userId);
+        const InterestsRows = db.prepare('SELECT interest FROM user_interests WHERE user_id = ?').get(userId);
+        const userData ={
+            username: userRow.username,
+            email: userRow.email,
+            bio: userRow.bio || '',
+            first_name: userRow.first_name || '',
+            last_name: userRow.last_name || '',
+            institution: userRow.institution || '',
+            academicDegree: userRow.academic_level || '',
+            availableForMessages: !!userRow.available_for_messages,
+            interests: InterestsRows ? [InterestsRows.interest] : [],
+        }
+        
+        
+        res.render('profile-config', { 
+            title: 'Configuración del Perfil - Artícora',
+            currentPage: 'profile-config',
+            cssFile: 'profile-config.css',
+            jsFile: 'profile-config.js',
+            user: userData
+        });
+    });
 };

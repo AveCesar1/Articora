@@ -292,3 +292,6 @@ CREATE INDEX IF NOT EXISTS idx_user_interests_user_id ON user_interests(user_id)
 CREATE INDEX IF NOT EXISTS idx_user_interests_interest ON user_interests(interest);
 CREATE INDEX IF NOT EXISTS idx_privacy_settings_user_id ON user_privacy_settings(user_id);
 CREATE INDEX IF NOT EXISTS idx_notification_settings_user_id ON user_notification_settings(user_id);
+
+-- TF-IDF
+CREATE INDEX idx_tfidf_term ON tfidf_vectors(term);
