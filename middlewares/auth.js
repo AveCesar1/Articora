@@ -4,6 +4,12 @@ function isRegistered(req, res, next) {
     try {
         // If session already has userId, allow
         if (req.session && req.session.userId) {
+            // populate req.user and res.locals for handlers that expect them
+            req.user = req.user || {};
+            req.user.id = req.session.userId;
+            if (req.session.username) req.user.username = req.session.username;
+            res.locals.loggedIn = true;
+            res.locals.user = res.locals.user || { id: req.session.userId, username: req.session.username };
             return next();
         }
 
@@ -14,6 +20,7 @@ function isRegistered(req, res, next) {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 // populate session/user context for downstream handlers
                 if (req.session) req.session.userId = decoded.id;
+                req.user = req.user || { id: decoded.id, username: decoded.username };
                 res.locals.loggedIn = true;
                 res.locals.user = { id: decoded.id, username: decoded.username };
                 return next();

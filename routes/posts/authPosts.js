@@ -451,19 +451,27 @@ module.exports = function (app) {
     // 2. Ruta de subida con cifrado AES-256 y guardado seguro
     app.post('/verificacion/subir',
         autenticacion, // debe poblar req.user.id
-        upload.single('documento'),
+        // aceptar ambos campos que el cliente puede enviar: 'documento' y 'extra_document'
+        upload.fields([
+            { name: 'documento', maxCount: 1 },
+            { name: 'extra_document', maxCount: 1 }
+        ]),
         async (req, res) => {
+            if (debugging) console.log("POST /verificacion/subir recibido. Usuario ID:", req.user.id, 'files:', Object.keys(req.files || {}));
             try {
-                if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+                // Elegir el fichero principal: preferir 'documento', si no existe usar 'extra_document'
+                const primaryFile = (req.files && req.files.documento && req.files.documento[0]) || (req.files && req.files.extra_document && req.files.extra_document[0]);
+                if (!primaryFile) return res.status(400).json({ error: 'No file uploaded' });
 
-                // Validar tipo de verificación
-                const tipo = (req.body.tipo || '').toLowerCase();
-                if (!['ine', 'certificado'].includes(tipo)) {
-                    return res.status(400).json({ error: 'tipo inválido' });
-                }
+                // Normalizar tipo enviado desde cliente ('cedula'|'certificados') a valores internos
+                const tipoRaw = (req.body.tipo || '').toLowerCase();
+                let tipo;
+                if (['cedula', 'ine'].includes(tipoRaw)) tipo = 'ine';
+                else if (['certificados', 'certificado'].includes(tipoRaw)) tipo = 'certificado';
+                else return res.status(400).json({ error: 'tipo inválido' });
 
                 // Mime permitidos
-                const mime = req.file.mimetype;
+                const mime = primaryFile.mimetype;
                 const imgTypes = ['image/jpeg', 'image/jpg', 'image/png'];
                 const certTypes = ['application/pdf', ...imgTypes];
 
@@ -476,33 +484,63 @@ module.exports = function (app) {
 
                 // Límites por tipo
                 const maxSize = tipo === 'ine' ? 3 * 1024 * 1024 : 5 * 1024 * 1024;
-                if (req.file.size > maxSize) {
+                if (primaryFile.size > maxSize) {
                     return res.status(413).json({ error: 'Archivo demasiado grande' });
                 }
 
                 // ENCRYPTION KEY: esperar HEX o BASE64; convertir a Buffer y comprobar 32 bytes
                 let keyBuffer;
-                if (!process.env.ENCRYPTION_KEY) return res.status(500).json({ error: 'ENCRYPTION_KEY no configurada' });
-                try {
-                    // intenta hex, si falla usa base64
-                    keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
-                    if (keyBuffer.length !== 32) keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
-                } catch (e) {
-                    keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
+                if (!process.env.ENCRYPTION_KEY) {
+                    // If in development, allow a temporary key to make local testing easier
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.warn('[verificacion] ENCRYPTION_KEY no configurada: usando clave temporal de desarrollo (no segura)');
+                        keyBuffer = crypto.randomBytes(32);
+                    } else {
+                        console.error('[verificacion] ENCRYPTION_KEY no configurada');
+                        return res.status(500).json({ error: 'ENCRYPTION_KEY no configurada' });
+                    }
+                } else {
+                    try {
+                        // intenta hex primero
+                        keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
+                        if (keyBuffer.length !== 32) {
+                            // intenta base64
+                            keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
+                        }
+                    } catch (e) {
+                        try {
+                            keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
+                        } catch (e2) {
+                            keyBuffer = null;
+                        }
+                    }
                 }
-                if (keyBuffer.length !== 32) return res.status(500).json({ error: 'ENCRYPTION_KEY inválida (debe tener 32 bytes)' });
+
+                if (!keyBuffer || keyBuffer.length !== 32) {
+                    // Provide detailed log for debugging but avoid printing the key itself
+                    const provided = process.env.ENCRYPTION_KEY ? 'present' : 'absent';
+                    console.error('[verificacion] ENCRYPTION_KEY inválida (debe tener 32 bytes). Variable status:', provided, 'resolvedLength:', keyBuffer ? keyBuffer.length : null);
+
+                    if (process.env.NODE_ENV !== 'production') {
+                        // In dev, fallback to a random key instead of failing hard — useful for local testing
+                        console.warn('[verificacion] Modo desarrollo: usando clave temporal aleatoria para permitir la prueba. No usar en producción.');
+                        keyBuffer = crypto.randomBytes(32);
+                    } else {
+                        return res.status(500).json({ error: 'ENCRYPTION_KEY inválida (debe tener 32 bytes)' });
+                    }
+                }
 
                 // Cifrar (AES-256-CBC)
                 const iv = crypto.randomBytes(16);
                 const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
-                const encrypted = Buffer.concat([cipher.update(req.file.buffer), cipher.final()]);
+                const encrypted = Buffer.concat([cipher.update(primaryFile.buffer), cipher.final()]);
 
                 // Directorio seguro configurable
                 const baseDir = process.env.VERIFY_DIR || path.join(__dirname, '..', '..', 'secure_storage', 'verificaciones');
                 fs.mkdirSync(baseDir, { recursive: true, mode: 0o700 });
 
                 // Nombre de archivo seguro y único
-                const safeOriginal = path.basename(sanitizeText(req.file.originalname || 'upload'));
+                const safeOriginal = path.basename(sanitizeText(primaryFile.originalname || 'upload'));
                 const filename = `${Date.now()}_${req.user.id}_${crypto.randomBytes(6).toString('hex')}.enc`;
                 const filepath = path.join(baseDir, filename);
 

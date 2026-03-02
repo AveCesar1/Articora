@@ -1,4 +1,4 @@
-// upload.js - Lógica completa de subida de fuentes
+// upload.js - Lógica principal del formulario de subida (validación, autocompletado, categorías, etc.)
 
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos del DOM
@@ -12,11 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const titleCounter = document.getElementById('titleCounter');
     const publisherCounter = document.getElementById('publisherCounter');
     
-    // Estados
+    // Estados de validación (los flags de duplicados están en upload-duplicates.js)
     let isTitleChecked = false;
     let isAuthorsChecked = false;
     let isEditionChecked = false;
-    let duplicateCheckState = 'pending'; // pending, checking, clear, duplicate
     
     // Diccionarios para autocompletado (simulados)
     const dictionaries = {
@@ -64,36 +63,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==================== FUNCIONES DE INICIALIZACIÓN ====================
 
     function initForm() {
-        // Contadores de caracteres
         document.getElementById('title').addEventListener('input', updateTitleCounter);
         document.getElementById('publisher').addEventListener('input', updatePublisherCounter);
         
-        // Validación en tiempo real
         setupRealTimeValidation();
-        
-        // Autocompletado
         setupAutocomplete();
         
-        // Manejo de campos dependientes
         sourceType.addEventListener('change', handleSourceTypeChange);
         
-        // Botones
-        validateBtn.addEventListener('click', performDuplicateCheck);
+        validateBtn.addEventListener('click', performDuplicateCheck); // función global desde upload-duplicates.js
         form.addEventListener('submit', handleFormSubmit);
         
-        // Inicializar con tipo por defecto
         handleSourceTypeChange();
-        
-        // Categorías
         setupCategorySelection();
         
-        // Actualizar progreso inicial
         updateFormProgress();
     }
 
     // ==================== MANEJO DE CAMPOS DEPENDIENTES DEL TIPO ====================
-
     function handleSourceTypeChange() {
+        // (código idéntico al original, sin cambios)
         const type = sourceType.value;
         const editionRequiredSpan = document.getElementById('editionRequired');
         const publisherRequiredSpan = document.getElementById('publisherRequired');
@@ -103,18 +92,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const publisherInput = document.getElementById('publisher');
         const keywordsInput = document.getElementById('keywords');
 
-        // Por defecto ocultar todos los asteriscos
         editionRequiredSpan.classList.add('d-none');
         publisherRequiredSpan.classList.add('d-none');
         keywordsRequiredSpan.classList.add('d-none');
 
-        // Resetear placeholders y textos de ayuda
         publisherHelp.innerHTML = 'Nombre de la revista (para artículos) o editorial (para libros). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
         editionInput.placeholder = 'Ej: 1';
         publisherInput.placeholder = 'Nombre de la revista o editorial';
         keywordsInput.placeholder = 'Separadas por comas, ej: cognición, memoria, aprendizaje';
 
-        // Según el tipo, activar campos obligatorios y ajustar textos
         if (type === 'book') {
             editionRequiredSpan.classList.remove('d-none');
             publisherRequiredSpan.classList.remove('d-none');
@@ -127,12 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
             publisherHelp.innerHTML = 'Revista (obligatorio para artículos). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
             publisherInput.placeholder = 'Obligatorio';
             keywordsInput.placeholder = 'Mínimo 3 palabras clave';
-        } else {
-            // Otros tipos (ej. thesis, report) podrían tener otras reglas
-            // Por ahora, no se exigen estos campos
         }
 
-        // Disparar validaciones para actualizar la interfaz
         if (type) {
             validatePublisher();
             validateEdition();
@@ -142,12 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==================== CONTADORES DE CARACTERES ====================
-
     function updateTitleCounter() {
         const title = document.getElementById('title');
         const count = title.value.length;
         titleCounter.textContent = count;
-        
         if (count > 500) {
             title.value = title.value.substring(0, 500);
             titleCounter.textContent = 500;
@@ -158,7 +138,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const publisher = document.getElementById('publisher');
         const count = publisher.value.length;
         publisherCounter.textContent = count;
-        
         if (count > 300) {
             publisher.value = publisher.value.substring(0, 300);
             publisherCounter.textContent = 300;
@@ -166,38 +145,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==================== VALIDACIÓN EN TIEMPO REAL ====================
-
     function setupRealTimeValidation() {
-        // Título
         const titleInput = document.getElementById('title');
         titleInput.addEventListener('blur', validateTitle);
         titleInput.addEventListener('input', function() {
             isTitleChecked = false;
+            // Reiniciar estado de duplicados al modificar el título
+            duplicateCheckState = 'pending';
             updateDuplicateStatus();
         });
         
-        // Autores
         setupAuthorsValidation();
         
-        // Año
         document.getElementById('year').addEventListener('blur', validateYear);
-        
-        // Editorial
         document.getElementById('publisher').addEventListener('blur', validatePublisher);
-        
-        // Edición
         document.getElementById('edition').addEventListener('blur', validateEdition);
-        
-        // Páginas
         document.getElementById('pages').addEventListener('blur', validatePages);
-        
-        // DOI
         document.getElementById('doi').addEventListener('blur', validateDOI);
-        
-        // URLs
         setupUrlsValidation();
-        
-        // Palabras clave
         document.getElementById('keywords').addEventListener('blur', validateKeywords);
     }
 
@@ -210,21 +175,17 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(titleInput, errorElement, 'El título es obligatorio.');
             return false;
         }
-        
         if (value.length > 500) {
             showError(titleInput, errorElement, 'El título no puede exceder 500 caracteres.');
             return false;
         }
-        
         showSuccess(titleInput, errorElement);
         isTitleChecked = true;
         updateFormProgress();
         
-        // Verificación de duplicados por título
         if (isTitleChecked && value.length > 3) {
-            checkTitleDuplicates(value);
+            checkTitleDuplicates(value); // función global desde upload-duplicates.js
         }
-        
         return true;
     }
 
@@ -238,12 +199,10 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(yearInput, errorElement, 'El año es obligatorio.');
             return false;
         }
-        
         if (value < 1 || value > currentYear + 100) {
             showError(yearInput, errorElement, `El año debe estar entre 1 y ${currentYear + 100}.`);
             return false;
         }
-        
         showSuccess(yearInput, errorElement);
         updateFormProgress();
         return true;
@@ -255,19 +214,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const value = publisherInput.value.trim();
         const type = sourceType.value;
         
-        // Casos donde es obligatorio
         const required = (type === 'book' || type === 'paper' || type === 'preprint' || type === 'proceedings');
         
         if (required && !value) {
             showError(publisherInput, errorElement, 'Este campo es obligatorio para el tipo de fuente seleccionado.');
             return false;
         }
-        
         if (value && value.length > 300) {
             showError(publisherInput, errorElement, 'Máximo 300 caracteres.');
             return false;
         }
-        
         showSuccess(publisherInput, errorElement);
         return true;
     }
@@ -284,7 +240,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(editionInput, errorElement, 'La edición es obligatoria para libros.');
             return false;
         }
-        
         if (value) {
             const numValue = parseInt(value);
             if (isNaN(numValue) || numValue < 1) {
@@ -292,9 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
             
-            // Verificar duplicados exactos si ya tenemos título y autores
             if (isTitleChecked && isAuthorsChecked && value) {
-                checkExactDuplicate();
+                checkExactDuplicate(isTitleChecked, isAuthorsChecked); // función global con flags
             }
             
             showSuccess(editionInput, errorElement);
@@ -302,7 +256,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             clearValidation(editionInput, errorElement);
         }
-        
         updateFormProgress();
         return true;
     }
@@ -316,16 +269,11 @@ document.addEventListener('DOMContentLoaded', function() {
             clearValidation(pagesInput, errorElement);
             return true;
         }
-        
-        // Validar formato: número o número-número
         const pageRegex = /^(\d+)(-\d+)?$/;
-        
         if (!pageRegex.test(value)) {
             showError(pagesInput, errorElement, 'Formato inválido. Use "10-25" para rangos o "10" para página única.');
             return false;
         }
-        
-        // Validar que el segundo número sea mayor si hay rango
         if (value.includes('-')) {
             const [start, end] = value.split('-').map(Number);
             if (start >= end) {
@@ -333,7 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
         }
-        
         showSuccess(pagesInput, errorElement);
         return true;
     }
@@ -347,15 +294,11 @@ document.addEventListener('DOMContentLoaded', function() {
             clearValidation(doiInput, errorElement);
             return true;
         }
-        
-        // Validar formato DOI básico
         const doiRegex = /^10\.\d{4,9}\/[-._;()\/:A-Z0-9]+$/i;
-        
         if (!doiRegex.test(value)) {
             showError(doiInput, errorElement, 'Formato DOI inválido. Use: 10.xxxx/xxxx');
             return false;
         }
-        
         showSuccess(doiInput, errorElement);
         return true;
     }
@@ -366,7 +309,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const value = keywordsInput.value.trim();
         const type = sourceType.value;
         
-        // Tipos que requieren palabras clave
         const requiresKeywords = ['paper', 'preprint', 'proceedings'].includes(type);
         
         if (requiresKeywords) {
@@ -374,20 +316,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 showError(keywordsInput, errorElement, 'Se requieren palabras clave para este tipo de fuente.');
                 return false;
             }
-            
             const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
-            
             if (keywords.length < 3) {
                 showError(keywordsInput, errorElement, 'Mínimo 3 palabras clave requeridas.');
                 return false;
             }
-            
             if (keywords.length > 10) {
                 showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
                 return false;
             }
         } else {
-            // No obligatorio, pero si hay contenido se valida el formato (opcional)
             if (value) {
                 const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
                 if (keywords.length > 10) {
@@ -396,22 +334,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
-        
         showSuccess(keywordsInput, errorElement);
         return true;
     }
 
     // ==================== AUTORES DINÁMICOS ====================
-
     window.addAuthorField = function() {
         const container = document.getElementById('authorsContainer');
         const authorFields = container.querySelectorAll('.author-field');
-        
         if (authorFields.length >= 10) {
             alert('Máximo 10 autores permitidos.');
             return;
         }
-        
         const index = authorFields.length;
         const newField = document.createElement('div');
         newField.className = 'input-group mb-2 author-field';
@@ -423,43 +357,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 <i class="fas fa-minus"></i>
             </button>
         `;
-        
         container.appendChild(newField);
-        
-        // Configurar autocompletado para el nuevo campo
         setupAuthorAutocomplete(newField.querySelector('.author-input'));
-        
-        // Configurar validación
         newField.querySelector('.author-input').addEventListener('blur', validateAuthors);
-        
         updateFormProgress();
-    }
+    };
 
     window.removeAuthorField = function(button) {
         const field = button.closest('.author-field');
         const container = document.getElementById('authorsContainer');
         const fields = container.querySelectorAll('.author-field');
-        
         if (fields.length > 1) {
             field.remove();
-            
-            // Re-indexar campos restantes
             container.querySelectorAll('.author-field').forEach((field, index) => {
                 field.querySelector('.author-input').dataset.index = index;
             });
-            
             validateAuthors();
             updateFormProgress();
         }
-    }
+    };
 
     function setupAuthorsValidation() {
         document.getElementById('authorsContainer').addEventListener('input', function() {
             isAuthorsChecked = false;
+            duplicateCheckState = 'pending';
             updateDuplicateStatus();
         });
-        
-        // Validar al salir de cualquier campo de autor
         document.addEventListener('blur', function(e) {
             if (e.target.classList.contains('author-input')) {
                 validateAuthors();
@@ -475,10 +398,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         authorInputs.forEach(input => {
             const value = input.value.trim();
-            
             if (value) {
                 hasAtLeastOne = true;
-                
                 if (value.length > 150) {
                     showError(input, '');
                     isValid = false;
@@ -494,30 +415,23 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(document.querySelector('.author-input'), errorElement, 'Debe ingresar al menos un autor.');
             return false;
         }
-        
         if (!isValid) {
             showError(document.querySelector('.author-input'), errorElement, 'Cada autor debe tener máximo 150 caracteres.');
             return false;
         }
-        
         showSuccess(document.querySelector('.author-input'), errorElement);
         isAuthorsChecked = true;
         updateFormProgress();
         
-        // Verificar duplicados por título y autores
-        if (isTitleChecked && isAuthorsChecked) {
-            checkTitleAuthorDuplicates();
-        }
-        
+        // if (isTitleChecked && isAuthorsChecked) {
+            // checkTitleAuthorDuplicates(); // función global desde upload-duplicates.js
+        // }
         return true;
     }
 
     // ==================== URLs DINÁMICAS ====================
-
     window.addUrlField = function() {
         const container = document.getElementById('urlsContainer');
-        const urlFields = container.querySelectorAll('.url-field');
-        
         const newField = document.createElement('div');
         newField.className = 'input-group mb-2 url-field';
         newField.innerHTML = `
@@ -528,14 +442,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <i class="fas fa-minus"></i>
             </button>
         `;
-        
         container.appendChild(newField);
-        
-        // Configurar validación
         newField.querySelector('.url-input').addEventListener('blur', validateUrls);
-        
         updateFormProgress();
-    }
+    };
 
     window.removeUrlField = function(button) {
         const field = button.closest('.url-field');
@@ -544,12 +454,10 @@ document.addEventListener('DOMContentLoaded', function() {
             validateUrls();
             updateFormProgress();
         }
-    }
+    };
 
     function setupUrlsValidation() {
-        document.getElementById('urlsContainer').addEventListener('input', function() {
-            validateUrls();
-        });
+        document.getElementById('urlsContainer').addEventListener('input', validateUrls);
     }
 
     function validateUrls() {
@@ -560,7 +468,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         urlInputs.forEach(input => {
             const value = input.value.trim();
-            
             if (value) {
                 try {
                     new URL(value);
@@ -579,48 +486,38 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Verificar URLs duplicadas
         const uniqueUrls = [...new Set(urls)];
         if (uniqueUrls.length !== urls.length) {
             showError(document.querySelector('.url-input'), errorElement, 'Las URLs deben ser únicas.');
             return false;
         }
-        
         if (!hasValidUrl && urlInputs[0].value.trim()) {
             showError(document.querySelector('.url-input'), errorElement, 'La URL debe ser válida (http:// o https://).');
             return false;
         }
-        
         clearValidation(document.querySelector('.url-input'), errorElement);
         return true;
     }
 
     // ==================== CATEGORÍAS ====================
-
     function setupCategorySelection() {
         const categoryCheckboxes = document.querySelectorAll('.category-checkbox');
-        
         categoryCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const categoryId = this.value;
                 const subcatContainer = document.getElementById(`subcat_${categoryId}`);
-                
                 if (this.checked) {
                     subcatContainer.style.display = 'block';
                 } else {
-                    // Desmarcar todas las subcategorías
                     subcatContainer.querySelectorAll('.subcategory-checkbox').forEach(sub => {
                         sub.checked = false;
                     });
                     subcatContainer.style.display = 'none';
                 }
-                
                 validateCategories();
                 updateFormProgress();
             });
         });
-        
-        // Subcategorías
         document.querySelectorAll('.subcategory-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 validateCategories();
@@ -639,34 +536,24 @@ document.addEventListener('DOMContentLoaded', function() {
             updateValidationSummary('categories', false, 'Sin categorías');
             return false;
         }
-        
         if (selectedSubcategories.length === 0) {
             showError(document.querySelector('.categories-container'), errorElement, 'Seleccione al menos una subcategoría.');
             updateValidationSummary('categories', false, 'Sin subcategorías');
             return false;
         }
-        
         showSuccess(document.querySelector('.categories-container'), errorElement);
         updateValidationSummary('categories', true, `${selectedCategories.length} categorías, ${selectedSubcategories.length} subcategorías`);
         return true;
     }
 
-    // ==================== AUTCOMPLETADO ====================
-
+    // ==================== AUTOCOMPLETADO ====================
     function setupAutocomplete() {
-        // Título
         setupFieldAutocomplete('title', 'titleAutocomplete');
-        
-        // Autores (primer campo)
         const firstAuthor = document.querySelector('.author-input');
         if (firstAuthor) {
             setupAuthorAutocomplete(firstAuthor);
         }
-        
-        // Revista/Editorial
         setupFieldAutocomplete('publisher', 'publisherAutocomplete');
-        
-        // Palabras clave
         setupKeywordsAutocomplete();
     }
 
@@ -674,22 +561,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const field = document.getElementById(fieldId);
         const hint = document.getElementById(hintId);
         if (!field || !hint) return;
-
-        // Only one suggestion shown at a time
         let currentSuggestion = '';
-
         field.addEventListener('input', function() {
             const value = this.value.toLowerCase();
             const suggestions = dictionaries[fieldId];
-
             if (value.length < 2 || !suggestions) {
                 currentSuggestion = '';
                 hint.classList.remove('active');
                 return;
             }
-
             const match = suggestions.find(s => s.toLowerCase().startsWith(value));
-
             if (match) {
                 hint.textContent = match;
                 hint.classList.add('active');
@@ -699,7 +580,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 hint.classList.remove('active');
             }
         });
-
         field.addEventListener('keydown', function(e) {
             if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
@@ -709,7 +589,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
-
         field.addEventListener('blur', function() {
             setTimeout(() => hint.classList.remove('active'), 150);
         });
@@ -718,21 +597,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupAuthorAutocomplete(input) {
         const hint = document.getElementById('authorAutocomplete');
         if (!input || !hint) return;
-
         let currentSuggestion = '';
-
         input.addEventListener('input', function() {
             const value = this.value.toLowerCase();
             const suggestions = dictionaries.author;
-
             if (value.length < 2) {
                 currentSuggestion = '';
                 hint.classList.remove('active');
                 return;
             }
-
             const match = suggestions.find(s => s.toLowerCase().startsWith(value));
-
             if (match) {
                 hint.textContent = match;
                 hint.classList.add('active');
@@ -743,7 +617,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 hint.classList.remove('active');
             }
         });
-
         input.addEventListener('keydown', function(e) {
             if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
@@ -753,7 +626,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
-
         input.addEventListener('blur', function() {
             setTimeout(() => hint.classList.remove('active'), 150);
         });
@@ -763,22 +635,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const field = document.getElementById('keywords');
         const hint = document.getElementById('keywordsAutocomplete');
         if (!field || !hint) return;
-
         let currentSuggestion = '';
-
         field.addEventListener('input', function() {
             const value = this.value.toLowerCase();
             const lastComma = value.lastIndexOf(',');
             const currentWord = lastComma === -1 ? value.trim() : value.substring(lastComma + 1).trim();
-
             if (currentWord.length < 2) {
                 currentSuggestion = '';
                 hint.classList.remove('active');
                 return;
             }
-
             const match = dictionaries.keywords.find(k => k.toLowerCase().startsWith(currentWord));
-
             if (match) {
                 hint.textContent = match;
                 hint.classList.add('active');
@@ -788,7 +655,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 hint.classList.remove('active');
             }
         });
-
         field.addEventListener('keydown', function(e) {
             if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
@@ -804,13 +670,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dispatchEvent(new Event('input'));
             }
         });
-
         field.addEventListener('blur', function() {
             setTimeout(() => hint.classList.remove('active'), 150);
         });
-
         function matchCaseAppend(current, suggestion) {
-            // Preserve capitalization of current word start
             if (!current) return suggestion;
             const firstChar = current[0];
             if (firstChar === firstChar.toUpperCase()) {
@@ -821,7 +684,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==================== MANEJO DEL ENVÍO ====================
-
     async function handleFormSubmit(e) {
         e.preventDefault();
 
@@ -835,7 +697,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Build payload from form fields
         const payload = {};
         payload.title = sanitizeForSend(document.getElementById('title').value);
         payload.sourceType = document.getElementById('sourceType').value;
@@ -847,26 +708,21 @@ document.addEventListener('DOMContentLoaded', function() {
         payload.volume = document.getElementById('volume').value;
         payload.number = document.getElementById('number').value;
 
-        // Authors
         payload.authors = Array.from(document.querySelectorAll('.author-input'))
             .map(i => i.value.trim())
             .filter(Boolean);
 
-        // Keywords -> array
         payload.keywords = document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean);
 
-        // URLs
         const urlInputs = Array.from(document.querySelectorAll('.url-input'));
         const primaryUrlInput = urlInputs.find(i => i.dataset.type === 'primary') || urlInputs[0];
         payload.primary_url = primaryUrlInput ? primaryUrlInput.value.trim() : '';
 
-        // Categories: pick the first selected category and first selected subcategory
         const selectedCategory = document.querySelector('.category-checkbox:checked');
         const selectedSubcategory = document.querySelector('.subcategory-checkbox:checked');
         payload.category_id = selectedCategory ? parseInt(selectedCategory.value, 10) : null;
         payload.subcategory_id = selectedSubcategory ? parseInt(selectedSubcategory.value, 10) : null;
 
-        // Disable submit and show spinner
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Subiendo...';
 
@@ -885,6 +741,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await res.json();
 
+            // Si el servidor indica que debe redirigir (duplicado o URL nueva)
+            if (data.redirect) {
+                if (typeof window.redirectToSource === 'function') {
+                    window.redirectToSource(data.sourceId, data.messageType || 'duplicado');
+                }
+                return;
+            }
+
             if (!data || !data.success) {
                 const msg = data && data.message ? data.message : 'Error al subir la fuente.';
                 alert(msg);
@@ -893,11 +757,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Success: redirect to the new source page
-            const sourceId = data.sourceId;
+            // Éxito: mostrar alerta y redirigir (como ya tenías)
             showSuccessAlert();
             setTimeout(() => {
-                window.location.href = `/post/${sourceId}`;
+                window.location.href = `/post/${data.sourceId}`;
             }, 1000);
         } catch (err) {
             console.error('Upload error', err);
@@ -912,10 +775,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==================== UTILIDADES ====================
-
     function validateAllFields() {
         let isValid = true;
-        
         if (!validateTitle()) isValid = false;
         if (!validateAuthors()) isValid = false;
         if (!validateYear()) isValid = false;
@@ -926,7 +787,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!validateKeywords()) isValid = false;
         if (!validateUrls()) isValid = false;
         if (!validateCategories()) isValid = false;
-        
         return isValid;
     }
 
@@ -940,38 +800,10 @@ document.addEventListener('DOMContentLoaded', function() {
             { checked: validateCategories(), weight: 10 },
             { checked: duplicateCheckState === 'clear', weight: 20 }
         ];
-        
         fields.forEach(field => {
             if (field.checked) progress += field.weight;
         });
-        
         formProgress.style.width = `${progress}%`;
-    }
-
-    function updateDuplicateStatus() {
-        const statusElement = document.getElementById('duplicateStatus');
-        const summaryElement = document.getElementById('duplicateSummary');
-        
-        switch (duplicateCheckState) {
-            case 'pending':
-                statusElement.className = 'fas fa-question-circle text-secondary me-2';
-                summaryElement.textContent = 'No verificado';
-                break;
-            case 'checking':
-                statusElement.className = 'fas fa-spinner fa-spin text-warning me-2';
-                summaryElement.textContent = 'Verificando...';
-                break;
-            case 'clear':
-                statusElement.className = 'fas fa-check-circle text-success me-2';
-                summaryElement.textContent = 'Sin duplicados';
-                break;
-            case 'duplicate':
-                statusElement.className = 'fas fa-times-circle text-danger me-2';
-                summaryElement.textContent = 'Duplicado detectado';
-                break;
-        }
-        
-        updateSubmitButton();
     }
 
     function updateSubmitButton() {
@@ -979,21 +811,26 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = !(allValid && duplicateCheckState === 'clear');
     }
 
+    // Exponer función para que el gestor de duplicados pueda actualizar el botón
+    window.updateSubmitButtonFromDuplicate = function() {
+        updateSubmitButton();
+    };
+
+    // También exponer updateFormProgress para que el gestor pueda llamarlo si es necesario
+    window.updateFormProgress = updateFormProgress;
+
     function updateValidationSummary(field, isValid, message) {
         const statusElement = document.getElementById(`${field}Status`);
         const summaryElement = document.getElementById(`${field}Summary`);
-        
         statusElement.className = isValid ? 
             'fas fa-check-circle text-success me-2' : 
             'fas fa-times-circle text-danger me-2';
-        
         summaryElement.textContent = message;
     }
 
     function showError(element, errorElement, message) {
         element.classList.remove('is-valid');
         element.classList.add('is-invalid');
-        
         if (errorElement && message) {
             errorElement.textContent = message;
             errorElement.style.display = 'block';
@@ -1003,7 +840,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function showSuccess(element, errorElement) {
         element.classList.remove('is-invalid');
         element.classList.add('is-valid');
-        
         if (errorElement) {
             errorElement.style.display = 'none';
         }
@@ -1011,88 +847,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function clearValidation(element, errorElement) {
         element.classList.remove('is-valid', 'is-invalid');
-        
         if (errorElement) {
             errorElement.style.display = 'none';
         }
     }
 
-    function showRedirectMessage(message, redirectUrl) {
-        const modal = new bootstrap.Modal(document.getElementById('redirectModal'));
-        const messageElement = document.getElementById('redirectMessage');
-        const countdownElement = document.getElementById('redirectCountdown');
-        
-        messageElement.textContent = message;
-        
-        let countdown = 5;
-        countdownElement.textContent = countdown;
-        
-        const interval = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
-            
-            if (countdown <= 0) {
-                clearInterval(interval);
-                modal.hide();
-                window.location.href = redirectUrl;
-            }
-        }, 1000);
-        
-        const progressBar = document.getElementById('redirectProgress');
-        let progress = 100;
-        
-        const progressInterval = setInterval(() => {
-            progress -= 20;
-            progressBar.style.width = `${progress}%`;
-            
-            if (progress <= 0) {
-                clearInterval(progressInterval);
-            }
-        }, 1000);
-        
-        modal.show();
-    }
-
     function showSuccessAlert() {
         const alert = document.getElementById('successAlert');
         alert.classList.remove('d-none');
-        
         setTimeout(() => {
             alert.classList.add('d-none');
         }, 5000);
-    }
-
-    // Funciones placeholder para verificación de duplicados (deben implementarse según backend)
-    function checkTitleDuplicates(title) {
-        // Aquí se llamaría a un endpoint para sugerir duplicados
-        console.log('Checking title duplicates for:', title);
-    }
-
-    function checkTitleAuthorDuplicates() {
-        // Similar
-        console.log('Checking title+author duplicates');
-    }
-
-    function checkExactDuplicate() {
-        // Similar
-        console.log('Checking exact duplicate');
-    }
-
-    function performDuplicateCheck() {
-        // Simulación de verificación
-        duplicateCheckState = 'checking';
-        updateDuplicateStatus();
-        setTimeout(() => {
-            // Simular que no hay duplicados
-            duplicateCheckState = 'clear';
-            updateDuplicateStatus();
-            updateFormProgress();
-        }, 1500);
     }
 
     // Actualizar resumen inicial
     updateValidationSummary('title', false, 'No validado');
     updateValidationSummary('authors', false, 'No validado');
     updateValidationSummary('categories', false, 'No validado');
-    updateDuplicateStatus();
+    updateDuplicateStatus(); // función global desde upload-duplicates.js
 });

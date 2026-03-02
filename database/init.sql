@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS source_types (
     name VARCHAR(50) UNIQUE NOT NULL
 );
 
--- New: authors as separate entities (normalized)
+-- authors as separate entities (normalized)
 CREATE TABLE IF NOT EXISTS authors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     last_name VARCHAR(150),

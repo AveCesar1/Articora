@@ -40,6 +40,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
+// Shared category color map available to routes and templates
+app.locals.categoryColorMap = {
+    'Ciencias Cognitivas': '#3498db',
+    'Ciencias Sociales': '#2ecc71',
+    'Ciencias Humanistas': '#9b59b6',
+    'Disciplinas Creativas': '#e74c3c',
+    'Ciencias Computacionales': '#f39c12',
+    'Ciencias Exactas': '#1abc9c',
+    'Ciencias Naturales': '#34495e',
+    'Ciencias Aplicadas': '#e67e22'
+};
+
 // Middleware to set loggedIn flag for templates based on JWT cookie
 app.use((req, res, next) => {
     try {
@@ -72,6 +84,20 @@ app.use(session({
         maxAge: 1000 * 60 * 60 * 24 // 24 horas
     }
 }));
+
+// Temporary request logger for verification endpoints to assist debugging
+app.use((req, res, next) => {
+    if (req.path && req.path.startsWith('/verificacion')) {
+        try {
+            console.log('[req-logger] incoming request', req.method, req.path, 'headers:', {
+                cookie: req.headers.cookie,
+                'content-type': req.headers['content-type'] || null,
+                referer: req.headers.referer || null
+            });
+        } catch (e) { console.error('req-logger error', e); }
+    }
+    next();
+});
 
 // Import routes
 require('./routes/postRoutes')(app);

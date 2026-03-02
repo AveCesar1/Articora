@@ -82,18 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFiltersBtn.addEventListener('click', function() {
             const filters = collectFilters();
             console.log('Filtros aplicados:', filters);
-            
-            // Simular aplicación de filtros
             showLoadingState();
-            
-            // En una implementación real, aquí se haría una petición AJAX
-            setTimeout(() => {
-                hideLoadingState();
-                showAlert('success', 'Filtros aplicados correctamente.');
-                
-                // Actualizar contadores (simulación)
-                updateResultsCount(filters);
-            }, 1000);
+            goToSearchWithFilters(filters);
         });
     }
     
@@ -291,28 +281,29 @@ document.addEventListener('DOMContentLoaded', function() {
         window.applyFiltersTimeout = setTimeout(() => {
             const filters = collectFilters();
             console.log('Filtros actualizados:', filters);
-            
-            // Aquí iría la lógica real de actualización
-            // Por ahora solo actualizamos el contador simulado
-            updateResultsCount(filters);
+
+            // Navegar con filtros aplicados
+            goToSearchWithFilters(filters);
         }, 300);
     }
-    
-    function updateResultsCount(filters) {
-        // Simular actualización de conteo
-        const resultsCount = Math.floor(Math.random() * 50) + 10;
-        const resultsElement = document.querySelector('h5.mb-0');
-        
-        if (resultsElement) {
-            const query = new URLSearchParams(window.location.search).get('q') || '';
-            let text = `${resultsCount} resultados`;
-            
-            if (query) {
-                text += ` para "<strong>${query}</strong>"`;
-            }
-            
-            resultsElement.innerHTML = text;
-        }
+
+    // Construye URL de búsqueda y navega
+    function goToSearchWithFilters(filters) {
+        const qInput = document.querySelector('input[name="q"]');
+        const q = qInput ? qInput.value.trim() : '';
+        const params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (filters.sourceType) params.set('type', filters.sourceType);
+        if (filters.categories && filters.categories.length > 0) params.set('category', filters.categories[0]);
+        if (filters.subcategories && filters.subcategories.length > 0) params.set('subcategory', filters.subcategories[0]);
+        if (filters.yearFrom) params.set('yearFrom', filters.yearFrom);
+        if (filters.yearTo) params.set('yearTo', filters.yearTo);
+        if (filters.sortBy) params.set('sort', filters.sortBy);
+        // Preserve current page param removed when applying new filters
+
+        const qs = params.toString();
+        // Use location.assign so back button behaves normally
+        window.location.assign('/search' + (qs ? ('?' + qs) : ''));
     }
     
     function showLoadingState() {
