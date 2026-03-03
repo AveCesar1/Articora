@@ -3,7 +3,7 @@ const { db } = require('../../lib/database');
 const bcrypt = require('bcrypt');
 
 module.exports = function (app) {
-    // Actualizar perfil del usuario
+       // Actualizar perfil del usuario
     app.post('/profile/config-profile/update', isRegistered, (req, res) => {
         try {
             const userId = req.session.userId;
@@ -14,7 +14,7 @@ module.exports = function (app) {
                 academicDegree,
                 institution,
                 first_name,
-                last_name
+                last_name,
             } = req.body;
 
             // Validaciones básicas
@@ -46,18 +46,45 @@ module.exports = function (app) {
 
             actualizar.run(email, bio || null, academicDegree || null, institution || null, first_name, last_name, userId);
 
-            // Si hay intereses, actualizar tabla separada si existe
-            if (interests && Array.isArray(interests) && interests.length > 0) {
-                // Insertar nuevos intereses
-                const insertInterest = db.prepare('INSERT INTO user_interests (user_id, interest) VALUES (?, ?)');
-        
-                for (const interest of interests) {
-                    if (interest.trim()) {
-                        insertInterest.run(userId, interest.trim());
-                    }
+            if (Array.isArray(interests)) {
+
+                const incoming = Array.from(new Set(interests.map(i => String(i || '').trim()).filter(Boolean)));
+                const incomingLower = incoming.map(i => i.toLowerCase());
+
+                // Obtener intereses actuales desde la base de datos
+                const existingRows = db.prepare('SELECT id, interest FROM user_interests WHERE user_id = ?').all(userId);
+                const existingMapLower = new Map();
+                for (const r of existingRows) existingMapLower.set(String(r.interest).toLowerCase(), r.id);
+
+                // Determinar eliminaciones (ids) — aquellos existentes que no aparecen en incoming
+                const toDeleteIds = existingRows
+                    .filter(r => !incomingLower.includes(String(r.interest).toLowerCase()))
+                    .map(r => r.id);
+
+                // Determinar inserciones — aquellos incoming que no existen todavía (case-insensitive)
+                const toInsert = incoming.filter((val, idx) => !existingMapLower.has(incomingLower[idx]));
+
+                // Ejecutar eliminaciones
+                if (toDeleteIds.length > 0) {
+                    const deleteStmt = db.prepare('DELETE FROM user_interests WHERE id = ? AND user_id = ?');
+                    for (const id of toDeleteIds) deleteStmt.run(id, userId);
+                    console.log(`user_interests: eliminados ${toDeleteIds.length} registros para user=${userId}`);
+                }
+
+                // Ejecutar inserciones
+                if (toInsert.length > 0) {
+                    const insertStmt = db.prepare('INSERT INTO user_interests (user_id, interest) VALUES (?, ?)');
+                    for (const interestVal of toInsert) insertStmt.run(userId, interestVal);
+                    console.log(`user_interests: insertados ${toInsert.length} registros para user=${userId}`);
+                }
+
+            } else if (req.body.deleteInterests && Array.isArray(req.body.deleteInterests)) {
+                // Compatibilidad: si el cliente envía explicitamente IDs a eliminar
+                const deleteInterest = db.prepare('DELETE FROM user_interests WHERE user_id = ? AND id = ?');
+                for (const interestId of req.body.deleteInterests) {
+                    deleteInterest.run(userId, interestId);
                 }
             }
-
             return res.json({ 
                 success: true, 
                 message: 'Perfil actualizado correctamente' 

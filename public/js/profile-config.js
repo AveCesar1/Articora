@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Gestión de intereses
+ // Gestión de intereses
     const newInterestInput = document.getElementById('newInterest');
     const addInterestBtn = document.getElementById('addInterestBtn');
     const interestsContainer = document.querySelector('.interests-edit-container');
@@ -76,6 +76,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Eliminar etiquetas de interés existentes
+    document.querySelectorAll('.interest-tag .btn-close').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.interest-tag').remove();
+        });
+    });
     // Eliminar etiquetas de interés existentes
     document.querySelectorAll('.interest-tag .btn-close').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -234,7 +240,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 academicDegree: document.getElementById('academicDegree')?.value || '',
                 institution: document.getElementById('institution')?.value || '',
                 first_name: document.getElementById('firstName')?.value || '',
-                last_name: document.getElementById('lastName')?.value || ''
+                last_name: document.getElementById('lastName')?.value || '',
+                
             };
 
             try {
