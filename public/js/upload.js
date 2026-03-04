@@ -152,6 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isTitleChecked = false;
             // Reiniciar estado de duplicados al modificar el título
             duplicateCheckState = 'pending';
+            titleCheckPassed = false;
             updateDuplicateStatus();
         });
         

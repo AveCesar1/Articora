@@ -13,6 +13,10 @@ let titleBlurTimer = null;
 
 let checkAuthorsTimeout = null; // Para debounce
 
+function isElementActive(element){
+    return document.activeElement === document.getElementById(element)
+}
+
 // Elementos del DOM (modales)
 const duplicateModalEl = document.getElementById('duplicateModal');
 const redirectModalEl = document.getElementById('redirectModal');
@@ -26,7 +30,10 @@ if (redirectModalEl) redirectModal = new bootstrap.Modal(redirectModalEl);
 // ----------------------------------------------------------------------
 async function checkTitleDuplicates(title) {
     if (!title || title.length < 3) return;
-    if (titleCheckPassed) return; // Ya verificada y sin duplicados confirmados
+    if (!isElementActive('title') && titleCheckPassed) return; // Ya verificada y sin duplicados confirmados
+    if (isElementActive('title')){ // !title.isBlur()
+        return;
+    }
 
     try {
         const response = await fetch(`/api/check-duplicate-title?title=${encodeURIComponent(title)}`);
@@ -358,19 +365,6 @@ function redirectToSource(sourceId, tipo) {
 // Inicialización cuando el DOM está listo
 // ----------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', function() {
-    const titleInput = document.getElementById('title');
-    if (titleInput) {
-        titleInput.addEventListener('blur', function() {
-            if (titleBlurTimer) clearTimeout(titleBlurTimer);
-            titleBlurTimer = setTimeout(() => {
-                const value = this.value.trim();
-                if (value.length >= 3) {
-                    checkTitleDuplicates(value);
-                }
-            }, 300);
-        });
-    }
-
     // Configurar debounce para autores
     setupAuthorsDuplicateCheck();
 
