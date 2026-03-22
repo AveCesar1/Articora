@@ -46,18 +46,19 @@ document.addEventListener('DOMContentLoaded', function() {
             item.addEventListener('click', function(e) {
                 e.stopPropagation();
                 
-                const chatId = parseInt(this.dataset.id);
+                const userId = parseInt(this.dataset.id);
+                const chatId = parseInt(this.dataset.chatId);
                 const chatType = this.dataset.type;
                 const isRequest = this.dataset.isRequest === 'true';
                 
-                console.log('Clic en chat:', { chatId, chatType, isRequest });
-                
+                console.log('Clic en chat:', { userId, chatId, chatType, isRequest });
+
                 // Actualizar estado activo
                 chatItems.forEach(i => i.classList.remove('active'));
                 this.classList.add('active');
                 
-                // Cambiar al chat seleccionado
-                switchToChat(chatId, chatType, isRequest);
+                // Cambiar al chat seleccionado, pasando el chatId si existe
+                switchToChat(userId, chatId, chatType, isRequest);
             });
         });
         
@@ -131,41 +132,44 @@ document.addEventListener('DOMContentLoaded', function() {
         simulateChatActivity();
     }
     
-    function switchToChat(id, type, isRequest = false) {
-        console.log('Cambiando a chat:', { id, type, isRequest });
+    function switchToChat(userId, chatId, type, isRequest = false) {
+        console.log('Cambiando a chat:', { userId, chatId, type, isRequest });
         
-        // Actualizar el objeto currentChat con los datos del chat seleccionado
+        // Actualizar el objeto currentChat con los datos básicos
         if (type === 'individual' || type === 'channel') {
-            const contact = data.contacts.find(c => c.id === id);
+            const contact = data.contacts.find(c => c.id === userId);
             if (contact) {
                 currentChat = {
-                    id: contact.id,
+                    id: userId,
+                    chatId: chatId,
                     type: type,
                     name: contact.name,
                     status: contact.status,
                     avatar: contact.avatar,
                     encryption: contact.encryption || false,
                     isRequest: isRequest,
-                    messages: getChatMessages(id, type)
+                    messages: []
                 };
             }
         } else if (type === 'group') {
-            const group = data.groups.find(g => g.id === id);
+            const group = data.groups.find(g => g.id === userId);
             if (group) {
                 currentChat = {
-                    id: group.id,
+                    id: userId,
+                    chatId: chatId,
                     type: 'group',
                     name: group.name,
                     avatar: group.avatar,
                     isRequest: false,
-                    messages: getGroupMessages(id)
+                    messages: []
                 };
             }
         } else if (type === 'request') {
-            const request = data.incomingRequests.find(r => r.id === id);
+            const request = data.incomingRequests.find(r => r.id === userId);
             if (request) {
                 currentChat = {
-                    id: request.id,
+                    id: userId,
+                    chatId: null,
                     type: 'request',
                     name: request.name,
                     avatar: request.avatar,
@@ -174,23 +178,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             }
         }
-        
-        // Actualizar encabezado
+
+        // Actualizar encabezado inmediatamente
         updateChatHeader();
         
-        // Actualizar área de mensajes
-        updateMessagesArea();
+        // Si es un chat individual normal (no solicitud, no canal), obtener mensajes del servidor
+        if (type === 'individual' && !isRequest && chatId) {
+            fetch(`/api/chats/${chatId}/messages`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error al cargar mensajes');
+                    }
+                    return response.json();
+                })
+                .then(messages => {
+                    // Convertir mensajes al formato que espera la UI
+                    currentChat.messages = messages.map(m => ({
+                        id: m.id,
+                        sender: m.username,
+                        text: atob(m.encrypted_content), // simulación de descifrado
+                        time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                        isOwn: m.user_id === currentUser.id,
+                        status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
+                    }));
+                    updateMessagesArea();
+                    scrollToBottom();
+                })
+                .catch(err => {
+                    console.error('Error al cargar mensajes:', err);
+                    showNotification('Error al cargar mensajes', 'error');
+                });
+        } else {
+            // Para canales, grupos o solicitudes, usar los datos ya disponibles (o vacío)
+            if (type === 'channel') {
+                currentChat.messages = data.articoraMessages.map(m => ({
+                    id: m.id,
+                    sender: m.sender,
+                    text: m.text,
+                    time: m.time,
+                    isOwn: false,
+                    status: 'read'
+                }));
+            } else if (type === 'group') {
+                currentChat.messages = [];
+            }
+            updateMessagesArea();
+            scrollToBottom();
+        }
         
         // Actualizar área de entrada
         updateInputArea();
         
-        // Marcar como leído (si no es una solicitud)
-        if (type !== 'request') {
-            markAsRead(id, type);
+        // Marcar como leído (solo para chats individuales)
+        if (type === 'individual' && !isRequest && chatId) {
+            markAsRead(chatId, type);
         }
-        
-        // Scroll al final
-        scrollToBottom();
     }
     
     function updateChatHeader() {
@@ -532,11 +574,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     sendMessage(message);
                     input.value = '';
                     input.style.height = 'auto';
-                    
-                    // Simular respuesta
-                    if (Math.random() > 0.5) {
-                        setTimeout(simulateResponse, 2000);
-                    }
                 });
                 
                 // Auto-ajustar altura
@@ -560,26 +597,28 @@ document.addEventListener('DOMContentLoaded', function() {
         const messagesContainer = document.getElementById('messagesContainer');
         if (!messagesContainer) return;
         
+        // Mostrar el mensaje inmediatamente en la UI (optimista)
         const messageId = Date.now();
         const messageElement = document.createElement('div');
         messageElement.className = 'message own new';
+        messageElement.dataset.messageId = messageId;
         
         messageElement.innerHTML = `
             <div class="message-content">
                 ${currentChat.type === 'group' ? `<small class="message-sender">${currentUser.name}</small>` : ''}
                 <div class="message-bubble">
-                    <p class="mb-0">${text}</p>
+                    <p class="mb-0">${text.replace(/\n/g, '<br>')}</p>
                 </div>
                 <div class="message-footer">
                     <small class="text-muted">${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small>
                     <div class="message-status">
-                        <i class="fas fa-check text-muted"></i>
+                        <i class="fas fa-check text-muted" title="Enviando..."></i>
                     </div>
                 </div>
             </div>
         `;
         
-        // Insertar antes del encryption notice si existe, de lo contrario al final
+        // Insertar antes del encryption notice si existe
         const encryptionNotice = messagesContainer.querySelector('.encryption-notice');
         if (encryptionNotice) {
             messagesContainer.insertBefore(messageElement, encryptionNotice);
@@ -589,109 +628,111 @@ document.addEventListener('DOMContentLoaded', function() {
         
         scrollToBottom();
         
-        // Actualizar estado de envío
-        setTimeout(() => {
+        // Enviar al servidor
+        fetch(`/api/chats/${currentChat.chatId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                encryptedContent: btoa(text),   // simulamos cifrado con base64
+                iv: 'dummy',
+                encryptedKey: 'dummy',
+                contentType: 'text'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar el estado del mensaje a "enviado"
             const statusIcon = messageElement.querySelector('.message-status i');
             if (statusIcon) {
-                statusIcon.className = 'fas fa-check-double text-primary';
+                statusIcon.className = 'fas fa-check text-muted';
+                statusIcon.title = 'Enviado';
             }
-        }, 1500);
-    }
-    
-    function simulateResponse() {
-        const messagesContainer = document.getElementById('messagesContainer');
-        if (!messagesContainer) return;
-        
-        const responses = [
-            'Gracias por tu mensaje.',
-            'Interesante punto de vista.',
-            '¿Podrías explicar más sobre eso?',
-            'Tengo una pregunta relacionada...',
-            'Estoy de acuerdo contigo.'
-        ];
-        
-        const response = responses[Math.floor(Math.random() * responses.length)];
-        const sender = currentChat.type === 'group' ? 'Usuario' : currentChat.name;
-        
-        const messageElement = document.createElement('div');
-        messageElement.className = 'message new';
-        
-        messageElement.innerHTML = `
-            <div class="message-content">
-                ${currentChat.type === 'group' ? `<small class="message-sender">${sender}</small>` : ''}
-                <div class="message-bubble">
-                    <p class="mb-0">${response}</p>
-                </div>
-                <div class="message-footer">
-                    <small class="text-muted">${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small>
-                </div>
-            </div>
-        `;
-        
-        // Insertar antes del encryption notice si existe, de lo contrario al final
-        const encryptionNotice = messagesContainer.querySelector('.encryption-notice');
-        if (encryptionNotice) {
-            messagesContainer.insertBefore(messageElement, encryptionNotice);
-        } else {
-            messagesContainer.appendChild(messageElement);
-        }
-        
-        scrollToBottom();
+            // Podríamos guardar el messageId real devuelto por el servidor si quisiéramos
+        })
+        .catch(err => {
+            console.error('Error al enviar mensaje:', err);
+            // Marcar el mensaje como error
+            const statusIcon = messageElement.querySelector('.message-status i');
+            if (statusIcon) {
+                statusIcon.className = 'fas fa-exclamation-circle text-danger';
+                statusIcon.title = 'Error al enviar';
+            }
+            showNotification('No se pudo enviar el mensaje', 'error');
+        });
     }
     
     function acceptRequest(requestId, element = null) {
-        // En un caso real, aquí se enviaría al servidor
-        showNotification('Solicitud aceptada', 'success');
-        
-        if (element) {
-            element.remove();
-        }
-        
-        // Actualizar contador
-        updateRequestsCount();
-        
-        // Si estábamos en la vista de solicitud, cambiar a chat normal
-        if (currentChat.type === 'request') {
-            const request = data.incomingRequests.find(r => r.id === requestId);
-            if (request) {
-                // Simular que ahora es un contacto
-                const newContact = {
-                    id: request.id,
-                    name: request.name,
-                    status: 'online',
-                    type: request.type,
-                    isContact: true,
-                    lastSeen: 'En línea',
-                    avatar: request.avatar
-                };
-                
-                // Agregar a la lista de contactos (solo en el frontend para la simulación)
-                data.contacts.push(newContact);
-                
-                // Cambiar a chat individual con este usuario
-                switchToChat(requestId, 'individual', false);
+        fetch(`/api/contacts/requests/${requestId}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.error); });
             }
-        }
+            return response.json();
+        })
+        .then(data => {
+            showNotification('Solicitud aceptada', 'success');
+            
+            if (element) {
+                element.remove();
+            }
+            
+            // Actualizar contador de solicitudes
+            updateRequestsCount();
+            
+            // Si estábamos en la vista de solicitud, redirigir al nuevo chat
+            if (currentChat.type === 'request' && currentChat.id === requestId) {
+                // Recargar la página para obtener los nuevos datos (o podríamos agregar el contacto dinámicamente)
+                location.reload();
+            } else {
+                // Recargar la página para reflejar el nuevo contacto
+                location.reload();
+            }
+        })
+        .catch(err => {
+            console.error('Error al aceptar solicitud:', err);
+            showNotification(err.message || 'Error al aceptar solicitud', 'error');
+        });
     }
     
     function rejectRequest(requestId, element = null) {
-        // En un caso real, aquí se enviaría al servidor
-        showNotification('Solicitud rechazada', 'info');
-        
-        if (element) {
-            element.remove();
-        }
-        
-        // Actualizar contador
-        updateRequestsCount();
-        
-        // Si estábamos en la vista de solicitud, volver a la lista
-        if (currentChat.type === 'request') {
-            const chatsTab = document.querySelector('.tab-btn[data-tab="chats"]');
-            if (chatsTab) {
-                chatsTab.click();
+        fetch(`/api/contacts/requests/${requestId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.error); });
             }
-        }
+            return response.json();
+        })
+        .then(data => {
+            showNotification('Solicitud rechazada', 'info');
+            
+            if (element) {
+                element.remove();
+            }
+            
+            updateRequestsCount();
+            
+            // Si estábamos en la vista de solicitud, volver a la lista de chats
+            if (currentChat.type === 'request' && currentChat.id === requestId) {
+                const chatsTab = document.querySelector('.tab-btn[data-tab="chats"]');
+                if (chatsTab) {
+                    chatsTab.click();
+                }
+                // Recargar para actualizar la lista
+                location.reload();
+            } else {
+                location.reload();
+            }
+        })
+        .catch(err => {
+            console.error('Error al rechazar solicitud:', err);
+            showNotification(err.message || 'Error al rechazar solicitud', 'error');
+        });
     }
     
     function updateRequestsCount() {
@@ -742,62 +783,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    }
-    
-    function getChatMessages(chatId, type) {
-        // Mensajes simulados para diferentes chats
-        if (type === 'channel') {
-            return [];
-        }
-        
-        // Para chats individuales, mensajes simulados por contacto
-        const individualMessages = {
-            2: [ // Ana García
-                { id: 1, sender: 'Ana García', text: 'Hola, ¿has revisado el artículo que te envié?', time: '10:30', isOwn: false, status: 'read' },
-                { id: 2, sender: 'Tú', text: 'Sí, justo lo estaba leyendo. Muy interesante la metodología que usaron.', time: '10:32', isOwn: true, status: 'read' },
-                { id: 3, sender: 'Ana García', text: '¿Podrías enviarme tu análisis cuando lo termines? Me gustaría contrastar opiniones.', time: '10:33', isOwn: false, status: 'read' },
-                { id: 4, sender: 'Tú', text: 'Claro, tengo algunas notas aquí. Te las envío mañana.', time: '10:35', isOwn: true, status: 'delivered' }
-            ],
-            3: [ // Carlos López
-                { id: 1, sender: 'Carlos López', text: 'Hola, ¿cómo va el proyecto?', time: '11:20', isOwn: false, status: 'read' },
-                { id: 2, sender: 'Tú', text: 'Bien, avanzando. ¿Tú?', time: '11:22', isOwn: true, status: 'read' },
-                { id: 3, sender: 'Carlos López', text: 'Terminando la fase de pruebas.', time: '11:25', isOwn: false, status: 'read' }
-            ],
-            4: [ // María Rodríguez (solicitud enviada)
-                // No hay mensajes porque es una solicitud pendiente
-            ],
-            5: [ // Pedro Sánchez
-                { id: 1, sender: 'Pedro Sánchez', text: '¿Nos vemos en la conferencia?', time: '09:15', isOwn: false, status: 'read' },
-                { id: 2, sender: 'Tú', text: 'Sí, allí nos vemos.', time: '09:18', isOwn: true, status: 'read' }
-            ]
-        };
-        
-        return individualMessages[chatId] || [
-            { id: 1, sender: 'Contacto', text: 'Hola, ¿cómo estás?', time: '10:00', isOwn: false, status: 'read' },
-            { id: 2, sender: 'Tú', text: 'Muy bien, ¿y tú?', time: '10:02', isOwn: true, status: 'read' }
-        ];
-    }
-    
-    function getGroupMessages(groupId) {
-        // Mensajes simulados para grupos
-        const groupMessages = {
-            101: [ // Grupo de Neurociencia
-                { id: 1, sender: 'Ana García', text: 'Hola a todos, ¿han leído el último paper de Park?', time: '10:45', isOwn: false, status: 'read' },
-                { id: 2, sender: 'Carlos López', text: 'Sí, muy interesante la metodología.', time: '10:50', isOwn: false, status: 'read' },
-                { id: 3, sender: 'Tú', text: 'Aún no, ¿me lo puedes enviar?', time: '10:52', isOwn: true, status: 'read' },
-                { id: 4, sender: 'Ana García', text: 'Claro, te lo paso por correo.', time: '10:55', isOwn: false, status: 'read' }
-            ],
-            102: [ // Estudios Filosóficos
-                { id: 1, sender: 'Carlos López', text: 'La discusión sobre Heidegger fue muy productiva.', time: 'Ayer 15:30', isOwn: false, status: 'read' },
-                { id: 2, sender: 'Tú', text: 'Sí, me ayudó a aclarar varios conceptos.', time: 'Ayer 15:35', isOwn: true, status: 'read' },
-                { id: 3, sender: 'Ana García', text: '¿Podemos programar otra reunión?', time: 'Ayer 16:00', isOwn: false, status: 'read' }
-            ]
-        };
-        
-        return groupMessages[groupId] || [
-            { id: 1, sender: 'Usuario', text: 'Bienvenidos al grupo!', time: '10:00', isOwn: false, status: 'read' },
-            { id: 2, sender: 'Tú', text: 'Hola a todos!', time: '10:02', isOwn: true, status: 'read' }
-        ];
     }
     
     function simulateChatActivity() {

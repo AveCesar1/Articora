@@ -1,3 +1,8 @@
+const IsRegistered = require('../../middlewares/auth');
+const checkRoles = require('../../middlewares/checkrole');
+const soloValidado = checkRoles(['validado', 'admin']);
+
+module.exports = function(app) {
     // Listar fuentes (simulado con datos mock)
     app.get('/lists', IsRegistered, (req, res) => {
         // Determinar tipo de usuario (simulado)
@@ -880,3 +885,4 @@
             totalSourcesCount: mockSources.length 
         });
     });
+};

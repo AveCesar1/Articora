@@ -89,6 +89,7 @@
                     %>
                     <div class="chat-item <%= isActive ? 'active' : '' %>" 
                          data-id="<%= contact.id %>" 
+                         data-chat-id="<%= contact.chatId %>"
                          data-type="<%= contact.type === 'channel' ? 'channel' : 'individual' %>"
                          data-is-request="<%= !contact.isContact %>">
                         <div class="d-flex align-items-center">
@@ -403,7 +404,7 @@
     </div>
 </div>
 
-<!-- Modales (se mantienen igual) -->
+<!-- Modales -->
 <div class="modal fade" id="createGroupModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

@@ -1,5 +1,38 @@
 // profile.js
 document.addEventListener('DOMContentLoaded', function() {
+    const sendRequestBtn = document.querySelector('.send-contact-request');
+    if (sendRequestBtn) {
+        sendRequestBtn.addEventListener('click', function() {
+            const receiverId = this.dataset.userId;
+            const message = prompt('Escribe un mensaje inicial (opcional):');
+            if (message === null) return; // Cancelar
+
+            fetch('/api/contacts/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receiverId, initialMessage: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Solicitud enviada correctamente');
+                    // Deshabilitar el botón y cambiar texto
+                    const btn = document.querySelector('.send-contact-request');
+                    btn.disabled = true;
+                    btn.textContent = 'Solicitud enviada';
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-secondary');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error al enviar solicitud');
+            });
+        });
+    }
+
     // Inicializar la gráfica de radar
     const radarCanvas = document.getElementById('readingRadarChart');
     
