@@ -169,9 +169,11 @@ module.exports = function(app) {
             const contactsFromChats = [];
             for (let chat of chats) {
                 const other = req.db.prepare(`
-                    SELECT u.id, u.username, u.full_name, u.profile_picture, u.is_validated, u.last_login
+                    SELECT u.id, u.username, u.full_name, u.profile_picture, u.is_validated,
+                        k.public_key
                     FROM chat_participants cp
                     JOIN users u ON cp.user_id = u.id
+                    LEFT JOIN user_keys k ON u.id = k.user_id
                     WHERE cp.chat_id = ? AND cp.user_id != ?
                 `).get(chat.chat_id, currentUserId);
 
@@ -182,15 +184,16 @@ module.exports = function(app) {
                     `).get(chat.chat_id, currentUserId).count;
 
                     contactsFromChats.push({
-                        id: other.id,               // ID del usuario (para identificar el contacto)
-                        chatId: chat.chat_id,       // ID del chat (para operaciones de mensajería)
+                        id: other.id,
+                        chatId: chat.chat_id,
                         name: other.full_name || other.username,
-                        status: 'offline',          // temporal, luego se puede obtener de tabla de estados
+                        status: 'offline',
                         type: other.is_validated ? 'validated' : 'registered',
                         isContact: true,
                         lastSeen: 'Desconectado',
                         avatar: other.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(other.full_name || other.username)}&background=2E8B57&color=fff`,
-                        unread: unread
+                        unread: unread,
+                        publicKey: other.public_key  // <-- agregado
                     });
                 }
             }

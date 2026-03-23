@@ -45,4 +45,19 @@ module.exports = function (app) {
             jsFile: 'register.js'
         });
     });
+
+    // En authGets.js (o el archivo que corresponda)
+    app.get('/verify-email', (req, res) => {
+        const email = req.query.email;
+        if (!email) {
+            return res.redirect('/login');
+        }
+        res.render('verify-email', {
+            title: 'Verificar correo - Artícora',
+            currentPage: 'verify-email',
+            cssFile: 'verify-email.css',
+            jsFile: 'verify-email.js',
+            email: email
+        });
+    });
 };

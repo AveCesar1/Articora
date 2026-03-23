@@ -1,4 +1,4 @@
-// chat.js - Funcionalidad completa del chat
+// chat.js - Funcionalidad completa del chat (con cifrado E2E real)
 
 document.addEventListener('DOMContentLoaded', function() {
     // Usar datos desde window (pasados desde el servidor)
@@ -8,30 +8,63 @@ document.addEventListener('DOMContentLoaded', function() {
     // Estado actual del chat
     let currentChat = data.activeChat;
 
-    // Elementos del DOM
+    // Elementos del DOM (sin cambios)
     const chatItems = document.querySelectorAll('.chat-item');
     const requestItems = document.querySelectorAll('.request-item');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const newChatBtn = document.getElementById('newChatBtn');
     const searchInput = document.querySelector('.sidebar-search input');
-    
-    // Inicializar
-    initChat();
-    
-    function initChat() {
+
+    // Variables para cifrado
+    let myPrivateKey = null;
+    let myPublicKeyBase64 = null;
+
+    async function loadMyKeys() {
+        try {
+            // Recuperar clave privada
+            const storedPrivate = localStorage.getItem('articora_private_key');
+            if (!storedPrivate) {
+                console.error('No se encontró la clave privada en localStorage. El cifrado no funcionará.');
+                showNotification('Error: No se encontró tu clave privada. No podrás descifrar mensajes.', 'error');
+                return false;
+            }
+            myPrivateKey = await importPrivateKey(storedPrivate);
+            console.log('Clave privada cargada correctamente');
+
+            // Obtener clave pública (de localStorage o de data.user)
+            myPublicKeyBase64 = localStorage.getItem('articora_public_key');
+            if (!myPublicKeyBase64 && currentUser.publicKey) {
+                myPublicKeyBase64 = currentUser.publicKey;
+                // Guardar para futuras sesiones
+                localStorage.setItem('articora_public_key', myPublicKeyBase64);
+            }
+            if (!myPublicKeyBase64) {
+                console.warn('No se encontró la clave pública propia. No se podrá cifrar mensajes para uno mismo.');
+            }
+            return true;
+        } catch (err) {
+            console.error('Error al cargar claves:', err);
+            showNotification('Error al cargar claves de cifrado. Recarga la página.', 'error');
+            return false;
+        }
+    }
+
+    async function initChat() {
+        // Cargar claves antes de cualquier interacción
+        const keysLoaded = await loadMyKeys();
+        if (!keysLoaded) {
+            // Podemos continuar, pero el cifrado no funcionará
+        }
+
         console.log('Inicializando chat con datos:', data);
         
-        // Configurar navegación por pestañas
+        // Configurar navegación por pestañas (sin cambios)
         tabBtns.forEach(btn => {
             btn.addEventListener('click', function() {
                 const tab = this.dataset.tab;
-                
-                // Actualizar botones activos
                 tabBtns.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                
-                // Mostrar contenido correspondiente
                 tabContents.forEach(content => {
                     content.classList.remove('active');
                     if (content.id === `${tab}-content`) {
@@ -43,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Configurar clic en chats (individuales, canales y grupos)
         chatItems.forEach(item => {
-            item.addEventListener('click', function(e) {
+            item.addEventListener('click', async function(e) {   // <-- async
                 e.stopPropagation();
                 
                 const userId = parseInt(this.dataset.id);
@@ -52,46 +85,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 const isRequest = this.dataset.isRequest === 'true';
                 
                 console.log('Clic en chat:', { userId, chatId, chatType, isRequest });
-
+                
                 // Actualizar estado activo
                 chatItems.forEach(i => i.classList.remove('active'));
                 this.classList.add('active');
                 
-                // Cambiar al chat seleccionado, pasando el chatId si existe
-                switchToChat(userId, chatId, chatType, isRequest);
+                // Cambiar al chat seleccionado, pasando el chatId
+                await switchToChat(userId, chatId, chatType, isRequest);   // <-- await
             });
         });
         
-        // Configurar solicitudes entrantes
+        // Configurar solicitudes entrantes (con async)
         requestItems.forEach(item => {
-            item.addEventListener('click', function(e) {
-                // Solo manejar clic en el item, no en los botones
+            item.addEventListener('click', async function(e) {
                 if (!e.target.closest('.request-actions')) {
                     const requestId = parseInt(this.dataset.id);
-                    
-                    // Cambiar a vista de solicitud
-                    switchToChat(requestId, 'request', true);
+                    await switchToChat(requestId, null, 'request', true);
                 }
             });
             
-            // Botones de aceptar/rechazar
             const acceptBtn = item.querySelector('.accept-btn');
             const rejectBtn = item.querySelector('.reject-btn');
             const reportBtn = item.querySelector('.report-btn');
             
             if (acceptBtn) {
-                acceptBtn.addEventListener('click', function(e) {
+                acceptBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     const requestId = parseInt(item.dataset.id);
-                    acceptRequest(requestId, item);
+                    await acceptRequest(requestId, item);
                 });
             }
             
             if (rejectBtn) {
-                rejectBtn.addEventListener('click', function(e) {
+                rejectBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     const requestId = parseInt(item.dataset.id);
-                    rejectRequest(requestId, item);
+                    await rejectRequest(requestId, item);
                 });
             }
             
@@ -128,11 +157,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Scroll al final de los mensajes
         scrollToBottom();
         
-        // Simular actividad del chat
+        // Simular actividad del chat (opcional, se puede quitar)
         simulateChatActivity();
     }
-    
-    function switchToChat(userId, chatId, type, isRequest = false) {
+
+    async function switchToChat(userId, chatId, type, isRequest = false) {
         console.log('Cambiando a chat:', { userId, chatId, type, isRequest });
         
         // Actualizar el objeto currentChat con los datos básicos
@@ -182,32 +211,56 @@ document.addEventListener('DOMContentLoaded', function() {
         // Actualizar encabezado inmediatamente
         updateChatHeader();
         
-        // Si es un chat individual normal (no solicitud, no canal), obtener mensajes del servidor
+        // Si es un chat individual normal (no solicitud, no canal), obtener mensajes del servidor y descifrar
         if (type === 'individual' && !isRequest && chatId) {
-            fetch(`/api/chats/${chatId}/messages`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error al cargar mensajes');
+            try {
+                const response = await fetch(`/api/chats/${chatId}/messages`);
+                if (!response.ok) throw new Error('Error al cargar mensajes');
+                const messages = await response.json();
+                
+                // Descifrar mensajes
+                const decryptedMessages = [];
+                for (const m of messages) {
+                    try {
+                        // Parsear encrypted_key (debe ser JSON)
+                        const encryptedKeys = JSON.parse(m.encrypted_key);
+                        const encryptedAESForMe = encryptedKeys[currentUser.id];
+                        if (!encryptedAESForMe) throw new Error('No hay clave para este usuario');
+                        
+                        // Descifrar la clave AES con mi privada
+                        const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
+                        const aesKey = await importAESKey(aesRaw);
+                        
+                        // Descifrar el contenido
+                        const plaintext = await decryptAES(aesKey, m.iv, m.encrypted_content);
+                        
+                        decryptedMessages.push({
+                            id: m.id,
+                            sender: m.username,
+                            text: plaintext,
+                            time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                            isOwn: m.user_id === currentUser.id,
+                            status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
+                        });
+                    } catch (err) {
+                        console.error('Error descifrando mensaje:', err);
+                        decryptedMessages.push({
+                            id: m.id,
+                            sender: m.username,
+                            text: '[Mensaje cifrado no descifrable]',
+                            time: new Date(m.sent_at).toLocaleTimeString(),
+                            isOwn: m.user_id === currentUser.id,
+                            status: 'error'
+                        });
                     }
-                    return response.json();
-                })
-                .then(messages => {
-                    // Convertir mensajes al formato que espera la UI
-                    currentChat.messages = messages.map(m => ({
-                        id: m.id,
-                        sender: m.username,
-                        text: atob(m.encrypted_content), // simulación de descifrado
-                        time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                        isOwn: m.user_id === currentUser.id,
-                        status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
-                    }));
-                    updateMessagesArea();
-                    scrollToBottom();
-                })
-                .catch(err => {
-                    console.error('Error al cargar mensajes:', err);
-                    showNotification('Error al cargar mensajes', 'error');
-                });
+                }
+                currentChat.messages = decryptedMessages;
+                updateMessagesArea();
+                scrollToBottom();
+            } catch (err) {
+                console.error('Error al cargar mensajes:', err);
+                showNotification('Error al cargar mensajes', 'error');
+            }
         } else {
             // Para canales, grupos o solicitudes, usar los datos ya disponibles (o vacío)
             if (type === 'channel') {
@@ -232,6 +285,160 @@ document.addEventListener('DOMContentLoaded', function() {
         // Marcar como leído (solo para chats individuales)
         if (type === 'individual' && !isRequest && chatId) {
             markAsRead(chatId, type);
+        }
+    }
+
+    async function sendMessage(text) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (!messagesContainer) return;
+        
+        // Mostrar el mensaje inmediatamente en la UI (optimista)
+        const messageId = Date.now();
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message own new';
+        messageElement.dataset.messageId = messageId;
+        
+        messageElement.innerHTML = `
+            <div class="message-content">
+                ${currentChat.type === 'group' ? `<small class="message-sender">${currentUser.name}</small>` : ''}
+                <div class="message-bubble">
+                    <p class="mb-0">${text.replace(/\n/g, '<br>')}</p>
+                </div>
+                <div class="message-footer">
+                    <small class="text-muted">${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small>
+                    <div class="message-status">
+                        <i class="fas fa-check text-muted" title="Enviando..."></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insertar antes del encryption notice si existe
+        const encryptionNotice = messagesContainer.querySelector('.encryption-notice');
+        if (encryptionNotice) {
+            messagesContainer.insertBefore(messageElement, encryptionNotice);
+        } else {
+            messagesContainer.appendChild(messageElement);
+        }
+        
+        scrollToBottom();
+        
+        try {
+            // Obtener la clave pública del destinatario (para chat individual)
+            const contact = data.contacts.find(c => c.id === currentChat.id);
+            if (!contact || !contact.publicKey) {
+                throw new Error('No se encontró la clave pública del destinatario');
+            }
+            const recipientPublicKey = await importPublicKey(contact.publicKey);
+            
+            // 1. Generar clave AES aleatoria
+            const aesKey = await generateAESKey();
+            const aesRaw = await exportAESKey(aesKey);
+            
+            // 2. Cifrar el mensaje con AES
+            const { iv, encryptedContent } = await encryptAES(aesKey, text);
+            
+            // 3. Cifrar la clave AES con la pública del receptor y con la propia
+            const encryptedForRecipient = await encryptAESKeyWithRSA(recipientPublicKey, aesRaw);
+            
+            // Cifrar para uno mismo
+            if (!myPublicKeyBase64) {
+                throw new Error('No se encontró la clave pública propia');
+            }
+            const myPublicKey = await importPublicKey(myPublicKeyBase64);
+            const encryptedForSelf = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
+            
+            // Construir el objeto encrypted_key: mapeo de user_id a base64 cifrada
+            const encryptedKeys = {
+                [currentUser.id]: encryptedForSelf,
+                [currentChat.id]: encryptedForRecipient
+            };
+            const encryptedKeyJson = JSON.stringify(encryptedKeys);
+            
+            // 4. Enviar al servidor
+            const response = await fetch(`/api/chats/${currentChat.chatId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    encryptedContent: encryptedContent,
+                    iv: iv,
+                    encryptedKey: encryptedKeyJson,
+                    contentType: 'text'
+                })
+            });
+            const responseData = await response.json();
+            if (!response.ok) throw new Error(responseData.error || 'Error al enviar');
+            
+            // Actualizar el estado del mensaje a "enviado"
+            const statusIcon = messageElement.querySelector('.message-status i');
+            if (statusIcon) {
+                statusIcon.className = 'fas fa-check text-muted';
+                statusIcon.title = 'Enviado';
+            }
+        } catch (err) {
+            console.error('Error al enviar mensaje:', err);
+            const statusIcon = messageElement.querySelector('.message-status i');
+            if (statusIcon) {
+                statusIcon.className = 'fas fa-exclamation-circle text-danger';
+                statusIcon.title = 'Error al enviar';
+            }
+            showNotification('No se pudo enviar el mensaje: ' + err.message, 'error');
+        }
+    }
+
+    async function acceptRequest(requestId, element = null) {
+        try {
+            const response = await fetch(`/api/contacts/requests/${requestId}/accept`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error);
+            }
+            showNotification('Solicitud aceptada', 'success');
+            
+            if (element) {
+                element.remove();
+            }
+            updateRequestsCount();
+            
+            // Recargar la página para actualizar los datos
+            location.reload();
+        } catch (err) {
+            console.error('Error al aceptar solicitud:', err);
+            showNotification(err.message || 'Error al aceptar solicitud', 'error');
+        }
+    }
+
+    async function rejectRequest(requestId, element = null) {
+        try {
+            const response = await fetch(`/api/contacts/requests/${requestId}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error);
+            }
+            showNotification('Solicitud rechazada', 'info');
+            
+            if (element) {
+                element.remove();
+            }
+            updateRequestsCount();
+            
+            // Si estábamos en la vista de solicitud, volver a la lista de chats
+            if (currentChat.type === 'request' && currentChat.id === requestId) {
+                const chatsTab = document.querySelector('.tab-btn[data-tab="chats"]');
+                if (chatsTab) {
+                    chatsTab.click();
+                }
+            }
+            location.reload();
+        } catch (err) {
+            console.error('Error al rechazar solicitud:', err);
+            showNotification(err.message || 'Error al rechazar solicitud', 'error');
         }
     }
     
@@ -593,148 +800,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function sendMessage(text) {
-        const messagesContainer = document.getElementById('messagesContainer');
-        if (!messagesContainer) return;
-        
-        // Mostrar el mensaje inmediatamente en la UI (optimista)
-        const messageId = Date.now();
-        const messageElement = document.createElement('div');
-        messageElement.className = 'message own new';
-        messageElement.dataset.messageId = messageId;
-        
-        messageElement.innerHTML = `
-            <div class="message-content">
-                ${currentChat.type === 'group' ? `<small class="message-sender">${currentUser.name}</small>` : ''}
-                <div class="message-bubble">
-                    <p class="mb-0">${text.replace(/\n/g, '<br>')}</p>
-                </div>
-                <div class="message-footer">
-                    <small class="text-muted">${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small>
-                    <div class="message-status">
-                        <i class="fas fa-check text-muted" title="Enviando..."></i>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Insertar antes del encryption notice si existe
-        const encryptionNotice = messagesContainer.querySelector('.encryption-notice');
-        if (encryptionNotice) {
-            messagesContainer.insertBefore(messageElement, encryptionNotice);
-        } else {
-            messagesContainer.appendChild(messageElement);
-        }
-        
-        scrollToBottom();
-        
-        // Enviar al servidor
-        fetch(`/api/chats/${currentChat.chatId}/messages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                encryptedContent: btoa(text),   // simulamos cifrado con base64
-                iv: 'dummy',
-                encryptedKey: 'dummy',
-                contentType: 'text'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Actualizar el estado del mensaje a "enviado"
-            const statusIcon = messageElement.querySelector('.message-status i');
-            if (statusIcon) {
-                statusIcon.className = 'fas fa-check text-muted';
-                statusIcon.title = 'Enviado';
-            }
-            // Podríamos guardar el messageId real devuelto por el servidor si quisiéramos
-        })
-        .catch(err => {
-            console.error('Error al enviar mensaje:', err);
-            // Marcar el mensaje como error
-            const statusIcon = messageElement.querySelector('.message-status i');
-            if (statusIcon) {
-                statusIcon.className = 'fas fa-exclamation-circle text-danger';
-                statusIcon.title = 'Error al enviar';
-            }
-            showNotification('No se pudo enviar el mensaje', 'error');
-        });
-    }
-    
-    function acceptRequest(requestId, element = null) {
-        fetch(`/api/contacts/requests/${requestId}/accept`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.error); });
-            }
-            return response.json();
-        })
-        .then(data => {
-            showNotification('Solicitud aceptada', 'success');
-            
-            if (element) {
-                element.remove();
-            }
-            
-            // Actualizar contador de solicitudes
-            updateRequestsCount();
-            
-            // Si estábamos en la vista de solicitud, redirigir al nuevo chat
-            if (currentChat.type === 'request' && currentChat.id === requestId) {
-                // Recargar la página para obtener los nuevos datos (o podríamos agregar el contacto dinámicamente)
-                location.reload();
-            } else {
-                // Recargar la página para reflejar el nuevo contacto
-                location.reload();
-            }
-        })
-        .catch(err => {
-            console.error('Error al aceptar solicitud:', err);
-            showNotification(err.message || 'Error al aceptar solicitud', 'error');
-        });
-    }
-    
-    function rejectRequest(requestId, element = null) {
-        fetch(`/api/contacts/requests/${requestId}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.error); });
-            }
-            return response.json();
-        })
-        .then(data => {
-            showNotification('Solicitud rechazada', 'info');
-            
-            if (element) {
-                element.remove();
-            }
-            
-            updateRequestsCount();
-            
-            // Si estábamos en la vista de solicitud, volver a la lista de chats
-            if (currentChat.type === 'request' && currentChat.id === requestId) {
-                const chatsTab = document.querySelector('.tab-btn[data-tab="chats"]');
-                if (chatsTab) {
-                    chatsTab.click();
-                }
-                // Recargar para actualizar la lista
-                location.reload();
-            } else {
-                location.reload();
-            }
-        })
-        .catch(err => {
-            console.error('Error al rechazar solicitud:', err);
-            showNotification(err.message || 'Error al rechazar solicitud', 'error');
-        });
-    }
-    
     function updateRequestsCount() {
         const requestCount = document.querySelectorAll('.request-item').length;
         const badge = document.querySelector('.tab-btn[data-tab="requests"] .badge');
@@ -855,6 +920,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 5000);
     }
+
+    initChat();
     
     // Agregar CSS para animaciones
     const style = document.createElement('style');

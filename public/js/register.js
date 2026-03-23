@@ -1,8 +1,47 @@
-// Script específico para la página de registro
 document.addEventListener('DOMContentLoaded', function () {
     const registerForm = document.getElementById('registerForm');
     const errorMessage = document.getElementById('error-message');
     const successMessage = document.getElementById('success-message');
+    let publicKeyBase64 = null;
+    let privateKeyBase64 = null;
+
+    async function initCrypto() {
+        try {
+            // Verificar disponibilidad de Web Crypto
+            if (!window.crypto || !window.crypto.subtle) {
+                throw new Error('Web Crypto API no disponible. Usa localhost o HTTPS.');
+            }
+            // Generar par RSA
+            const keyPair = await generateRSAKeyPair();
+            const privateKey = keyPair.privateKey;
+            const publicKey = keyPair.publicKey;
+
+            // Exportar
+            publicKeyBase64 = await exportPublicKey(publicKey);
+            privateKeyBase64 = await exportPrivateKey(privateKey);
+
+            document.getElementById('publicKey').value = publicKeyBase64;
+
+            // Guardar en localStorage
+            localStorage.setItem('articora_private_key', privateKeyBase64);
+            localStorage.setItem('articora_public_key', publicKeyBase64);
+
+            // Asignar al campo oculto del formulario
+            const publicKeyInput = document.getElementById('publicKey');
+            if (publicKeyInput) {
+                publicKeyInput.value = publicKeyBase64;
+            }
+        } catch (err) {
+            console.error('Error generando claves RSA:', err);
+            alert('No se pudo generar la clave de cifrado. Asegúrate de usar localhost o HTTPS.');
+            // Deshabilitar el botón de registro para evitar envío sin claves
+            const submitBtn = registerForm?.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+        }
+    }
+
+    // Iniciar generación de claves
+    initCrypto();
 
     // Función para mostrar/ocultar contraseña
     window.togglePasswordVisibility = function (fieldId) {
@@ -31,6 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Validación de contraseñas en el cliente
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            const publicKey = document.getElementById('publicKey').value;
 
             if (password !== confirmPassword) {
                 showError('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
@@ -49,7 +89,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 username: document.getElementById('username').value,
                 email: document.getElementById('email').value,
                 password: password,
-                confirmPassword: confirmPassword
+                confirmPassword: confirmPassword,
+                publicKey: publicKey
             };
 
             // Deshabilitar el botón para evitar doble envío
@@ -59,8 +100,6 @@ document.addEventListener('DOMContentLoaded', function () {
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creando cuenta...';
 
             try {
-                console.log('Enviando datos de registro:', formData);
-
                 const response = await fetch('/register', {
                     method: 'POST',
                     headers: {
@@ -70,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 const result = await response.json();
-                console.log('Respuesta del servidor:', result);
 
                 // Restaurar botón
                 submitBtn.disabled = false;

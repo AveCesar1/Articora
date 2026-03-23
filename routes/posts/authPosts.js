@@ -17,8 +17,8 @@ module.exports = function (app) {
     app.post('/register', async (req, res) => {
         console.log('POST /register recibido:', req.body);
 
-        let { username, email, password, confirmPassword } = req.body;
-
+        let { username, email, password, confirmPassword, publicKey } = req.body;
+        
         // Sanitize inputs (do not sanitize password)
         username = sanitizeText(username);
         email = sanitizeText(email).toLowerCase();
@@ -68,10 +68,11 @@ module.exports = function (app) {
             req.session.pendingRegistration = {
                 username,
                 email,
-                password: hashedPassword, // Almacenamos el hash, no la contraseña en texto
+                password: hashedPassword,
                 verificationCode,
                 expiresAt,
-                attempts: 0 // Intentos de verificación
+                attempts: 0,
+                publicKey
             };
 
             console.log(`=========================================`);
@@ -194,19 +195,25 @@ module.exports = function (app) {
             try {
                 console.log('Verificando conexión a la base de datos:', req.db);
 
+                // Insertar usuario en BD
                 const result = req.db.prepare(`
-                    INSERT INTO users (
-                        username, email, password, profile_picture, bio, available_for_messages, 
-                        academic_level, is_validated, is_verified, created_at, last_login, 
-                        account_active, login_attempts, locked_until
-                    ) VALUES (?, ?, ?, NULL, NULL, 0, NULL, 0, 1, datetime('now'), NULL, 1, 0, NULL)
+                    INSERT INTO users (username, email, password, profile_picture, bio, available_for_messages, 
+                                    academic_level, is_validated, is_verified, created_at, last_login, 
+                                    account_active, login_attempts, locked_until)
+                    VALUES (?, ?, ?, NULL, NULL, 0, NULL, 0, 1, datetime('now'), NULL, 1, 0, NULL)
                 `).run(
                     pending.username,
                     hashedEmail,
                     pending.password
                 );
 
-                console.log(`Usuario ${pending.username} insertado con ID: ${result.lastInsertRowid}`);
+                const userId = result.lastInsertRowid;
+                const publicKey = pending.publicKey;
+                if (publicKey) {
+                    req.db.prepare('INSERT INTO user_keys (user_id, public_key) VALUES (?, ?)').run(userId, publicKey);
+                }
+
+                if (debugging) console.log(`Clave de usuario ${publicKey} del usuario ${userId} insertada`);
 
                 // Limpiar registro pendiente de la sesión
                 delete req.session.pendingRegistration;

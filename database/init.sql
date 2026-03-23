@@ -75,6 +75,13 @@ CREATE TABLE IF NOT EXISTS documentos_verificacion (
   FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS user_keys (
+    user_id INTEGER PRIMARY KEY,
+    public_key TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- ============================================
 -- MODULE 2: CATEGORIES AND SUBCATEGORIES
 -- ============================================
