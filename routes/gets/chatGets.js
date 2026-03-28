@@ -261,8 +261,57 @@ module.exports = function(app) {
                 };
             });
 
-            // 5. Grupos (vacío por ahora)
+            // 5. Grupos del usuario
             const groups = [];
+            const userGroups = req.db.prepare(`
+                SELECT c.id, c.group_name as name, c.created_at,
+                    (SELECT COUNT(*) FROM chat_participants WHERE chat_id = c.id) as member_count
+                FROM chats c
+                JOIN chat_participants cp ON c.id = cp.chat_id
+                WHERE cp.user_id = ? AND c.chat_type = 'group'
+                ORDER BY c.last_message_at DESC
+            `).all(currentUserId);
+
+            for (const g of userGroups) {
+                // Obtener último mensaje (preview)
+                const lastMessage = req.db.prepare(`
+                    SELECT m.encrypted_content, m.user_id, u.username
+                    FROM messages m
+                    JOIN users u ON m.user_id = u.id
+                    WHERE m.chat_id = ?
+                    ORDER BY m.sent_at DESC
+                    LIMIT 1
+                `).get(g.id);
+
+                let lastMessagePreview = null;
+                if (lastMessage) {
+                    lastMessagePreview = {
+                        sender: lastMessage.username,
+                        text: '[Mensaje cifrado]'
+                    };
+                }
+
+                // Obtener participantes con sus claves públicas (para cifrado)
+                const participants = req.db.prepare(`
+                    SELECT cp.user_id, u.username, u.full_name, u.profile_picture, k.public_key
+                    FROM chat_participants cp
+                    JOIN users u ON cp.user_id = u.id
+                    LEFT JOIN user_keys k ON u.id = k.user_id
+                    WHERE cp.chat_id = ?
+                `).all(g.id);
+
+                groups.push({
+                    id: g.id,
+                    name: g.name,
+                    description: '',
+                    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(g.name)}&background=8B4513&color=fff&bold=true`,
+                    members: g.member_count,
+                    maxMembers: 12,      // valor por defecto, se puede obtener de configuración
+                    isMember: true,
+                    lastMessage: lastMessagePreview,
+                    participants: participants  // importante para cifrado
+                });
+            }
 
             // 6. Mensajes del canal (con datos del usuario)
             const now = new Date();

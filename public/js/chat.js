@@ -8,13 +8,44 @@ document.addEventListener('DOMContentLoaded', function() {
     // Estado actual del chat
     let currentChat = data.activeChat;
 
-    // Elementos del DOM (sin cambios)
+    // Elementos del DOM
     const chatItems = document.querySelectorAll('.chat-item');
     const requestItems = document.querySelectorAll('.request-item');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const newChatBtn = document.getElementById('newChatBtn');
     const searchInput = document.querySelector('.sidebar-search input');
+
+    const createGroupForm = document.getElementById('createGroupForm');
+    if (createGroupForm) {
+        createGroupForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const groupName = this.querySelector('input[type="text"]').value;
+            const selectedMembers = Array.from(this.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => parseInt(cb.value, 10));
+
+            if (!groupName) {
+                showNotification('Debes ingresar un nombre para el grupo', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupName, memberIds: selectedMembers })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                showNotification('Grupo creado exitosamente', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } catch (err) {
+                console.error(err);
+                showNotification(err.message || 'Error al crear grupo', 'error');
+            }
+        });
+    }
 
     // Variables para cifrado
     let myPrivateKey = null;
@@ -190,7 +221,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: group.name,
                     avatar: group.avatar,
                     isRequest: false,
-                    messages: []
+                    messages: [],
+                    participants: group.participants
                 };
             }
         } else if (type === 'request') {
@@ -212,13 +244,12 @@ document.addEventListener('DOMContentLoaded', function() {
         updateChatHeader();
         
         // Si es un chat individual normal (no solicitud, no canal), obtener mensajes del servidor y descifrar
-        if (type === 'individual' && !isRequest && chatId) {
+        if ((type === 'individual' || type === 'group') && !isRequest && chatId) {
             try {
                 const response = await fetch(`/api/chats/${chatId}/messages`);
                 if (!response.ok) throw new Error('Error al cargar mensajes');
                 const messages = await response.json();
-                
-                // Descifrar mensajes
+
                 const decryptedMessages = [];
                 for (const m of messages) {
                     try {
@@ -226,14 +257,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         const encryptedKeys = JSON.parse(m.encrypted_key);
                         const encryptedAESForMe = encryptedKeys[currentUser.id];
                         if (!encryptedAESForMe) throw new Error('No hay clave para este usuario');
-                        
+
                         // Descifrar la clave AES con mi privada
                         const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
                         const aesKey = await importAESKey(aesRaw);
-                        
+
                         // Descifrar el contenido
                         const plaintext = await decryptAES(aesKey, m.iv, m.encrypted_content);
-                        
+
                         decryptedMessages.push({
                             id: m.id,
                             sender: m.username,
@@ -262,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification('Error al cargar mensajes', 'error');
             }
         } else {
-            // Para canales, grupos o solicitudes, usar los datos ya disponibles (o vacío)
+            // Para canales o solicitudes, usar datos disponibles
             if (type === 'channel') {
                 currentChat.messages = data.articoraMessages.map(m => ({
                     id: m.id,
@@ -272,11 +303,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     isOwn: false,
                     status: 'read'
                 }));
-            } else if (type === 'group') {
+                updateMessagesArea();
+                scrollToBottom();
+            } else if (type === 'request') {
+                // Las solicitudes no tienen mensajes
                 currentChat.messages = [];
+                updateMessagesArea();
+                scrollToBottom();
             }
-            updateMessagesArea();
-            scrollToBottom();
         }
         
         // Actualizar área de entrada
@@ -324,38 +358,65 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
         
         try {
-            // Obtener la clave pública del destinatario (para chat individual)
-            const contact = data.contacts.find(c => c.id === currentChat.id);
-            if (!contact || !contact.publicKey) {
-                throw new Error('No se encontró la clave pública del destinatario');
+            let encryptedKeys = {};
+            let iv, encryptedContent, aesKey, aesRaw;
+
+            // 1. Generar clave AES aleatoria (común)
+            aesKey = await generateAESKey();
+            aesRaw = await exportAESKey(aesKey);
+            
+            // 2. Cifrar el mensaje con AES (común)
+            const encrypted = await encryptAES(aesKey, text);
+            iv = encrypted.iv;
+            encryptedContent = encrypted.encryptedContent;
+
+            if (currentChat.type === 'group') {
+                // Obtener participantes del grupo
+                const participants = currentChat.participants;
+                if (!participants || participants.length === 0) {
+                    throw new Error('No se encontraron participantes del grupo');
+                }
+
+                // Cifrar la clave AES para cada participante
+                for (const p of participants) {
+                    if (!p.public_key) continue;
+                    const pubKey = await importPublicKey(p.public_key);
+                    const encryptedKey = await encryptAESKeyWithRSA(pubKey, aesRaw);
+                    encryptedKeys[p.user_id] = encryptedKey;
+                }
+
+                // Asegurar que el propio usuario esté incluido (por si acaso)
+                if (!encryptedKeys[currentUser.id]) {
+                    const myPublicKey = await importPublicKey(myPublicKeyBase64);
+                    encryptedKeys[currentUser.id] = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
+                }
+            } else {
+                // Chat individual: destinatario
+                const contact = data.contacts.find(c => c.id === currentChat.id);
+                if (!contact || !contact.publicKey) {
+                    throw new Error('No se encontró la clave pública del destinatario');
+                }
+                const recipientPublicKey = await importPublicKey(contact.publicKey);
+                
+                // Cifrar clave AES para el destinatario
+                const encryptedForRecipient = await encryptAESKeyWithRSA(recipientPublicKey, aesRaw);
+                
+                // Cifrar para uno mismo
+                if (!myPublicKeyBase64) {
+                    throw new Error('No se encontró la clave pública propia');
+                }
+                const myPublicKey = await importPublicKey(myPublicKeyBase64);
+                const encryptedForSelf = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
+                
+                encryptedKeys = {
+                    [currentUser.id]: encryptedForSelf,
+                    [currentChat.id]: encryptedForRecipient
+                };
             }
-            const recipientPublicKey = await importPublicKey(contact.publicKey);
-            
-            // 1. Generar clave AES aleatoria
-            const aesKey = await generateAESKey();
-            const aesRaw = await exportAESKey(aesKey);
-            
-            // 2. Cifrar el mensaje con AES
-            const { iv, encryptedContent } = await encryptAES(aesKey, text);
-            
-            // 3. Cifrar la clave AES con la pública del receptor y con la propia
-            const encryptedForRecipient = await encryptAESKeyWithRSA(recipientPublicKey, aesRaw);
-            
-            // Cifrar para uno mismo
-            if (!myPublicKeyBase64) {
-                throw new Error('No se encontró la clave pública propia');
-            }
-            const myPublicKey = await importPublicKey(myPublicKeyBase64);
-            const encryptedForSelf = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
-            
-            // Construir el objeto encrypted_key: mapeo de user_id a base64 cifrada
-            const encryptedKeys = {
-                [currentUser.id]: encryptedForSelf,
-                [currentChat.id]: encryptedForRecipient
-            };
+
             const encryptedKeyJson = JSON.stringify(encryptedKeys);
             
-            // 4. Enviar al servidor
+            // 3. Enviar al servidor
             const response = await fetch(`/api/chats/${currentChat.chatId}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -165,4 +165,80 @@ module.exports = function(app) {
             res.status(500).json({ error: 'Error al enviar mensaje' });
         }
     });
+
+    // Crear un nuevo grupo
+    app.post('/api/groups', authenticate, async (req, res) => {
+        const userId = req.user.id;
+        const { groupName, memberIds } = req.body;
+
+        if (!groupName || groupName.trim() === '') {
+            return res.status(400).json({ error: 'Nombre del grupo requerido' });
+        }
+        if (groupName.length > 100) {
+            return res.status(400).json({ error: 'Nombre muy largo (máx 100)' });
+        }
+
+        // Validar que el usuario puede crear grupos (solo validados)
+        const user = req.db.prepare('SELECT is_validated FROM users WHERE id = ?').get(userId);
+        if (!user.is_validated) {
+            return res.status(403).json({ error: 'Solo usuarios validados pueden crear grupos' });
+        }
+
+        // Obtener límite de grupos (desde system_config o por defecto)
+        let maxGroups = 5;
+        const configGroups = req.db.prepare('SELECT config_value FROM system_config WHERE config_key = ?').get('max_groups_validated');
+        if (configGroups) maxGroups = parseInt(configGroups.config_value, 10);
+
+        const currentGroups = req.db.prepare(`
+            SELECT COUNT(*) as count FROM chats
+            WHERE chat_type = 'group' AND created_by = ?
+        `).get(userId).count;
+        if (currentGroups >= maxGroups) {
+            return res.status(400).json({ error: `Has alcanzado el límite de ${maxGroups} grupos` });
+        }
+
+        // Lista de participantes (incluye al creador)
+        let participants = [userId, ...(memberIds || [])];
+        participants = [...new Set(participants)]; // eliminar duplicados
+
+        // Obtener límite de miembros
+        let maxMembers = 12;
+        const configMembers = req.db.prepare('SELECT config_value FROM system_config WHERE config_key = ?').get('max_group_members');
+        if (configMembers) maxMembers = parseInt(configMembers.config_value, 10);
+        if (participants.length > maxMembers) {
+            return res.status(400).json({ error: `El grupo no puede tener más de ${maxMembers} miembros` });
+        }
+
+        // Verificar que todos los participantes existan y estén activos
+        const placeholders = participants.map(() => '?').join(',');
+        const existing = req.db.prepare(`
+            SELECT id FROM users WHERE id IN (${placeholders}) AND account_active = 1
+        `).all(...participants);
+        if (existing.length !== participants.length) {
+            return res.status(400).json({ error: 'Alguno de los usuarios no existe o está inactivo' });
+        }
+
+        // Crear el chat
+        const chatStmt = req.db.prepare(`
+            INSERT INTO chats (chat_type, group_name, created_by, last_message_at)
+            VALUES ('group', ?, ?, CURRENT_TIMESTAMP)
+        `);
+        const result = chatStmt.run(groupName, userId);
+        const chatId = result.lastInsertRowid;
+
+        // Insertar participantes
+        const participantStmt = req.db.prepare(`
+            INSERT INTO chat_participants (chat_id, user_id, is_admin)
+            VALUES (?, ?, ?)
+        `);
+        for (const pid of participants) {
+            const isAdmin = (pid === userId) ? 1 : 0;
+            participantStmt.run(chatId, pid, isAdmin);
+        }
+
+        res.status(201).json({
+            message: 'Grupo creado exitosamente',
+            groupId: chatId
+        });
+    });
 };

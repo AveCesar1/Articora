@@ -137,7 +137,10 @@
                     <% data.groups.filter(g => g.isMember).forEach(group => { 
                         const isActive = group.id === data.activeChat.id && data.activeChat.type === 'group';
                     %>
-                    <div class="chat-item <%= isActive ? 'active' : '' %>" data-id="<%= group.id %>" data-type="group">
+                    <div class="chat-item <%= isActive ? 'active' : '' %>" 
+                            data-id="<%= group.id %>" 
+                            data-chat-id="<%= group.id %>" 
+                            data-type="group">
                         <div class="d-flex align-items-center">
                             <img src="<%= group.avatar %>" alt="Avatar" class="avatar-sm rounded-circle me-3">
                             <div class="chat-info flex-grow-1">
