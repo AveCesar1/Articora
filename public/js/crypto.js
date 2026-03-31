@@ -144,3 +144,14 @@ function base64ToArrayBuffer(base64) {
     }
     return bytes.buffer;
 }
+
+async function decryptAESBuffer(aesKey, ivBase64, encryptedBase64) {
+    const iv = base64ToArrayBuffer(ivBase64);
+    const encrypted = base64ToArrayBuffer(encryptedBase64);
+    const decrypted = await window.crypto.subtle.decrypt(
+        { name: 'AES-CBC', iv },
+        aesKey,
+        encrypted
+    );
+    return decrypted; // ArrayBuffer
+}

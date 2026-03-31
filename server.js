@@ -6,6 +6,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 require('dotenv').config();
 const session = require('express-session');
+const multer = require('multer');
 // Import database module
 const dbModule = require('./lib/database');
 const { Session } = require('inspector');
@@ -97,6 +98,37 @@ app.use((req, res, next) => {
         } catch (e) { console.error('req-logger error', e); }
     }
     next();
+});
+
+// Directorio donde se guardarán los archivos
+const uploadDir = path.join(__dirname, '../public/uploads/chat_files');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  const allowedMimes = [
+    'application/pdf',
+    'image/png', 'image/jpeg', 'image/jpg',
+    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip', 'application/x-zip-compressed'
+  ];
+  if (allowedMimes.includes(file.mimetype)) cb(null, true);
+  else cb(new Error('Formato no permitido'), false);
+};
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter
 });
 
 // Import routes

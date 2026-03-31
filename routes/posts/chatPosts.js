@@ -1,4 +1,10 @@
 const authenticate = require('../../middlewares/auth');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
+// Configuración de multer (solo para almacenar temporalmente)
+const upload = multer({ dest: 'uploads/temp/' });
 
 module.exports = function(app) {
     // Enviar solicitud de contacto
@@ -240,5 +246,95 @@ module.exports = function(app) {
             message: 'Grupo creado exitosamente',
             groupId: chatId
         });
+    });
+
+    app.post('/api/chats/:chatId/files', authenticate, upload.single('file'), async (req, res) => {
+        const userId = req.user.id;
+        const chatId = parseInt(req.params.chatId, 10);
+        const file = req.file;
+
+        if (!file) {
+            return res.status(400).json({ error: 'No se envió archivo' });
+        }
+
+        // Recibir los campos adicionales (deben venir del cliente)
+        const { iv, encryptedKey, originalName, mimeType } = req.body;
+        if (!iv || !encryptedKey || !originalName) {
+            fs.unlinkSync(file.path);
+            return res.status(400).json({ error: 'Faltan datos de cifrado' });
+        }
+
+        try {
+            // 1. Verificar pertenencia al chat
+            const participant = req.db.prepare(
+                'SELECT 1 FROM chat_participants WHERE chat_id = ? AND user_id = ?'
+            ).get(chatId, userId);
+            if (!participant) {
+                fs.unlinkSync(file.path);
+                return res.status(403).json({ error: 'No perteneces a este chat' });
+            }
+
+            // 2. Verificar límite semanal (50 archivos)
+            const weekStart = new Date();
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // domingo
+            weekStart.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+
+            const countThisWeek = req.db.prepare(`
+                SELECT COUNT(*) as cnt FROM messages
+                WHERE user_id = ? AND content_type = 'file' AND sent_at BETWEEN ? AND ?
+            `).get(userId, weekStart.toISOString(), weekEnd.toISOString()).cnt;
+
+            if (countThisWeek >= 50) {
+                fs.unlinkSync(file.path);
+                return res.status(429).json({ error: 'Límite semanal de 50 archivos alcanzado' });
+            }
+
+            // 3. Validar extensión del archivo (según la lista permitida)
+            const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip'];
+            const ext = path.extname(originalName).toLowerCase();
+            if (!allowedExtensions.includes(ext)) {
+                fs.unlinkSync(file.path);
+                return res.status(400).json({ error: 'Formato de archivo no permitido' });
+            }
+
+            // 4. Mover el archivo cifrado a la carpeta definitiva
+            const finalDir = path.join(__dirname, '../../public/uploads/chat_files');
+            if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true });
+            const finalName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+            const finalPath = path.join(finalDir, finalName);
+            fs.renameSync(file.path, finalPath);
+
+            // 5. Insertar mensaje de tipo archivo en la BD
+            const stmt = req.db.prepare(`
+                INSERT INTO messages (chat_id, user_id, encrypted_content, iv, encrypted_key, content_type, file_name, file_path, file_type, file_size)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            const result = stmt.run(
+                chatId,
+                userId,
+                finalName,          // encrypted_content almacena el nombre del archivo (referencia)
+                iv,
+                encryptedKey,       // JSON string con claves cifradas para cada participante
+                'file',
+                originalName,       // nombre original
+                `/uploads/chat_files/${finalName}`,
+                mimeType || file.mimetype,
+                file.size
+            );
+
+            // 6. Actualizar last_message_at del chat
+            req.db.prepare('UPDATE chats SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?').run(chatId);
+
+            res.status(201).json({
+                message: 'Archivo enviado correctamente',
+                messageId: result.lastInsertRowid
+            });
+        } catch (err) {
+            console.error('Error al subir archivo:', err);
+            if (file && file.path) fs.unlinkSync(file.path);
+            res.status(500).json({ error: 'Error interno al subir archivo' });
+        }
     });
 };

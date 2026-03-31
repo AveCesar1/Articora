@@ -333,6 +333,53 @@
     max-width: 100%;
 }
 
+/* Estilos para mensajes de archivo */
+.file-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 12px;
+    background: linear-gradient(90deg, rgba(245,245,247,1) 0%, rgba(255,255,255,1) 100%);
+    border: 1px solid var(--border-color);
+}
+
+.file-icon {
+    font-size: 1.6rem;
+    color: #6b4a3b;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.03);
+    border-radius: 8px;
+}
+
+.file-meta .file-name {
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-meta .file-sub {
+    font-size: 0.75rem;
+    color: #7a6b66;
+}
+
+.download-file {
+    white-space: nowrap;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+}
+
+.download-file i {
+    font-size: 0.9rem;
+}
+
 .message.own .message-bubble {
     background-color: var(--own-message-bg);
     color: var(--own-message-color);

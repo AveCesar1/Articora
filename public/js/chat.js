@@ -184,6 +184,32 @@ document.addEventListener('DOMContentLoaded', function() {
         tooltipTriggerList.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
+
+        const uploadForm = document.getElementById('uploadForm');
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput.files.length === 0) {
+                    showNotification('Selecciona un archivo', 'warning');
+                    return;
+                }
+                await sendFile(fileInput);
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal'));
+                modal.hide();
+                uploadForm.reset();
+            });
+        }
+
+        // Delegación de eventos para descargar archivos
+        document.getElementById('messagesContainer').addEventListener('click', async (e) => {
+            const btn = e.target.closest('.download-file');
+            if (btn && btn.dataset.messageId) {
+                e.preventDefault();
+                await downloadFile(btn.dataset.messageId);
+            }
+        });
         
         // Scroll al final de los mensajes
         scrollToBottom();
@@ -253,32 +279,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 const decryptedMessages = [];
                 for (const m of messages) {
                     try {
-                        // Parsear encrypted_key (debe ser JSON)
+                        if (m.content_type === 'file') {
+                            // Mensaje de archivo: no descifrar contenido
+                            decryptedMessages.push({
+                                id: m.id,
+                                sender: m.username,
+                                type: 'file',
+                                fileName: m.file_name,
+                                filePath: m.file_path,
+                                fileType: m.file_type,
+                                fileSize: m.file_size,
+                                time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                                isOwn: m.user_id === currentUser.id,
+                                status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
+                            });
+                            continue;
+                        }
+
+                        // Para mensajes de texto: descifrar normalmente
                         const encryptedKeys = JSON.parse(m.encrypted_key);
                         const encryptedAESForMe = encryptedKeys[currentUser.id];
                         if (!encryptedAESForMe) throw new Error('No hay clave para este usuario');
 
-                        // Descifrar la clave AES con mi privada
                         const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
                         const aesKey = await importAESKey(aesRaw);
-
-                        // Descifrar el contenido
                         const plaintext = await decryptAES(aesKey, m.iv, m.encrypted_content);
 
                         decryptedMessages.push({
                             id: m.id,
                             sender: m.username,
+                            type: 'text',
                             text: plaintext,
                             time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
                             isOwn: m.user_id === currentUser.id,
                             status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
                         });
                     } catch (err) {
-                        console.error('Error descifrando mensaje:', err);
+                        console.error('Error procesando mensaje:', err);
                         decryptedMessages.push({
                             id: m.id,
                             sender: m.username,
-                            text: '[Mensaje cifrado no descifrable]',
+                            type: 'error',
+                            text: '[Mensaje no disponible]',
                             time: new Date(m.sent_at).toLocaleTimeString(),
                             isOwn: m.user_id === currentUser.id,
                             status: 'error'
@@ -705,28 +747,49 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // Chat normal (individual o grupo)
             currentChat.messages.forEach(message => {
-                messagesHTML += `
-                    <div class="message ${message.isOwn ? 'own' : ''}">
-                        <div class="message-content">
-                            ${!message.isOwn && currentChat.type === 'group' ? `<small class="message-sender">${message.sender}</small>` : ''}
-                            
-                            <div class="message-bubble">
-                                <p class="mb-0">${message.text}</p>
-                            </div>
-                            
-                            <div class="message-footer">
-                                <small class="text-muted">${message.time}</small>
-                                ${message.isOwn ? `
-                                    <div class="message-status">
-                                        <i class="fas fa-${message.status === 'read' ? 'check-double text-primary' : 
-                                                            message.status === 'delivered' ? 'check-double text-muted' : 
-                                                            'check text-muted'}"></i>
+                let messageHtml = '';
+                if (message.type === 'file') {
+                    messageHtml = `
+                        <div class="message ${message.isOwn ? 'own' : ''}">
+                            <div class="message-content">
+                                ${!message.isOwn && currentChat.type === 'group' ? `<small class="message-sender">${message.sender}</small>` : ''}
+                                <div class="message-bubble file-message d-flex align-items-center">
+                                    <i class="fas ${getFileIconClass(message.fileName)} file-icon me-3"></i>
+                                    <div class="file-meta flex-grow-1">
+                                        <div class="file-name">${escapeHtml(message.fileName)}</div>
+                                        <div class="file-sub">${formatFileSize(message.fileSize)} • ${escapeHtml(message.fileType || '')}</div>
                                     </div>
-                                ` : ''}
+                                    <button class="btn btn-sm btn-primary download-file ms-3" data-message-id="${message.id}">
+                                        <i class="fas fa-download me-1"></i> Descargar
+                                    </button>
+                                </div>
+                                <div class="message-footer">
+                                    <small class="text-muted">${message.time}</small>
+                                    ${message.isOwn ? `<div class="message-status"><i class="fas fa-${message.status === 'read' ? 'check-double text-primary' : 'check text-muted'}"></i></div>` : ''}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else if (message.type === 'text') {
+                    messageHtml = `
+                        <div class="message ${message.isOwn ? 'own' : ''}">
+                            <div class="message-content">
+                                ${!message.isOwn && currentChat.type === 'group' ? `<small class="message-sender">${message.sender}</small>` : ''}
+                                <div class="message-bubble">
+                                    <p class="mb-0">${escapeHtml(message.text).replace(/\n/g, '<br>')}</p>
+                                </div>
+                                <div class="message-footer">
+                                    <small class="text-muted">${message.time}</small>
+                                    ${message.isOwn ? `<div class="message-status"><i class="fas fa-${message.status === 'read' ? 'check-double text-primary' : 'check text-muted'}"></i></div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Mensaje de error
+                    messageHtml = `... mensaje de error ...`;
+                }
+                messagesHTML += messageHtml;
             });
             
             // Indicador de cifrado para chats normales (no grupo)
@@ -980,6 +1043,173 @@ document.addEventListener('DOMContentLoaded', function() {
                 notification.remove();
             }
         }, 5000);
+    }
+
+    async function sendFile(fileInput) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // 1. Validar tamaño (5 MB)
+        if (file.size > 5 * 1024 * 1024) {
+            showNotification('El archivo no puede superar los 5 MB', 'error');
+            return;
+        }
+
+        // 2. Validar extensión (lista permitida)
+        const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip'];
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+            showNotification('Formato de archivo no permitido', 'error');
+            return;
+        }
+
+        // 3. Leer el archivo como ArrayBuffer
+        const fileBuffer = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+
+        let encryptedKeys = {};
+        try {
+            // 4. Generar clave AES
+            const aesKey = await generateAESKey();
+            const aesRaw = await exportAESKey(aesKey);
+
+            // 5. Cifrar el contenido del archivo con AES
+            const iv = window.crypto.getRandomValues(new Uint8Array(16));
+            const encryptedFile = await window.crypto.subtle.encrypt(
+                { name: 'AES-CBC', iv },
+                aesKey,
+                fileBuffer
+            );
+            const encryptedContentBase64 = arrayBufferToBase64(encryptedFile);
+            const ivBase64 = arrayBufferToBase64(iv);
+
+            // 6. Cifrar la clave AES para cada participante
+            if (currentChat.type === 'group') {
+                const participants = currentChat.participants;
+                for (const p of participants) {
+                    if (!p.public_key) continue;
+                    const pubKey = await importPublicKey(p.public_key);
+                    const encryptedKey = await encryptAESKeyWithRSA(pubKey, aesRaw);
+                    encryptedKeys[p.user_id] = encryptedKey;
+                }
+                if (!encryptedKeys[currentUser.id]) {
+                    console.log('myPublicKeyBase64:', myPublicKeyBase64);
+                    const myPublicKey = await importPublicKey(myPublicKeyBase64);
+                    encryptedKeys[currentUser.id] = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
+                }
+            } else {
+                // Chat individual
+                const contact = data.contacts.find(c => c.id === currentChat.id);
+                if (!contact || !contact.publicKey) throw new Error('No se encontró clave pública del destinatario');
+                const recipientPubKey = await importPublicKey(contact.publicKey);
+                const myPublicKey = await importPublicKey(myPublicKeyBase64);
+                encryptedKeys = {
+                    [currentUser.id]: await encryptAESKeyWithRSA(myPublicKey, aesRaw),
+                    [currentChat.id]: await encryptAESKeyWithRSA(recipientPubKey, aesRaw)
+                };
+            }
+
+            const encryptedKeyJson = JSON.stringify(encryptedKeys);
+
+            // 7. Enviar al servidor (usamos FormData para el archivo + metadata)
+            const formData = new FormData();
+            // Convertir el contenido cifrado a Blob (opcional, pero multer espera un archivo)
+            const encryptedBlob = new Blob([encryptedFile], { type: 'application/octet-stream' });
+            formData.append('file', encryptedBlob, 'encrypted.bin');
+            formData.append('iv', ivBase64);
+            formData.append('encryptedKey', encryptedKeyJson);
+            formData.append('originalName', file.name);
+            formData.append('mimeType', file.type);
+
+            const response = await fetch(`/api/chats/${currentChat.chatId}/files`, {
+                method: 'POST',
+                headers: {
+                    // No pongas Content-Type, el navegador lo establecerá con el boundary correcto
+                },
+                body: formData
+            });
+
+            const responseData = await response.json();
+            if (!response.ok) throw new Error(responseData.error);
+
+            showNotification('Archivo enviado correctamente', 'success');
+            // Recargar mensajes para ver el nuevo mensaje de archivo (o añadirlo optimistamente)
+            await switchToChat(currentChat.id, currentChat.chatId, currentChat.type, false);
+        } catch (err) {
+            console.error('Error al enviar archivo:', err);
+            showNotification('No se pudo enviar el archivo: ' + err.message, 'error');
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    // Devuelve una clase de FontAwesome según la extensión del archivo
+    function getFileIconClass(filename) {
+        if (!filename || typeof filename !== 'string') return 'fa-file';
+        const ext = filename.split('.').pop().toLowerCase();
+        if (['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext)) return 'fa-file-image';
+        if (['pdf'].includes(ext)) return 'fa-file-pdf';
+        if (['doc','docx'].includes(ext)) return 'fa-file-word';
+        if (['xls','xlsx','csv'].includes(ext)) return 'fa-file-excel';
+        if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
+        if (['zip','rar','7z','tar','gz'].includes(ext)) return 'fa-file-archive';
+        if (['mp3','wav','ogg','m4a'].includes(ext)) return 'fa-file-audio';
+        if (['mp4','mov','webm','mkv'].includes(ext)) return 'fa-file-video';
+        return 'fa-file';
+    }
+
+    async function downloadFile(messageId) {
+        try {
+            const response = await fetch(`/api/files/${messageId}`);
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Error al descargar');
+            }
+            const data = await response.json();
+
+            // 1. Descifrar la clave AES con nuestra clave privada RSA
+            const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, data.encryptedKey);
+            const aesKey = await importAESKey(aesRaw);
+
+            // 2. Descifrar el contenido del archivo con AES
+            const decryptedBuffer = await decryptAESBuffer(aesKey, data.iv, data.encryptedContent);
+
+            // 3. Crear un blob y forzar la descarga
+            const blob = new Blob([decryptedBuffer], { type: data.fileType || 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification('Archivo descargado correctamente', 'success');
+        } catch (err) {
+            console.error('Error descargando archivo:', err);
+            showNotification('No se pudo descargar el archivo: ' + err.message, 'error');
+        }
     }
 
     initChat();

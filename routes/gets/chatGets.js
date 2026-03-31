@@ -1,5 +1,8 @@
 const isRegistered = require('../../middlewares/auth');
 const authenticate = require('../../middlewares/auth');
+const fs = require('fs');
+const path = require('path');
+
 
 module.exports = function(app) {
     // Obtener lista de contactos confirmados
@@ -397,6 +400,64 @@ module.exports = function(app) {
         } catch (err) {
             console.error('Error en /chat:', err);
             res.status(500).send('Error interno');
+        }
+    });
+
+    // Descargar archivo cifrado
+    app.get('/api/files/:messageId', authenticate, async (req, res) => {
+        const userId = req.user.id;
+        const messageId = req.params.messageId;
+
+        try {
+            // Obtener el mensaje de archivo
+            const message = req.db.prepare(`
+                SELECT m.chat_id, m.encrypted_content, m.iv, m.encrypted_key,
+                    m.file_name, m.file_path, m.file_type, m.file_size
+                FROM messages m
+                WHERE m.id = ? AND m.content_type = 'file'
+            `).get(messageId);
+
+            if (!message) {
+                return res.status(404).json({ error: 'Archivo no encontrado' });
+            }
+
+            // Verificar que el usuario pertenezca al chat
+            const participant = req.db.prepare(`
+                SELECT 1 FROM chat_participants WHERE chat_id = ? AND user_id = ?
+            `).get(message.chat_id, userId);
+            if (!participant) {
+                return res.status(403).json({ error: 'No autorizado' });
+            }
+
+            // Ruta completa del archivo cifrado
+            const fullPath = path.join(__dirname, '../../public', message.file_path);
+            if (!fs.existsSync(fullPath)) {
+                return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
+            }
+
+            // Leer el contenido cifrado del disco
+            const encryptedFileBuffer = fs.readFileSync(fullPath);
+            const encryptedFileBase64 = encryptedFileBuffer.toString('base64');
+
+            // El campo encrypted_key contiene un JSON con las claves cifradas para cada usuario
+            const encryptedKeys = JSON.parse(message.encrypted_key);
+            const encryptedAESForMe = encryptedKeys[userId];
+            if (!encryptedAESForMe) {
+                return res.status(403).json({ error: 'No tienes la clave para este archivo' });
+            }
+
+            // Devolver todos los datos necesarios para que el cliente descifre
+            res.json({
+                iv: message.iv,
+                encryptedKey: encryptedAESForMe,
+                encryptedContent: encryptedFileBase64,
+                fileName: message.file_name,
+                fileType: message.file_type,
+                fileSize: message.file_size
+            });
+        } catch (err) {
+            console.error('Error al descargar archivo:', err);
+            res.status(500).json({ error: 'Error interno al descargar archivo' });
         }
     });
 };
