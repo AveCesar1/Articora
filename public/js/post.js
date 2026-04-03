@@ -201,12 +201,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Formulario de comentarios
-    const newCommentForm = document.getElementById('newCommentForm');
-    if (newCommentForm) {
-        newCommentForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            alert('Función de comentarios no implementada en esta versión de demostración. Esto enviaría el comentario al servidor en una aplicación real.');
-        });
-    }
+    // Note: comment form handling is implemented in post-rate.js
 });

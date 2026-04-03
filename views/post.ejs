@@ -5,7 +5,7 @@
     searchQuery: '' 
 }) %>
 
-<div class="container py-4">
+<div class="container py-4" data-source-id="<%= post.id %>">
     <!-- Ruta de navegación -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
@@ -289,24 +289,47 @@
                     <% } else { %>
                         <div class="comments-list">
                             <% comments.forEach(comment => { %>
-                                <div class="comment mb-4">
-                                    <div class="d-flex">
-                                        <img src="<%= comment.avatar %>" alt="<%= comment.user %>" class="rounded-circle me-3" width="50" height="50">
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between">
-                                                <h6 class="mb-1"><%= comment.user %></h6>
-                                                <small class="text-muted"><%= comment.date %></small>
+                                    <div class="comment mb-4">
+                                        <div class="d-flex">
+                                            <img src="<%= comment.avatar %>" alt="<%= comment.user %>" class="rounded-circle me-3" width="50" height="50">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1 d-flex align-items-center">
+                                                            <span><%= comment.user %></span>
+                                                            <small class="text-muted ms-2"><%= comment.academic %></small>
+                                                        </h6>
+                                                        <small class="text-muted"><%= comment.date %></small>
+                                                    </div>
+                                                    <div class="ms-3 text-end">
+                                                        <% if (typeof currentUserId !== 'undefined' && currentUserId && comment.user_id === currentUserId) { %>
+                                                            <button class="btn btn-sm btn-link edit-comment-btn text-warning" data-rating-id="<%= comment.id %>" data-rating-value="<%= comment.rating %>" title="Editar comentario" style="color: #d4af37;">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+                                                <div class="rating-stars mb-2">
+                                                    <% 
+                                                        const cFull = Math.floor(comment.rating);
+                                                        const cHalf = comment.rating % 1 >= 0.5;
+                                                        const cEmpty = 5 - cFull - (cHalf ? 1 : 0);
+                                                    %>
+                                                    <% for(let i = 0; i < cFull; i++) { %>
+                                                        <i class="fas fa-star text-warning"></i>
+                                                    <% } %>
+                                                    <% if (cHalf) { %>
+                                                        <i class="fas fa-star-half-alt text-warning"></i>
+                                                    <% } %>
+                                                    <% for(let i = 0; i < cEmpty; i++) { %>
+                                                        <i class="far fa-star text-muted"></i>
+                                                    <% } %>
+                                                </div>
+                                                <p class="mb-0 comment-text"><%= comment.text %></p>
                                             </div>
-                                            <div class="rating-stars mb-2">
-                                                <% for(let i = 0; i < 5; i++) { %>
-                                                    <i class="fas fa-star <%= i < comment.rating ? 'text-warning' : 'text-muted' %>"></i>
-                                                <% } %>
-                                            </div>
-                                            <p class="mb-0"><%= comment.text %></p>
                                         </div>
                                     </div>
-                                </div>
-                            <% }) %>
+                                <% }) %>
                         </div>
                     <% } %>
                     
@@ -317,16 +340,7 @@
                             <div class="mb-3">
                                 <label for="commentText" class="form-label">Comentario</label>
                                 <textarea class="form-control" id="commentText" rows="3" placeholder="Escribe tu comentario aquí..."></textarea>
-                                <small class="text-muted">Solo texto plano. No se permiten imágenes ni enlaces.</small>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Calificación</label>
-                                <div class="rating-input">
-                                    <% for(let i = 1; i <= 5; i++) { %>
-                                        <i class="far fa-star rating-star" data-value="<%= i %>"></i>
-                                    <% } %>
-                                    <input type="hidden" id="ratingValue" name="rating" value="5">
-                                </div>
+                                <small class="text-muted">Solo texto plano. No se permiten imágenes ni enlaces. Máx 1000 caracteres.</small>
                             </div>
                             <button type="submit" class="btn btn-primary">Enviar comentario</button>
                         </form>
@@ -364,6 +378,40 @@
                             <i class="fas fa-flag me-2"></i>Reportar
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Card para calificar la fuente (cinco criterios) -->
+            <div class="card shadow-sm mb-4" id="ratingCard">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-star me-2"></i>Calificar esta fuente</h5>
+                </div>
+                <div class="card-body">
+                    <% if (typeof loggedIn !== 'undefined' && loggedIn) { %>
+                        <p class="small text-muted">Califica los siguientes criterios (0–5, pasos de 0.5).</p>
+                        <form id="ratingForm">
+                            <% const criteriaList = [ {id:'readability', label:'Extensión de lectura'}, {id:'completeness', label:'Completitud'}, {id:'detail_level', label:'Nivel de detalle'}, {id:'veracity', label:'Veracidad'}, {id:'technical_difficulty', label:'Dificultad técnica'} ]; %>
+                            <% criteriaList.forEach(c => { %>
+                                <div class="mb-3">
+                                    <label class="form-label"><%= c.label %></label>
+                                    <div class="d-flex align-items-center">
+                                        <div class="star-rating" data-criterion="<%= c.id %>" style="font-size:1.25rem; cursor:pointer;">
+                                            <% for (let s = 1; s <= 5; s++) { %>
+                                                <i class="far fa-star star" data-star="<%= s %>"></i>
+                                            <% } %>
+                                        </div>
+                                        <div class="fw-bold ms-3" style="min-width:40px;" id="label_<%= c.id %>">5</div>
+                                        <input type="hidden" id="rating_<%= c.id %>" value="5">
+                                    </div>
+                                </div>
+                            <% }) %>
+                            <button type="button" class="btn btn-primary w-100" id="submitRatingBtn">Enviar calificación</button>
+                        </form>
+                        <small class="d-block text-muted mt-2">Puedes dejar un comentario junto con la calificación o después.</small>
+                    <% } else { %>
+                        <p class="text-muted">Inicia sesión para calificar esta fuente.</p>
+                        <a href="/login" class="btn btn-primary w-100">Iniciar sesión</a>
+                    <% } %>
                 </div>
             </div>
 
@@ -413,5 +461,89 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de confirmación para calificaciones -->
+<div class="modal fade" id="ratingConfirmModal" tabindex="-1" aria-labelledby="ratingConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ratingConfirmModalLabel">Confirmar calificación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="ratingConfirmBody">¿Seguro que quieres enviar esta calificación?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="ratingConfirmBtn">Sí, confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para comentarios -->
+<div class="modal fade" id="commentConfirmModal" tabindex="-1" aria-labelledby="commentConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentConfirmModalLabel">Confirmar comentario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="commentConfirmBody">¿Estás seguro de que quieres publicar este comentario?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="commentConfirmBtn">Sí, publicar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar comentario y calificación -->
+<div class="modal fade" id="editCommentModal" tabindex="-1" aria-labelledby="editCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCommentModalLabel">Editar comentario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="editCommentText" class="form-label">Comentario</label>
+                    <textarea class="form-control" id="editCommentText" rows="4"></textarea>
+                    <small class="text-muted">Solo texto plano. Máx 1000 caracteres.</small>
+                </div>
+
+                <% const editCriteria = [ {id:'readability', label:'Extensión de lectura'}, {id:'completeness', label:'Completitud'}, {id:'detail_level', label:'Nivel de detalle'}, {id:'veracity', label:'Veracidad'}, {id:'technical_difficulty', label:'Dificultad técnica'} ]; %>
+                <% editCriteria.forEach(c => { %>
+                    <div class="mb-3">
+                        <label class="form-label"><%= c.label %></label>
+                        <div class="star-rating" data-criterion="<%= c.id %>" data-target-id="edit_rating_<%= c.id %>" style="font-size:1.4rem; cursor:pointer;">
+                            <% for (let s = 1; s <= 5; s++) { %>
+                                <i class="far fa-star star" data-star="<%= s %>"></i>
+                            <% } %>
+                        </div>
+                        <input type="hidden" id="edit_rating_<%= c.id %>" value="5">
+                    </div>
+                <% }) %>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveEditCommentBtn">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load post-rate.js after all other scripts (bootstrap) have been loaded
+    window.addEventListener('load', function() {
+        var s = document.createElement('script');
+        s.src = '/js/post-rate.js';
+        s.async = false; // ensure execution order and immediate run after insertion
+        document.body.appendChild(s);
+    });
+</script>
 
 <%- include('partials/footer', { jsFile: jsFile }) %>

@@ -1,5 +1,6 @@
 const path = require('path');
 const { sanitizeText } = require('../../middlewares/sanitize');
+const IsRegistered = require('../../middlewares/auth');
 const checkRoles = require('../../middlewares/checkrole');
 const soloValidado = checkRoles(['validado', 'admin']);
 const { exec, spawn } = require('child_process');
@@ -200,6 +201,383 @@ module.exports = function (app) {
       if (err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
         return res.status(400).json({ success: false, message: 'foreign_key_error: some referenced record does not exist (category, subcategory, or source type)' });
       }
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // -----------------------------
+  // Ratings API endpoints
+  // -----------------------------
+
+  // Create or update a rating (and optional comment) for a source
+  app.post('/api/sources/:id/rate', async (req, res) => {
+    try {
+      const db = req.db;
+      const sourceId = parseInt(req.params.id, 10);
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+      // Validate source id
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      const body = req.body || {};
+      // required criteria
+      const criteria = ['readability', 'completeness', 'detail_level', 'veracity', 'technical_difficulty'];
+      const values = {};
+      for (const c of criteria) {
+        if (typeof body[c] === 'undefined') return res.status(400).json({ success: false, message: 'missing_criteria' });
+        const v = parseFloat(body[c]);
+        if (Number.isNaN(v) || v < 0 || v > 5 || Math.round(v * 2) !== v * 2) {
+          return res.status(400).json({ success: false, message: 'invalid_score', field: c });
+        }
+        values[c] = v;
+      }
+
+      // Detect if comment was explicitly provided (allow empty string to clear)
+      const commentProvided = Object.prototype.hasOwnProperty.call(body, 'comment');
+      const comment = commentProvided ? sanitizeText(body.comment || '', { maxLength: 1000 }) : undefined;
+
+      // Get academic level of user at time of rating (store snapshot) and mark unvalidated users
+      let academic = 'unknown';
+      try {
+        const u = db.prepare('SELECT academic_level, is_validated FROM users WHERE id = ? LIMIT 1').get(userId) || {};
+        const level = u.academic_level ? String(u.academic_level).slice(0, 50) : 'Sin grado';
+        academic = u.is_validated ? level : `${level} (no verificado)`;
+      } catch (e) {
+        academic = 'unknown';
+      }
+
+      // Check if rating exists
+      const existing = db.prepare('SELECT * FROM ratings WHERE source_id = ? AND user_id = ? LIMIT 1').get(sourceId, userId);
+      let ratingId = null;
+      if (existing && existing.id) {
+        // Insert history of previous values
+        try {
+          db.prepare(`INSERT INTO rating_history (rating_id, readability, completeness, detail_level, veracity, technical_difficulty, academic_context, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+            existing.id,
+            existing.readability,
+            existing.completeness,
+            existing.detail_level,
+            existing.veracity,
+            existing.technical_difficulty,
+            existing.academic_context || '',
+            existing.comment || ''
+          );
+        } catch (e) { /* ignore history failure */ }
+
+        // Update existing rating. Only update the comment column if it was provided in the request
+        if (commentProvided) {
+          db.prepare(`UPDATE ratings SET readability = ?, completeness = ?, detail_level = ?, veracity = ?, technical_difficulty = ?, comment = ?, academic_context = ?, updated_at = datetime('now'), version = version + 1 WHERE id = ?`).run(
+            values.readability,
+            values.completeness,
+            values.detail_level,
+            values.veracity,
+            values.technical_difficulty,
+            comment,
+            academic,
+            existing.id
+          );
+        } else {
+          db.prepare(`UPDATE ratings SET readability = ?, completeness = ?, detail_level = ?, veracity = ?, technical_difficulty = ?, academic_context = ?, updated_at = datetime('now'), version = version + 1 WHERE id = ?`).run(
+            values.readability,
+            values.completeness,
+            values.detail_level,
+            values.veracity,
+            values.technical_difficulty,
+            academic,
+            existing.id
+          );
+        }
+
+        ratingId = existing.id;
+      } else {
+        // Insert new rating
+        const insert = db.prepare(`INSERT INTO ratings (source_id, user_id, readability, completeness, detail_level, veracity, technical_difficulty, comment, academic_context, created_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1)`);
+        const r = insert.run(
+          sourceId,
+          userId,
+          values.readability,
+          values.completeness,
+          values.detail_level,
+          values.veracity,
+          values.technical_difficulty,
+          comment,
+          academic
+        );
+        ratingId = r.lastInsertRowid;
+      }
+
+      // Recompute aggregates for the source (use latest ratings table entries)
+      const agg = db.prepare(`SELECT COUNT(1) as cnt, AVG(readability) AS avg_readability, AVG(completeness) AS avg_completeness, AVG(detail_level) AS avg_detail_level, AVG(veracity) AS avg_veracity, AVG(technical_difficulty) AS avg_technical_difficulty FROM ratings WHERE source_id = ?`).get(sourceId);
+      const total = agg ? (agg.cnt || 0) : 0;
+      const avgRead = parseFloat(((agg && agg.avg_readability) || 0).toFixed(2));
+      const avgComp = parseFloat(((agg && agg.avg_completeness) || 0).toFixed(2));
+      const avgDetail = parseFloat(((agg && agg.avg_detail_level) || 0).toFixed(2));
+      const avgVer = parseFloat(((agg && agg.avg_veracity) || 0).toFixed(2));
+      const avgTech = parseFloat(((agg && agg.avg_technical_difficulty) || 0).toFixed(2));
+      const overall = total ? parseFloat(((avgRead + avgComp + avgDetail + avgVer + avgTech) / 5).toFixed(2)) : 0;
+
+      try {
+        db.prepare(`UPDATE sources SET total_ratings = ?, avg_readability = ?, avg_completeness = ?, avg_detail_level = ?, avg_veracity = ?, avg_technical_difficulty = ?, overall_rating = ? WHERE id = ?`).run(total, avgRead, avgComp, avgDetail, avgVer, avgTech, overall, sourceId);
+      } catch (e) { /* ignore update failures */ }
+
+      const userRating = db.prepare('SELECT id, readability, completeness, detail_level, veracity, technical_difficulty, comment, academic_context, version, created_at FROM ratings WHERE id = ?').get(ratingId);
+
+      return res.json({ success: true, ratingId, averages: { readability: avgRead, completeness: avgComp, detail_level: avgDetail, veracity: avgVer, technical_difficulty: avgTech }, overall, total, userRating });
+    } catch (err) {
+      console.error('Error in POST /api/sources/:id/rate', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Add or update comment separately (requires an existing rating by the user)
+  app.post('/api/sources/:id/comment', async (req, res) => {
+    try {
+      const db = req.db;
+      const sourceId = parseInt(req.params.id, 10);
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      const rawComment = req.body && req.body.comment ? req.body.comment : '';
+      const comment = sanitizeText(rawComment, { maxLength: 1000 });
+
+      const existing = db.prepare('SELECT * FROM ratings WHERE source_id = ? AND user_id = ? LIMIT 1').get(sourceId, userId);
+      if (!existing) return res.status(400).json({ success: false, message: 'must_rate_before_comment' });
+
+      // Determine current academic snapshot for the user (mark not-validated)
+      let newAcademic = existing.academic_context || '';
+      try {
+        const u = db.prepare('SELECT academic_level, is_validated FROM users WHERE id = ? LIMIT 1').get(userId) || {};
+        const level = u.academic_level ? String(u.academic_level).slice(0, 50) : 'Sin grado';
+        newAcademic = u.is_validated ? level : `${level} (no verificado)`;
+      } catch (e) { /* ignore */ }
+
+      // store history then update (history captures previous values)
+      try {
+        db.prepare(`INSERT INTO rating_history (rating_id, readability, completeness, detail_level, veracity, technical_difficulty, academic_context, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+          existing.id,
+          existing.readability,
+          existing.completeness,
+          existing.detail_level,
+          existing.veracity,
+          existing.technical_difficulty,
+          existing.academic_context || '',
+          existing.comment || ''
+        );
+      } catch (e) { /* ignore history errors */ }
+
+      // Update comment and academic_context and bump version
+      db.prepare('UPDATE ratings SET comment = ?, academic_context = ?, updated_at = datetime(\'now\'), version = version + 1 WHERE id = ?').run(comment, newAcademic, existing.id);
+      return res.json({ success: true, ratingId: existing.id, comment });
+    } catch (err) {
+      console.error('Error in POST /api/sources/:id/comment', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Update only academic_context for a rating (ownership or admin required)
+  app.put('/api/ratings/:id/grade', async (req, res) => {
+    try {
+      const db = req.db;
+      const ratingId = parseInt(req.params.id, 10);
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+      if (Number.isNaN(ratingId)) return res.status(400).json({ success: false, message: 'invalid_rating_id' });
+
+      const newGrade = req.body && req.body.academic_context ? sanitizeText(req.body.academic_context, { maxLength: 50 }) : null;
+      if (!newGrade) return res.status(400).json({ success: false, message: 'invalid_academic_context' });
+
+      const r = db.prepare('SELECT id, user_id FROM ratings WHERE id = ? LIMIT 1').get(ratingId);
+      if (!r) return res.status(404).json({ success: false, message: 'rating_not_found' });
+
+      // check ownership or admin role
+      const isAdmin = req.session && req.session.isAdmin;
+      if (r.user_id !== userId && !isAdmin) return res.status(403).json({ success: false, message: 'forbidden' });
+
+      // insert history of previous value
+      try {
+        const prev = db.prepare('SELECT * FROM ratings WHERE id = ? LIMIT 1').get(ratingId);
+        if (prev) {
+          db.prepare(`INSERT INTO rating_history (rating_id, readability, completeness, detail_level, veracity, technical_difficulty, academic_context, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+            prev.id,
+            prev.readability,
+            prev.completeness,
+            prev.detail_level,
+            prev.veracity,
+            prev.technical_difficulty,
+            prev.academic_context || '',
+            prev.comment || ''
+          );
+        }
+      } catch (e) { /* ignore */ }
+
+      db.prepare('UPDATE ratings SET academic_context = ?, updated_at = datetime(\'now\') WHERE id = ?').run(newGrade, ratingId);
+      return res.json({ success: true, ratingId, academic_context: newGrade });
+    } catch (err) {
+      console.error('Error in PUT /api/ratings/:id/grade', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Update entire rating (comment + scores) - creates a new history record and updates rating
+  app.put('/api/ratings/:id', async (req, res) => {
+    try {
+      const db = req.db;
+      const ratingId = parseInt(req.params.id, 10);
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+      if (Number.isNaN(ratingId)) return res.status(400).json({ success: false, message: 'invalid_rating_id' });
+
+      const existing = db.prepare('SELECT * FROM ratings WHERE id = ? LIMIT 1').get(ratingId);
+      if (!existing) return res.status(404).json({ success: false, message: 'rating_not_found' });
+
+      const isAdmin = req.session && req.session.isAdmin;
+      if (existing.user_id !== userId && !isAdmin) return res.status(403).json({ success: false, message: 'forbidden' });
+
+      const body = req.body || {};
+      const criteria = ['readability', 'completeness', 'detail_level', 'veracity', 'technical_difficulty'];
+
+      // Determine if rating values are being changed
+      let newValues = {};
+      let changingScores = false;
+      if (typeof body.overall !== 'undefined') {
+        const v = parseFloat(body.overall);
+        if (Number.isNaN(v) || v < 0 || v > 5 || Math.round(v * 2) !== v * 2) return res.status(400).json({ success: false, message: 'invalid_overall' });
+        // map overall to all criteria for simplicity
+        criteria.forEach(c => newValues[c] = v);
+        changingScores = true;
+      } else {
+        // if any criterion is provided, require all five
+        const hasAny = criteria.some(c => typeof body[c] !== 'undefined');
+        if (hasAny) {
+          for (const c of criteria) {
+            if (typeof body[c] === 'undefined') return res.status(400).json({ success: false, message: 'missing_criteria' });
+            const v = parseFloat(body[c]);
+            if (Number.isNaN(v) || v < 0 || v > 5 || Math.round(v * 2) !== v * 2) return res.status(400).json({ success: false, message: 'invalid_score', field: c });
+            newValues[c] = v;
+          }
+          changingScores = true;
+        }
+      }
+
+      const comment = typeof body.comment !== 'undefined' ? sanitizeText(body.comment || '', { maxLength: 1000 }) : existing.comment;
+
+      // Determine user's current academic context snapshot
+      let newAcademic = '';
+      try {
+        const u = db.prepare('SELECT academic_level, is_validated FROM users WHERE id = ? LIMIT 1').get(userId) || {};
+        const userLevel = u.academic_level ? String(u.academic_level) : '';
+        if (u.is_validated) newAcademic = userLevel || 'Sin grado';
+        else newAcademic = (userLevel || 'Sin grado') + ' (no verificado)';
+      } catch (e) {
+        newAcademic = existing.academic_context || '';
+      }
+
+      // Ensure rating_history has previous_rating_id column (add if missing)
+      try {
+        const cols = db.prepare("PRAGMA table_info('rating_history')").all();
+        const hasPrev = cols.some(c => c.name === 'previous_rating_id');
+        if (!hasPrev) {
+          try { db.prepare('ALTER TABLE rating_history ADD COLUMN previous_rating_id INTEGER').run(); } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
+
+      // Find previous history id for chaining
+      let prevHistoryId = null;
+      try {
+        const lastHist = db.prepare('SELECT id FROM rating_history WHERE rating_id = ? ORDER BY created_at DESC LIMIT 1').get(existing.id);
+        if (lastHist && lastHist.id) prevHistoryId = lastHist.id;
+      } catch (e) { /* ignore */ }
+
+      // Insert history snapshot of previous values
+      try {
+        const cols = db.prepare("PRAGMA table_info('rating_history')").all();
+        const hasPrev = cols.some(c => c.name === 'previous_rating_id');
+        if (hasPrev) {
+          db.prepare(`INSERT INTO rating_history (rating_id, readability, completeness, detail_level, veracity, technical_difficulty, academic_context, comment, previous_rating_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+            existing.id,
+            existing.readability,
+            existing.completeness,
+            existing.detail_level,
+            existing.veracity,
+            existing.technical_difficulty,
+            existing.academic_context || '',
+            existing.comment || '',
+            prevHistoryId
+          );
+        } else {
+          db.prepare(`INSERT INTO rating_history (rating_id, readability, completeness, detail_level, veracity, technical_difficulty, academic_context, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`).run(
+            existing.id,
+            existing.readability,
+            existing.completeness,
+            existing.detail_level,
+            existing.veracity,
+            existing.technical_difficulty,
+            existing.academic_context || '',
+            existing.comment || ''
+          );
+        }
+      } catch (e) { /* ignore history insertion errors */ }
+
+      // Build update statement
+      const updates = [];
+      const params = [];
+      if (changingScores) {
+        for (const c of criteria) {
+          updates.push(`${c} = ?`);
+          params.push(newValues[c]);
+        }
+      }
+      // always update comment and academic_context
+      updates.push('comment = ?'); params.push(comment);
+      updates.push('academic_context = ?'); params.push(newAcademic);
+      updates.push('updated_at = datetime(\'now\')');
+      updates.push('version = version + 1');
+      const updateSql = `UPDATE ratings SET ${updates.join(', ')} WHERE id = ?`;
+      params.push(existing.id);
+
+      db.prepare(updateSql).run(...params);
+
+      // Recompute aggregates for the source
+      try {
+        const agg = db.prepare(`SELECT COUNT(1) as cnt, AVG(readability) AS avg_readability, AVG(completeness) AS avg_completeness, AVG(detail_level) AS avg_detail_level, AVG(veracity) AS avg_veracity, AVG(technical_difficulty) AS avg_technical_difficulty FROM ratings WHERE source_id = ?`).get(existing.source_id);
+        const total = agg ? (agg.cnt || 0) : 0;
+        const avgRead = parseFloat(((agg && agg.avg_readability) || 0).toFixed(2));
+        const avgComp = parseFloat(((agg && agg.avg_completeness) || 0).toFixed(2));
+        const avgDetail = parseFloat(((agg && agg.avg_detail_level) || 0).toFixed(2));
+        const avgVer = parseFloat(((agg && agg.avg_veracity) || 0).toFixed(2));
+        const avgTech = parseFloat(((agg && agg.avg_technical_difficulty) || 0).toFixed(2));
+        const overall = total ? parseFloat(((avgRead + avgComp + avgDetail + avgVer + avgTech) / 5).toFixed(2)) : 0;
+        db.prepare(`UPDATE sources SET total_ratings = ?, avg_readability = ?, avg_completeness = ?, avg_detail_level = ?, avg_veracity = ?, avg_technical_difficulty = ?, overall_rating = ? WHERE id = ?`).run(total, avgRead, avgComp, avgDetail, avgVer, avgTech, overall, existing.source_id);
+      } catch (e) { /* ignore */ }
+
+      const userRating = db.prepare('SELECT id, readability, completeness, detail_level, veracity, technical_difficulty, comment, academic_context, version, created_at FROM ratings WHERE id = ?').get(existing.id);
+      return res.json({ success: true, ratingId: existing.id, userRating });
+    } catch (err) {
+      console.error('Error in PUT /api/ratings/:id', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Get ratings history for current user
+  app.get('/api/user/ratings/history', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+      const rows = db.prepare(`SELECT rh.id, rh.rating_id, rh.readability, rh.completeness, rh.detail_level, rh.veracity, rh.technical_difficulty, rh.academic_context, rh.comment, rh.created_at, s.id as source_id, s.title as source_title
+        FROM rating_history rh
+        JOIN ratings r ON rh.rating_id = r.id
+        LEFT JOIN sources s ON r.source_id = s.id
+        WHERE r.user_id = ?
+        ORDER BY rh.created_at DESC
+        LIMIT 200`).all(userId);
+
+      return res.json({ success: true, history: rows });
+    } catch (err) {
+      console.error('Error in GET /api/user/ratings/history', err);
       return res.status(500).json({ success: false, message: 'internal_error' });
     }
   });

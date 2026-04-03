@@ -266,8 +266,52 @@ module.exports = function (app) {
                 coverImage: row.coverImage || `/portadas/fuente_${row.id}.png`
             };
 
-            // placeholder comments and relatedSources remain empty or could be filled later
-            const comments = [];
+            // Load comments from ratings table (ratings that include a non-empty comment)
+            let commentRows = [];
+            try {
+                commentRows = db.prepare(`
+                    SELECT r.id, r.user_id, r.comment, r.readability, r.completeness, r.detail_level, r.veracity, r.technical_difficulty, r.academic_context, r.created_at, u.username, u.full_name, u.profile_picture, u.is_validated, u.academic_level as user_academic_level
+                    FROM ratings r
+                    LEFT JOIN users u ON r.user_id = u.id
+                    WHERE r.source_id = ? AND r.comment IS NOT NULL AND TRIM(r.comment) != ''
+                    ORDER BY r.created_at DESC
+                `).all(postId);
+            } catch (e) {
+                console.error('Error loading comments for source', postId, e);
+                commentRows = [];
+            }
+
+            const comments = commentRows.map(r => {
+                const avg = ((r.readability || 0) + (r.completeness || 0) + (r.detail_level || 0) + (r.veracity || 0) + (r.technical_difficulty || 0)) / 5;
+                const ratingRounded = parseFloat((avg || 0).toFixed(1));
+                const avatar = r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.full_name || r.username)}&background=6c757d&color=fff`;
+                const userDisplay = r.full_name || r.username || 'Usuario';
+                // Show only date (YYYY-MM-DD)
+                const date = r.created_at ? String(r.created_at).split(' ')[0] : '';
+                // Determine academic display: prefer snapshot in rating (r.academic_context), otherwise derive from user.
+                // If the user is not validated, ensure the display marks it as not verified.
+                let academic = '';
+                if (r.academic_context && String(r.academic_context).trim().length > 0) {
+                    academic = String(r.academic_context);
+                    if (!r.is_validated && !academic.includes('(no verificado)')) academic = academic + ' (no verificado)';
+                } else if (r.user_academic_level) {
+                    academic = String(r.user_academic_level) + (r.is_validated ? '' : ' (no verificado)');
+                } else {
+                    academic = r.is_validated ? 'Sin grado' : 'Sin grado (no verificado)';
+                }
+
+                return {
+                    id: r.id,
+                    user_id: r.user_id,
+                    user: userDisplay,
+                    avatar: avatar,
+                    date: date,
+                    rating: ratingRounded,
+                    academic: academic,
+                    text: r.comment
+                };
+            });
+
             const relatedSources = [];
 
             // citation formats minimal (can be expanded)
@@ -285,11 +329,41 @@ module.exports = function (app) {
                 post,
                 comments,
                 relatedSources,
-                citationFormats
+                citationFormats,
+                currentUserId: req.session && req.session.userId ? req.session.userId : (res.locals.user && res.locals.user.id ? res.locals.user.id : null)
             });
         } catch (err) {
             console.error('Error fetching post by id:', err);
             res.status(500).send('Internal server error');
+        }
+    });
+
+    // API: get aggregated ratings and (optionally) the current user's rating for a source
+    app.get('/api/sources/:id/ratings', (req, res) => {
+        try {
+            const db = req.db;
+            const sourceId = parseInt(req.params.id, 10);
+            if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const agg = db.prepare(`SELECT COUNT(1) as cnt, AVG(readability) AS avg_readability, AVG(completeness) AS avg_completeness, AVG(detail_level) AS avg_detail_level, AVG(veracity) AS avg_veracity, AVG(technical_difficulty) AS avg_technical_difficulty FROM ratings WHERE source_id = ?`).get(sourceId);
+            const total = agg ? (agg.cnt || 0) : 0;
+            const avgRead = parseFloat(((agg && agg.avg_readability) || 0).toFixed(2));
+            const avgComp = parseFloat(((agg && agg.avg_completeness) || 0).toFixed(2));
+            const avgDetail = parseFloat(((agg && agg.avg_detail_level) || 0).toFixed(2));
+            const avgVer = parseFloat(((agg && agg.avg_veracity) || 0).toFixed(2));
+            const avgTech = parseFloat(((agg && agg.avg_technical_difficulty) || 0).toFixed(2));
+            const overall = total ? parseFloat(((avgRead + avgComp + avgDetail + avgVer + avgTech) / 5).toFixed(2)) : 0;
+
+            let userRating = null;
+            const userId = req.session && req.session.userId;
+            if (userId) {
+                userRating = db.prepare('SELECT id, readability, completeness, detail_level, veracity, technical_difficulty, comment, academic_context, version, created_at FROM ratings WHERE source_id = ? AND user_id = ? LIMIT 1').get(sourceId, userId) || null;
+            }
+
+            return res.json({ success: true, has_ratings: total > 0, total, averages: { readability: avgRead, completeness: avgComp, detail_level: avgDetail, veracity: avgVer, technical_difficulty: avgTech }, overall, userRating });
+        } catch (err) {
+            console.error('Error in GET /api/sources/:id/ratings', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
     
