@@ -188,45 +188,15 @@ module.exports = function (app) {
                 });
             }
 
-            // Insertar usuario en BD
-            const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
-            
+            // Marcar el registro pendiente como verificado y pedir datos adicionales al cliente
+            req.session.pendingRegistration.verified = true;
+            req.session.pendingRegistration.verifiedAt = Date.now();
 
-            try {
-                console.log('Verificando conexión a la base de datos:', req.db);
-
-                // Insertar usuario en BD
-                const result = req.db.prepare(`
-                    INSERT INTO users (username, email, password, profile_picture, bio, available_for_messages, 
-                                    academic_level, is_validated, is_verified, created_at, last_login, 
-                                    account_active, login_attempts, locked_until)
-                    VALUES (?, ?, ?, NULL, NULL, 0, NULL, 0, 1, datetime('now'), NULL, 1, 0, NULL)
-                `).run(
-                    pending.username,
-                    hashedEmail,
-                    pending.password
-                );
-
-                const userId = result.lastInsertRowid;
-                const publicKey = pending.publicKey;
-                if (publicKey) {
-                    req.db.prepare('INSERT INTO user_keys (user_id, public_key) VALUES (?, ?)').run(userId, publicKey);
-                }
-
-                if (debugging) console.log(`Clave de usuario ${publicKey} del usuario ${userId} insertada`);
-
-                // Limpiar registro pendiente de la sesión
-                delete req.session.pendingRegistration;
-
-                res.json({
-                    success: true,
-                    message: '¡Correo verificado exitosamente! Ahora puedes iniciar sesión.',
-                    redirectTo: '/login'
-                });
-            } catch (error) {
-                console.error('Error al insertar usuario en la base de datos:', error);
-                res.status(500).json({ success: false, message: 'Error interno del servidor al crear el usuario.' });
-            }
+            res.json({
+                success: true,
+                message: 'Correo verificado. Completa tu perfil para finalizar el registro.',
+                redirectTo: `/register?postVerify=1`
+            });
         } catch (error) {
             console.error('Error en verificación:', error);
             res.status(500).json({ success: false, message: 'Error interno del servidor.' });
@@ -303,6 +273,112 @@ module.exports = function (app) {
 
         } catch (error) {
             console.error('Error al reenviar código:', error);
+            res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+        }
+    });
+
+    // Completar registro: recibir datos adicionales y crear usuario definitivo
+    app.post('/complete-registration', async (req, res) => {
+        try {
+            if (!req.session.pendingRegistration || !req.session.pendingRegistration.verified) {
+                return res.status(400).json({ success: false, message: 'No hay registro pendiente verificado. Por favor, regístrate y verifica tu correo primero.' });
+            }
+
+            const pending = req.session.pendingRegistration;
+
+            // Verificar expiración nuevamente
+            if (Date.now() > pending.expiresAt) {
+                delete req.session.pendingRegistration;
+                return res.status(400).json({ success: false, message: 'El registro ha expirado. Por favor regístrate de nuevo.' });
+            }
+
+            let { firstName, lastName, academicLevel, institution, department, availableForMessages, bio, interests } = req.body;
+
+            firstName = sanitizeText(firstName || '') || null;
+            lastName = sanitizeText(lastName || '') || null;
+            academicLevel = sanitizeText(academicLevel || '') || null;
+            institution = sanitizeText(institution || '') || null;
+            department = sanitizeText(department || '') || null;
+            bio = sanitizeText(bio || '') || null;
+
+            // Interests processing (expect array of strings)
+            if (!Array.isArray(interests)) interests = [];
+            const sanitizedInterests = [];
+            for (const it of interests) {
+                try {
+                    let v = sanitizeText(String(it || '')).trim();
+                    if (!v) continue;
+                    if (v.length > 100) v = v.substring(0, 100);
+                    if (!sanitizedInterests.includes(v)) sanitizedInterests.push(v);
+                } catch (e) { continue; }
+            }
+            // Require at least 3 interests
+            if (sanitizedInterests.length < 3) {
+                return res.status(400).json({ success: false, message: 'Por favor añade al menos 3 intereses de investigación.' });
+            }
+
+            // Normalizar y truncar campos largos
+            if (firstName && firstName.length > 50) firstName = firstName.substring(0, 50);
+            if (lastName && lastName.length > 50) lastName = lastName.substring(0, 50);
+            if (bio && bio.length > 1000) bio = bio.substring(0, 1000);
+
+            availableForMessages = availableForMessages ? 1 : 0;
+
+            const allowedLevels = ['Licenciatura', 'Maestría', 'Doctorado', 'Estudiante', 'Profesional'];
+            if (academicLevel && !allowedLevels.includes(academicLevel)) academicLevel = null;
+
+            const hashedEmail = crypto.createHash('sha256').update(pending.email).digest('hex');
+
+            // Verificar que no se haya registrado en el ínterin
+            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(pending.username, hashedEmail);
+            if (userExists) {
+                return res.status(400).json({ success: false, message: 'El nombre de usuario o correo ya están registrados.' });
+            }
+
+            const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
+
+            // version without profile_picture, as it's not collected at registration:
+            const insertStmt = req.db.prepare(`
+                INSERT INTO users (username, email, password, first_name, last_name, full_name, bio, institution, department, available_for_messages, academic_level, is_validated, is_verified, created_at, last_login, account_active, login_attempts, locked_until)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, datetime('now'), NULL, 1, 0, NULL)
+            `);
+
+            const result = insertStmt.run(
+                pending.username,
+                hashedEmail,
+                pending.password,
+                firstName,
+                lastName,
+                fullName,
+                bio,
+                institution,
+                department,
+                availableForMessages,
+                academicLevel
+            );
+
+            const userId = result.lastInsertRowid;
+            const publicKey = pending.publicKey;
+            if (publicKey) {
+                req.db.prepare('INSERT INTO user_keys (user_id, public_key) VALUES (?, ?)').run(userId, publicKey);
+            }
+
+            // Insertar intereses
+            try {
+                const insertInterestStmt = req.db.prepare('INSERT OR IGNORE INTO user_interests (user_id, interest) VALUES (?, ?)');
+                for (const it of sanitizedInterests) {
+                    try { insertInterestStmt.run(userId, it); } catch (e) { console.error('Error insertando interés:', e); }
+                }
+            } catch (e) {
+                console.error('Error al insertar intereses:', e);
+            }
+
+            // Limpiar registro pendiente de la sesión
+            delete req.session.pendingRegistration;
+
+            res.json({ success: true, message: 'Registro completado. Ahora puedes iniciar sesión.', redirectTo: '/login' });
+        } catch (error) {
+            console.error('Error en /complete-registration:', error);
             res.status(500).json({ success: false, message: 'Error interno del servidor.' });
         }
     });

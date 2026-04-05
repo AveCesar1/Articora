@@ -241,3 +241,23 @@ hr {
         margin-bottom: 1.5rem;
     }
 }
+
+/* Registration modal - interests tag styling */
+#interestsList .badge {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+#interestsList .badge button {
+    color: rgba(255,255,255,0.9);
+    background: transparent;
+    border: none;
+    font-size: 0.9rem;
+    line-height: 1;
+    margin-left: 0.5rem;
+}
+
+#interestsList .badge span {
+    color: #fff;
+}

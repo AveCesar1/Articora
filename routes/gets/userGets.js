@@ -120,11 +120,11 @@ module.exports = function (app) {
             if (!userId) return res.redirect('/login');
 
             const userRow = db.prepare(`
-            SELECT id, username, email, profile_picture, bio, institution, 
-                   academic_level, available_for_messages, is_validated, 
-                   created_at, first_name, last_name, full_name
-            FROM users WHERE id = ?
-        `).get(userId);
+                SELECT id, username, email, profile_picture, bio, institution, 
+                    academic_level, available_for_messages, is_validated, 
+                    created_at, first_name, last_name, full_name
+                FROM users WHERE id = ?
+            `).get(userId);
 
             if (!userRow) return res.redirect('/login');
 
@@ -158,7 +158,8 @@ module.exports = function (app) {
                 stats: { sourcesAdded, reviewsWritten, readingLists, collaborations },
                 readingStats: readingStats,
                 recentActivity: [],
-                interests: interests
+                interests: interests,
+                lists: db.prepare('SELECT id, title, description, total_sources, total_views FROM curatorial_lists WHERE user_id = ? ORDER BY created_at DESC').all(userId)
             };
 
             res.render('profile', {
@@ -271,6 +272,7 @@ module.exports = function (app) {
                 interests: interests,
                 canSendRequest: userRow.available_for_messages && !contactExists && !pendingRequest,
                 hasPendingRequest: !!pendingRequest,
+                lists: db.prepare('SELECT id, title, description, total_sources, total_views FROM curatorial_lists WHERE user_id = ? ORDER BY created_at DESC').all(profileId),
                 pendingRequestSentByMe: pendingRequest && pendingRequest.sender_id === currentUserId,
                 recentActivity: []
             };

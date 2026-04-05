@@ -174,6 +174,11 @@
                                     <dd class="col-sm-8"><%= post.volume %></dd>
                                 <% } %>
 
+                                <% if (post.edition) { %>
+                                    <dt class="col-sm-4">Edición</dt>
+                                    <dd class="col-sm-8"><%= post.edition %></dd>
+                                <% } %>
+
                                 <% if (post.issue) { %>
                                     <dt class="col-sm-4">Número</dt>
                                     <dd class="col-sm-8"><%= post.issue %></dd>
@@ -197,11 +202,7 @@
                                     <dd class="col-sm-8"><%= post.isbn %></dd>
                                 <% } %>
 
-                                <dt class="col-sm-4">Idioma</dt>
-                                <dd class="col-sm-8"><%= post.language %></dd>
-
-                                <dt class="col-sm-4">Licencia</dt>
-                                <dd class="col-sm-8"><%= post.license %></dd>
+                                <!-- Idioma y Licencia no se muestran en la plataforma -->
 
                                 <dt class="col-sm-4">Subido por</dt>
                                 <dd class="col-sm-8"><%= post.uploadedBy %></dd>
@@ -440,22 +441,6 @@
                     <button class="btn btn-primary w-100" id="copyCitationBtn">
                         <i class="fas fa-copy me-2"></i>Copiar al portapapeles
                     </button>
-                </div>
-            </div>
-
-            <!-- Información de derechos -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-balance-scale me-2"></i>Derechos de uso</h5>
-                </div>
-                <div class="card-body">
-                    <p class="small">
-                        <i class="fas fa-creative-commons me-2"></i>
-                        Este documento está disponible bajo la licencia <%= post.license %>.
-                    </p>
-                    <p class="small text-muted">
-                        Para usos comerciales o modificaciones, por favor revise los términos completos de la licencia.
-                    </p>
                 </div>
             </div>
         </div>

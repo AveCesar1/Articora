@@ -74,4 +74,81 @@
 
 <script src="/js/crypto.js"></script>
 
+<!-- Modal: Completar perfil después de verificar correo -->
+<div class="modal fade" id="completeRegistrationModal" tabindex="-1" aria-labelledby="completeRegistrationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="completeRegistrationLabel">Cuéntanos más sobre ti</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="completeRegistrationForm">
+                <div class="modal-body">
+                    <div id="complete-error" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="complete-success" class="alert alert-success d-none" role="alert"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="firstName" class="form-label">Nombre(s)</label>
+                            <input type="text" class="form-control" id="firstName" maxlength="50" placeholder="Tus nombres (opcional)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="lastName" class="form-label">Apellido(s)</label>
+                            <input type="text" class="form-control" id="lastName" maxlength="50" placeholder="Tus apellidos (opcional)">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="academicLevel" class="form-label">Grado académico</label>
+                        <select id="academicLevel" class="form-select">
+                            <option value="">Selecciona...</option>
+                            <option>Licenciatura</option>
+                            <option>Maestría</option>
+                            <option>Doctorado</option>
+                            <option>Estudiante</option>
+                            <option>Profesional</option>
+                        </select>
+                        <div class="form-text">Selecciona el grado que mejor te describa.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="institution" class="form-label">Institución</label>
+                            <input type="text" class="form-control" id="institution" maxlength="255" placeholder="Opcional">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="department" class="form-label">Departamento</label>
+                            <input type="text" class="form-control" id="department" maxlength="255" placeholder="Opcional">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="interestInput" class="form-label">Intereses de investigación (mínimo 3)</label>
+                        <div class="input-group mb-2">
+                            <input type="text" id="interestInput" class="form-control" maxlength="100" placeholder="Escribe un interés y pulsa Agregar">
+                            <button type="button" id="addInterestBtn" class="btn btn-outline-secondary">Agregar</button>
+                        </div>
+                        <div id="interestsList" class="mb-2"></div>
+                        <div class="form-text">Añade al menos 3 intereses. Escribe uno y pulsa "Agregar".</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="availableForMessages">
+                        <label class="form-check-label" for="availableForMessages">Disponible para recibir mensajes</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">Biografía</label>
+                        <textarea id="bio" class="form-control" rows="4" maxlength="1000" placeholder="Escribe una breve biografía (máx. 1000 caracteres)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="complete-submit-btn" class="btn btn-primary">Guardar y finalizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <%- include('partials/footer', { pageScripts: '/js/register.js' }) %>

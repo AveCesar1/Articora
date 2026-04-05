@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS users (
     bio TEXT,
     institution VARCHAR(255),
     department VARCHAR(255),
-    affiliation_type VARCHAR(50),
     available_for_messages BOOLEAN DEFAULT 0,
     academic_level VARCHAR(20),
     is_validated BOOLEAN DEFAULT 0,
