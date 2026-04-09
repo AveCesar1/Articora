@@ -259,17 +259,45 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                // Simular creación de lista
-                showNotification('Lista creada exitosamente', 'success');
+                // Enviar al servidor para crear la lista
+                (async function () {
+                    const payload = {
+                        title: title,
+                        description: description,
+                        cover_type: document.querySelector('input[name="coverType"]:checked')?.value || 'auto',
+                        is_public: document.getElementById('isPublicCheckbox')?.checked ? 1 : 0,
+                        is_collaborative: collaborativeSwitch?.checked ? 1 : 0,
+                        collaborators: appState.collaborators.map(c => c.id)
+                    };
 
-                // Cerrar modal y resetear formulario
-                const modalInstance = bootstrap.Modal.getInstance(modal);
-                modalInstance.hide();
+                    try {
+                        const resp = await fetch('/api/lists', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const json = await resp.json();
+                        if (!resp.ok || !json || !json.success) {
+                            showNotification((json && json.message) ? json.message : 'Error creando la lista', 'error');
+                            return;
+                        }
 
-                // Simular recarga o actualización de la interfaz
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                        showNotification('Lista creada exitosamente', 'success');
+                        const modalInstance = bootstrap.Modal.getInstance(modal);
+                        modalInstance.hide();
+
+                        setTimeout(() => {
+                            if (json.list && json.list.id) {
+                                window.location.href = `/lists/${json.list.id}`;
+                            } else {
+                                window.location.reload();
+                            }
+                        }, 700);
+                    } catch (err) {
+                        console.error('Error creating list:', err);
+                        showNotification('Error de red al crear la lista', 'error');
+                    }
+                })();
             });
         }
     }
@@ -851,192 +879,192 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-function initCategoriesChart() {
-    const container = document.getElementById('categoriesChart');
-    if (!container || !data.list || !data.list.categoriesDistribution) return;
-    
-    const categories = Object.entries(data.list.categoriesDistribution);
-    
-    if (categories.length === 0) {
-        container.innerHTML = '<p class="text-muted text-center py-4">No hay datos de categorías disponibles</p>';
-        return;
-    }
-    
-    // Limpiar el contenedor
-    container.innerHTML = '<canvas id="categoriesChartCanvas"></canvas>';
-    
-    const ctx = document.getElementById('categoriesChartCanvas').getContext('2d');
-    
-    // Preparar datos
-    const labels = categories.map(([category]) => category);
-    const values = categories.map(([, percentage]) => percentage);
-    
-    // Mapeo de colores por categoría
-    const categoryColors = {
-        'Ciencias Cognitivas': '#3498db',
-        'Ciencias Sociales': '#2ecc71',
-        'Ciencias Humanistas': '#9b59b6',
-        'Disciplinas Creativas': '#e74c3c',
-        'Ciencias Computacionales': '#f39c12',
-        'Ciencias Exactas': '#1abc9c',
-        'Ciencias Naturales': '#34495e',
-        'Ciencias Aplicadas': '#e67e22'
-    };
-    
-    // Asignar colores basados en las categorías
-    const backgroundColors = labels.map(category => {
-        // Buscar en categoryColors primero
-        if (categoryColors[category]) {
-            return categoryColors[category];
+    function initCategoriesChart() {
+        const container = document.getElementById('categoriesChart');
+        if (!container || !data.list || !data.list.categoriesDistribution) return;
+
+        const categories = Object.entries(data.list.categoriesDistribution);
+
+        if (categories.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-4">No hay datos de categorías disponibles</p>';
+            return;
         }
-        
-        // Si no está en categoryColors, buscar en knowledgeCategories
-        const catInfo = data.knowledgeCategories?.find(c => c.name === category);
-        return catInfo ? catInfo.color : getDefaultColor(category);
-    });
-    
-    // También crear colores más claros para hover
-    const hoverBackgroundColors = backgroundColors.map(color => {
-        return lightenColor(color, 30); // 30% más claro
-    });
-    
-    // Crear el gráfico de torta
-    new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: backgroundColors,
-                borderColor: '#f5f1e6',
-                borderWidth: 2,
-                hoverBackgroundColor: hoverBackgroundColors,
-                hoverBorderColor: '#2c1810',
-                hoverBorderWidth: 3,
-                hoverOffset: 20
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        padding: 15,
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        font: {
-                            family: "'Georgia', 'Times New Roman', serif",
-                            size: 12,
-                            weight: 'normal'
-                        },
-                        color: '#3e2723',
-                        generateLabels: function(chart) {
-                            const data = chart.data;
-                            if (data.labels.length && data.datasets.length) {
-                                return data.labels.map(function(label, i) {
-                                    const value = data.datasets[0].data[i];
-                                    const percentage = Math.round((value / data.datasets[0].data.reduce((a, b) => a + b, 0)) * 100);
-                                    
-                                    return {
-                                        text: `${label}: ${value}%`,
-                                        fillStyle: data.datasets[0].backgroundColor[i],
-                                        strokeStyle: data.datasets[0].backgroundColor[i],
-                                        lineWidth: 1,
-                                        hidden: false,
-                                        index: i,
-                                        extra: {
-                                            percentage: percentage
-                                        }
-                                    };
-                                });
+
+        // Limpiar el contenedor
+        container.innerHTML = '<canvas id="categoriesChartCanvas"></canvas>';
+
+        const ctx = document.getElementById('categoriesChartCanvas').getContext('2d');
+
+        // Preparar datos
+        const labels = categories.map(([category]) => category);
+        const values = categories.map(([, percentage]) => percentage);
+
+        // Mapeo de colores por categoría
+        const categoryColors = {
+            'Ciencias Cognitivas': '#3498db',
+            'Ciencias Sociales': '#2ecc71',
+            'Ciencias Humanistas': '#9b59b6',
+            'Disciplinas Creativas': '#e74c3c',
+            'Ciencias Computacionales': '#f39c12',
+            'Ciencias Exactas': '#1abc9c',
+            'Ciencias Naturales': '#34495e',
+            'Ciencias Aplicadas': '#e67e22'
+        };
+
+        // Asignar colores basados en las categorías
+        const backgroundColors = labels.map(category => {
+            // Buscar en categoryColors primero
+            if (categoryColors[category]) {
+                return categoryColors[category];
+            }
+
+            // Si no está en categoryColors, buscar en knowledgeCategories
+            const catInfo = data.knowledgeCategories?.find(c => c.name === category);
+            return catInfo ? catInfo.color : getDefaultColor(category);
+        });
+
+        // También crear colores más claros para hover
+        const hoverBackgroundColors = backgroundColors.map(color => {
+            return lightenColor(color, 30); // 30% más claro
+        });
+
+        // Crear el gráfico de torta
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: backgroundColors,
+                    borderColor: '#f5f1e6',
+                    borderWidth: 2,
+                    hoverBackgroundColor: hoverBackgroundColors,
+                    hoverBorderColor: '#2c1810',
+                    hoverBorderWidth: 3,
+                    hoverOffset: 20
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: {
+                                family: "'Georgia', 'Times New Roman', serif",
+                                size: 12,
+                                weight: 'normal'
+                            },
+                            color: '#3e2723',
+                            generateLabels: function (chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map(function (label, i) {
+                                        const value = data.datasets[0].data[i];
+                                        const percentage = Math.round((value / data.datasets[0].data.reduce((a, b) => a + b, 0)) * 100);
+
+                                        return {
+                                            text: `${label}: ${value}%`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].backgroundColor[i],
+                                            lineWidth: 1,
+                                            hidden: false,
+                                            index: i,
+                                            extra: {
+                                                percentage: percentage
+                                            }
+                                        };
+                                    });
+                                }
+                                return [];
                             }
-                            return [];
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(44, 24, 16, 0.95)',
+                        titleColor: '#f5f1e6',
+                        bodyColor: '#f5f1e6',
+                        borderColor: '#8d6e63',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 6,
+                        displayColors: true,
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value}% (${percentage}% del total)`;
+                            },
+                            afterLabel: function (context) {
+                                // Opcional: mostrar información adicional si existe
+                                const catInfo = data.knowledgeCategories?.find(c => c.name === context.label);
+                                if (catInfo && catInfo.icon) {
+                                    return `Categoría: ${context.label}`;
+                                }
+                                return '';
+                            }
                         }
                     }
                 },
-                tooltip: {
-                    backgroundColor: 'rgba(44, 24, 16, 0.95)',
-                    titleColor: '#f5f1e6',
-                    bodyColor: '#f5f1e6',
-                    borderColor: '#8d6e63',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 6,
-                    displayColors: true,
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${value}% (${percentage}% del total)`;
-                        },
-                        afterLabel: function(context) {
-                            // Opcional: mostrar información adicional si existe
-                            const catInfo = data.knowledgeCategories?.find(c => c.name === context.label);
-                            if (catInfo && catInfo.icon) {
-                                return `Categoría: ${context.label}`;
-                            }
-                            return '';
-                        }
-                    }
+                animation: {
+                    animateScale: true,
+                    animateRotate: true,
+                    duration: 1000,
+                    easing: 'easeOutQuart'
                 }
-            },
-            animation: {
-                animateScale: true,
-                animateRotate: true,
-                duration: 1000,
-                easing: 'easeOutQuart'
             }
+        });
+
+        // Función para aclarar un color
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace("#", ""), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+
+            return "#" + (
+                0x1000000 +
+                (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+                (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+                (B < 255 ? (B < 1 ? 0 : B) : 255)
+            ).toString(16).slice(1);
         }
-    });
-    
-    // Función para aclarar un color
-    function lightenColor(color, percent) {
-        const num = parseInt(color.replace("#", ""), 16);
-        const amt = Math.round(2.55 * percent);
-        const R = (num >> 16) + amt;
-        const G = (num >> 8 & 0x00FF) + amt;
-        const B = (num & 0x0000FF) + amt;
-        
-        return "#" + (
-            0x1000000 +
-            (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-            (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-            (B < 255 ? (B < 1 ? 0 : B) : 255)
-        ).toString(16).slice(1);
-    }
-    
-    // Función para color por defecto basado en el nombre de la categoría
-    function getDefaultColor(categoryName) {
-        // Asignar colores basados en palabras clave en el nombre
-        if (categoryName.toLowerCase().includes('cognit')) return '#3498db';
-        if (categoryName.toLowerCase().includes('social')) return '#2ecc71';
-        if (categoryName.toLowerCase().includes('human')) return '#9b59b6';
-        if (categoryName.toLowerCase().includes('creativ')) return '#e74c3c';
-        if (categoryName.toLowerCase().includes('comput')) return '#f39c12';
-        if (categoryName.toLowerCase().includes('exact')) return '#1abc9c';
-        if (categoryName.toLowerCase().includes('natural')) return '#34495e';
-        if (categoryName.toLowerCase().includes('aplicad')) return '#e67e22';
-        
-        // Si no coincide, generar color basado en hash del nombre
-        let hash = 0;
-        for (let i = 0; i < categoryName.length; i++) {
-            hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+
+        // Función para color por defecto basado en el nombre de la categoría
+        function getDefaultColor(categoryName) {
+            // Asignar colores basados en palabras clave en el nombre
+            if (categoryName.toLowerCase().includes('cognit')) return '#3498db';
+            if (categoryName.toLowerCase().includes('social')) return '#2ecc71';
+            if (categoryName.toLowerCase().includes('human')) return '#9b59b6';
+            if (categoryName.toLowerCase().includes('creativ')) return '#e74c3c';
+            if (categoryName.toLowerCase().includes('comput')) return '#f39c12';
+            if (categoryName.toLowerCase().includes('exact')) return '#1abc9c';
+            if (categoryName.toLowerCase().includes('natural')) return '#34495e';
+            if (categoryName.toLowerCase().includes('aplicad')) return '#e67e22';
+
+            // Si no coincide, generar color basado en hash del nombre
+            let hash = 0;
+            for (let i = 0; i < categoryName.length; i++) {
+                hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+
+            const colors = [
+                '#3498db', '#2ecc71', '#9b59b6', '#e74c3c',
+                '#f39c12', '#1abc9c', '#34495e', '#e67e22',
+                '#16a085', '#27ae60', '#2980b9', '#8e44ad',
+                '#d35400', '#c0392b', '#7f8c8d'
+            ];
+
+            return colors[Math.abs(hash) % colors.length];
         }
-        
-        const colors = [
-            '#3498db', '#2ecc71', '#9b59b6', '#e74c3c',
-            '#f39c12', '#1abc9c', '#34495e', '#e67e22',
-            '#16a085', '#27ae60', '#2980b9', '#8e44ad',
-            '#d35400', '#c0392b', '#7f8c8d'
-        ];
-        
-        return colors[Math.abs(hash) % colors.length];
     }
-}
 
     function setupCharacterCounters() {
         // Configurar contadores para todos los textareas con maxlength

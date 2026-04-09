@@ -220,7 +220,7 @@ module.exports = function (app) {
         if (Number.isNaN(postId)) return res.status(400).send('Invalid id');
 
         try {
-            const row = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.journal_publisher AS publisher, s.pages, s.doi, s.keywords, st.name AS type, s.primary_url AS url, s.cover_image_url AS coverImage, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at, s.volume, s.edition, s.isbn FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id WHERE s.id = ? LIMIT 1`).get(postId);
+            const row = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.journal_publisher AS publisher, s.pages, s.doi, s.keywords, st.name AS type, s.primary_url AS url, s.cover_image_url AS coverImage, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at, s.volume, s.edition FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id WHERE s.id = ? LIMIT 1`).get(postId);
 
             if (!row) {
                 return res.status(404).render('404', { title: 'Fuente no encontrada - Artícora', currentPage: 'post' });
@@ -246,12 +246,11 @@ module.exports = function (app) {
                 year: row.year,
                 type: row.type || 'Libro',
                 journal: null,
-                    publisher: row.publisher || null,
-                    volume: row.volume || null,
-                    edition: row.edition || null,
+                publisher: row.publisher || null,
+                volume: row.volume || null,
+                edition: row.edition || null,
                 pages: row.pages || null,
                 doi: row.doi || null,
-                    isbn: row.isbn || null,
                 abstract: '',
                 keywords: keywords,
                 category: { id: row.category_id },
