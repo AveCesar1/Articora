@@ -337,10 +337,10 @@ module.exports = function (app) {
 
             const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
 
-            // version without profile_picture, as it's not collected at registration:
+            // version without profile_picture and not admin (is_admin defaults to 0):
             const insertStmt = req.db.prepare(`
-                INSERT INTO users (username, email, password, first_name, last_name, full_name, bio, institution, department, available_for_messages, academic_level, is_validated, is_verified, created_at, last_login, account_active, login_attempts, locked_until)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, datetime('now'), NULL, 1, 0, NULL)
+                INSERT INTO users (username, email, password, first_name, last_name, full_name, bio, institution, department, available_for_messages, academic_level, is_validated, is_verified, created_at, last_login, account_active, login_attempts, locked_until, is_admin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, datetime('now'), NULL, 1, 0, NULL, 0)
             `);
 
             const result = insertStmt.run(

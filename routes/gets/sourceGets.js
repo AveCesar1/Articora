@@ -391,6 +391,7 @@ module.exports = function (app) {
                 rating: { average: 0, count: 0, criteria: [] },
                 stats: {},
                 uploadedBy: uploader,
+                uploadedById: row.uploaded_by || null,
                 uploadDate: row.created_at || null,
                 language: null,
                 license: null,

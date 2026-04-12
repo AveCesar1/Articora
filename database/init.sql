@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     available_for_messages BOOLEAN DEFAULT 0,
     academic_level VARCHAR(20),
     is_validated BOOLEAN DEFAULT 0,
+    is_admin BOOLEAN DEFAULT 0,
     is_verified BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP,

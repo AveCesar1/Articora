@@ -303,6 +303,9 @@
                                                                 <i class="fas fa-edit"></i>
                                                             </button>
                                                         <% } %>
+                                                        <button class="btn btn-sm btn-link report-comment-btn" data-comment-id="<%= comment.id %>" data-comment-user-id="<%= comment.user_id %>" title="Reportar comentario" style="color: #dc3545;">
+                                                            <i class="fas fa-flag"></i>
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 <div class="rating-stars mb-2">
@@ -460,6 +463,103 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para reportes -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reportModalLabel">Reportar contenido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reportForm">
+                    <input type="hidden" id="report_target_type" value="post">
+                    <input type="hidden" id="report_source_id" value="<%= post.id %>">
+                    <input type="hidden" id="report_comment_id" value="">
+                    <input type="hidden" id="report_reported_user_id" value="<%= post.uploadedById || '' %>">
+
+                    <div class="mb-3">
+                        <label for="reportReason" class="form-label">Motivo</label>
+                        <select class="form-select" id="reportReason" required>
+                            <option value="duplicado">Posible duplicado</option>
+                            <option value="informacion_falsa">Información falsa</option>
+                            <option value="lenguaje_ofensivo">Lenguaje ofensivo/abuso</option>
+                            <option value="spam">Spam</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reportDetails" class="form-label">Detalles (opcional)</label>
+                        <textarea id="reportDetails" class="form-control" rows="3" maxlength="2000" placeholder="Describe brevemente por qué consideras que esto debe ser revisado..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="submitReportBtn">Enviar reporte</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const reportModalEl = document.getElementById('reportModal');
+    const reportModal = new bootstrap.Modal(reportModalEl);
+
+    // Open report modal for the whole post
+    const reportBtn = document.getElementById('reportBtn');
+    if (reportBtn) {
+        reportBtn.addEventListener('click', () => {
+            document.getElementById('report_target_type').value = 'post';
+            document.getElementById('report_comment_id').value = '';
+            document.getElementById('report_reported_user_id').value = '<%= post.uploadedById || '' %>';
+            reportModal.show();
+        });
+    }
+
+    // Report per comment
+    document.querySelectorAll('.report-comment-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const cid = btn.getAttribute('data-comment-id');
+            const cuser = btn.getAttribute('data-comment-user-id');
+            document.getElementById('report_target_type').value = 'comment';
+            document.getElementById('report_comment_id').value = cid || '';
+            document.getElementById('report_reported_user_id').value = cuser || '';
+            reportModal.show();
+        });
+    });
+
+    document.getElementById('submitReportBtn').addEventListener('click', async () => {
+        const type = document.getElementById('report_target_type').value || 'post';
+        const sourceId = document.getElementById('report_source_id').value || null;
+        const commentId = document.getElementById('report_comment_id').value || null;
+        const reportedUserId = document.getElementById('report_reported_user_id').value || null;
+        const reason = document.getElementById('reportReason').value || '';
+        const description = document.getElementById('reportDetails').value || '';
+
+        try {
+            const resp = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ type: type === 'post' ? 'source' : type, source_id: sourceId ? Number(sourceId) : null, comment_id: commentId ? Number(commentId) : null, reported_user_id: reportedUserId ? Number(reportedUserId) : null, reason, description })
+            });
+            const data = await resp.json();
+            if (resp.ok && data && data.success) {
+                reportModal.hide();
+                alert('Reporte enviado. Gracias por ayudar a mantener la comunidad.');
+            } else {
+                alert('Error al enviar el reporte: ' + (data && data.message ? data.message : resp.statusText));
+            }
+        } catch (e) {
+            console.error('Report error', e);
+            alert('Error al enviar el reporte');
+        }
+    });
+});
+</script>
 
 <!-- Modal de confirmación para comentarios -->
 <div class="modal fade" id="commentConfirmModal" tabindex="-1" aria-labelledby="commentConfirmModalLabel" aria-hidden="true">

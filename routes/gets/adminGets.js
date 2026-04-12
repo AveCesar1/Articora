@@ -1,8 +1,8 @@
 const IsRegistered = require('../../middlewares/auth');
 const checkRoles = require('../../middlewares/checkrole');
+const soloAdmin = checkRoles(['admin']);
 
 //Alias de middlewares
-const soloAdmin = checkRoles(['admin']);
 module.exports = function (app) {
     // COMPARE DOCUMENTS - ADMIN VERSION
     app.get('/compare/admin', soloAdmin, (req, res) => {
@@ -163,69 +163,33 @@ module.exports = function (app) {
 
     // ADMIN
     app.get('/admin', soloAdmin, (req, res) => {
-        const manualReports = [
-            {
-                id: 1,
-                type: 'source',
-                sourceId: 2,
-                title: "The Social Construction of Reality: A Treatise in the Sociology of Knowledge",
-                reason: "Posible duplicado",
-                description: "Usuario reporta que esta fuente es duplicada de otra existente",
-                reportedBy: "usuario789",
-                reportDate: "2023-11-25 14:30",
-                status: "pendiente",
-                priority: "alta"
-            },
-            {
-                id: 2,
-                type: 'source',
-                sourceId: 5,
-                title: "The Structure of Scientific Revolutions",
-                reason: "Información falsa",
-                description: "El año de publicación parece incorrecto según otras fuentes",
-                reportedBy: "investigador45",
-                reportDate: "2023-11-24 10:15",
-                status: "pendiente",
-                priority: "media"
-            },
-            {
-                id: 3,
-                type: 'user',
-                userId: "filosofo77",
-                userName: "Juan Pérez",
-                reason: "Perfil falso",
-                description: "El usuario parece usar información académica falsa",
-                reportedBy: "usuario123",
-                reportDate: "2023-11-23 16:45",
-                status: "pendiente",
-                priority: "alta"
-            },
-            {
-                id: 4,
-                type: 'source',
-                sourceId: 3,
-                title: "Deep Learning with Python",
-                reason: "Contenido inapropiado",
-                description: "Enlace lleva a sitio con contenido no académico",
-                reportedBy: "profesorAI",
-                reportDate: "2023-11-22 09:20",
-                status: "pendiente",
-                priority: "alta"
-            },
-            {
-                id: 5,
-                type: 'comment',
-                commentId: 42,
-                sourceId: 1,
-                sourceTitle: "Cognitive Science: An Introduction to the Study of Mind",
-                reason: "Lenguaje ofensivo",
-                description: "Comentario contiene insultos personales",
-                reportedBy: "moderador22",
-                reportDate: "2023-11-21 11:30",
-                status: "pendiente",
-                priority: "alta"
-            }
-        ];
+        const db = req.db;
+        // Fetch manual (user-submitted) reports from DB, most recent first
+        let manualRows = [];
+        try {
+            manualRows = db.prepare(`SELECT r.id, r.report_type, r.reporter_id, ru.username AS reporter_username, r.source_id, s.title AS source_title, r.reported_user_id, ru2.username AS reported_username, r.comment_id, r.reason, r.description, r.reported_at, r.status FROM reports r LEFT JOIN users ru ON r.reporter_id = ru.id LEFT JOIN users ru2 ON r.reported_user_id = ru2.id LEFT JOIN sources s ON r.source_id = s.id WHERE r.status = 'pending' ORDER BY r.reported_at ASC`).all();
+        } catch (e) {
+            console.error('Error fetching manual reports from DB:', e.message);
+            manualRows = [];
+        }
+
+        const manualReports = manualRows.map(r => {
+            // compute a simple priority heuristic
+            let priority = 'media';
+            if (r.reason && /ofensivo|violento|sexual|ilegal|abuso|ataque/i.test(r.reason + ' ' + (r.description || ''))) priority = 'alta';
+            return {
+                id: r.id,
+                type: r.report_type || (r.comment_id ? 'comment' : (r.reported_user_id ? 'user' : 'source')),
+                sourceId: r.source_id || null,
+                title: r.source_title || null,
+                reason: r.reason || 'otro',
+                description: r.description || '',
+                reportedBy: r.reporter_username || ('#' + (r.reporter_id || '')), 
+                reportDate: r.reported_at || null,
+                status: r.status || 'pending',
+                priority
+            };
+        });
 
         // Reportes automáticos del sistema
         const systemReports = [

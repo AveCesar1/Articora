@@ -193,13 +193,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.add('btn-outline-primary');
             }, 2000);
         });
-    }
-    
-    if (reportBtn) {
-        reportBtn.addEventListener('click', function() {
-            alert('Función de reporte no implementada en esta versión de demostración.');
-        });
-    }
-    
+    }    
     // Note: comment form handling is implemented in post-rate.js
 });
