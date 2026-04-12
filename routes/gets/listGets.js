@@ -36,8 +36,15 @@ module.exports = function (app) {
             const categoryColorMap = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap : {};
             const knowledgeCategories = categoryRows.map(c => ({ id: c.id, name: c.name, icon: c.icon_name || 'book', color: categoryColorMap[c.name] || '#8d6e63' }));
 
-            // Listas del usuario
-            const myListsRows = req.db.prepare('SELECT * FROM curatorial_lists WHERE user_id = ? ORDER BY updated_at DESC').all(userId);
+            // Listas del usuario + listas donde es colaborador (accepted or pending)
+            const myListsRows = req.db.prepare(`
+                SELECT cl.*, u.full_name as creatorName,
+                       (SELECT status FROM list_collaborators lc WHERE lc.list_id = cl.id AND lc.user_id = ?) as collaborator_status
+                FROM curatorial_lists cl
+                JOIN users u ON cl.user_id = u.id
+                WHERE cl.user_id = ? OR cl.id IN (SELECT list_id FROM list_collaborators WHERE user_id = ?)
+                ORDER BY cl.updated_at DESC
+            `).all(userId, userId, userId);
 
             const myLists = myListsRows.map(list => {
                 const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(list.id).c || 0;
@@ -72,18 +79,21 @@ module.exports = function (app) {
                 }
 
                 const collaborators = req.db.prepare(`
-                    SELECT u.id, u.full_name as name, u.profile_picture FROM list_collaborators lc
+                    SELECT u.id, u.full_name as name, u.profile_picture, lc.status FROM list_collaborators lc
                     JOIN users u ON lc.user_id = u.id
-                    WHERE lc.list_id = ? AND lc.status = 'accepted'
+                    WHERE lc.list_id = ?
                     LIMIT 10
-                `).all(list.id).map(r => ({ id: r.id, name: r.name || r.username, avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || '')}&background=2E8B57&color=fff` }));
+                `).all(list.id).map(r => ({ id: r.id, name: r.name || r.username, avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || '')}&background=2E8B57&color=fff`, status: r.status }));
+
+                // collaborator_status indicates whether current user is a collaborator and their status (accepted/pending/denied)
+                const collaboratorStatus = list.collaborator_status || null;
 
                 return {
                     id: list.id,
                     title: list.title,
                     description: list.description,
                     creatorId: list.user_id,
-                    creatorName: user.name,
+                    creatorName: list.creatorName || user.name,
                     isPublic: !!list.is_public,
                     isCollaborative: !!list.is_collaborative,
                     createdAt: list.created_at,
@@ -94,7 +104,8 @@ module.exports = function (app) {
                     categoriesDistribution: Object.keys(categoriesPercent).length ? categoriesPercent : {},
                     coverType: list.cover_type || 'auto',
                     coverImage,
-                    collaborators
+                    collaborators,
+                    collaboratorStatus
                 };
             });
 
@@ -246,7 +257,7 @@ module.exports = function (app) {
             const categoriesDistribution = {};
             cats.forEach(r => { categoriesDistribution[r.name] = Math.round((r.cnt / (totalSources || 1)) * 100); });
 
-            const collaborators = req.db.prepare("SELECT u.id, u.full_name as name, u.profile_picture FROM list_collaborators lc JOIN users u ON lc.user_id = u.id WHERE lc.list_id = ? AND lc.status = 'accepted'").all(listId).map(r => ({ id: r.id, name: r.name || 'Usuario', avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || 'Usuario')}&background=2E8B57&color=fff` }));
+            const collaborators = req.db.prepare("SELECT u.id, u.full_name as name, u.profile_picture, lc.status FROM list_collaborators lc JOIN users u ON lc.user_id = u.id WHERE lc.list_id = ?").all(listId).map(r => ({ id: r.id, name: r.name || 'Usuario', avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || 'Usuario')}&background=2E8B57&color=fff`, status: r.status }));
 
             const list = {
                 id: listRow.id,

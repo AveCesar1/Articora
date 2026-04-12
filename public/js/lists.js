@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
         collaborators: []
     };
 
+    function escapeHtml(s){ return String(s).replace(/[&<>'"]/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]; }); }
+
     // Inicializar según la vista
     if (window.location.pathname === '/lists') {
         initListsView();
@@ -147,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // Configuración colaborativa
+        // Configuración colaborativa (typeahead)
         const collaborativeSwitch = document.getElementById('collaborativeSwitch');
         const collaborativeSettings = document.getElementById('collaborativeSettings');
 
@@ -158,27 +160,46 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateCollaboratorsList();
             });
 
-            // Añadir colaborador
-            const addCollaboratorBtn = document.getElementById('addCollaboratorBtn');
-            const collaboratorSelect = document.getElementById('collaboratorSelect');
+            const collaboratorSearchCreate = document.getElementById('collaboratorSearchCreate');
+            const collaboratorSuggestionsCreate = document.getElementById('collaboratorSuggestionsCreate');
 
-            if (addCollaboratorBtn && collaboratorSelect) {
-                addCollaboratorBtn.addEventListener('click', function () {
-                    const selectedId = collaboratorSelect.value;
-                    if (!selectedId) return;
-
-                    const selectedOption = collaboratorSelect.options[collaboratorSelect.selectedIndex];
-                    const name = selectedOption.text.split(' (')[0];
-
-                    // Evitar duplicados
-                    if (!appState.collaborators.find(c => c.id === selectedId) && appState.collaborators.length < 5) {
-                        appState.collaborators.push({
-                            id: selectedId,
-                            name: name
-                        });
-                        updateCollaboratorsList();
-                        collaboratorSelect.value = '';
-                    }
+            let searchTimer = null;
+            if (collaboratorSearchCreate) {
+                collaboratorSearchCreate.addEventListener('input', function (e) {
+                    const q = (e.target.value || '').trim();
+                    clearTimeout(searchTimer);
+                    if (collaboratorSuggestionsCreate) collaboratorSuggestionsCreate.innerHTML = '';
+                    if (q.length < 3) return;
+                    searchTimer = setTimeout(async () => {
+                        try {
+                            const params = new URLSearchParams({ q });
+                            const resp = await fetch('/api/users/search?' + params.toString());
+                            const j = await resp.json();
+                            if (!j || !j.success) { if (collaboratorSuggestionsCreate) collaboratorSuggestionsCreate.innerHTML = '<div class="list-group-item small text-muted">Error en búsqueda</div>'; return; }
+                            const results = j.results || [];
+                            if (results.length === 0) { if (collaboratorSuggestionsCreate) collaboratorSuggestionsCreate.innerHTML = '<div class="list-group-item small text-muted">No se encontraron usuarios</div>'; return; }
+                            if (collaboratorSuggestionsCreate) collaboratorSuggestionsCreate.innerHTML = '';
+                            results.forEach(u => {
+                                const item = document.createElement('div');
+                                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                                item.innerHTML = `<div><strong>${u.full_name ? escapeHtml(u.full_name) : escapeHtml(u.username)}</strong><br><small class="text-muted">@${escapeHtml(u.username)}</small></div><div><button class="btn btn-sm btn-outline-primary add-coll-create" data-id="${u.id}" data-name="${escapeHtml(u.full_name || u.username)}">Agregar</button></div>`;
+                                collaboratorSuggestionsCreate.appendChild(item);
+                            });
+                            collaboratorSuggestionsCreate.querySelectorAll('.add-coll-create').forEach(btn => {
+                                btn.addEventListener('click', function () {
+                                    const id = this.dataset.id;
+                                    const name = this.dataset.name;
+                                    if (!id) return;
+                                    if (appState.collaborators.find(c => String(c.id) === String(id))) return;
+                                    if (appState.collaborators.length >= 5) { showNotification('Máximo 5 colaboradores', 'error'); return; }
+                                    appState.collaborators.push({ id: id, name: name });
+                                    updateCollaboratorsList();
+                                    collaboratorSearchCreate.value = '';
+                                    collaboratorSuggestionsCreate.innerHTML = '';
+                                });
+                            });
+                        } catch (err) { console.error(err); if (collaboratorSuggestionsCreate) collaboratorSuggestionsCreate.innerHTML = '<div class="list-group-item small text-muted">Error de red</div>'; }
+                    }, 300);
                 });
             }
         }
@@ -265,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         title: title,
                         description: description,
                         cover_type: document.querySelector('input[name="coverType"]:checked')?.value || 'auto',
-                        is_public: document.getElementById('isPublicCheckbox')?.checked ? 1 : 0,
+                        is_public: (document.getElementById('visibilityPublic') && document.getElementById('visibilityPublic').checked) ? 1 : 0,
                         is_collaborative: collaborativeSwitch?.checked ? 1 : 0,
                         collaborators: appState.collaborators.map(c => c.id)
                     };
@@ -354,6 +375,24 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.addEventListener('click', function () {
                 const listId = this.dataset.listId;
                 confirmDeleteList(listId);
+            });
+        });
+
+        // Responder invitaciones (aceptar/rechazar)
+        document.querySelectorAll('.respond-invite-btn').forEach(btn => {
+            btn.addEventListener('click', async function () {
+                const listId = this.dataset.listId;
+                const action = this.dataset.action; // 'accept' or 'reject'
+                if (!listId || !action) return;
+                try {
+                    const resp = await fetch(`/api/lists/${listId}/collaborators/respond`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ action }) });
+                    const j = await resp.json();
+                    if (j && j.success) {
+                        window.location.reload();
+                    } else {
+                        showNotification('No se pudo procesar la respuesta', 'error');
+                    }
+                } catch (err) { console.error(err); showNotification('Error de red', 'error'); }
             });
         });
     }
@@ -570,18 +609,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Configurar envío del formulario
                 const form = document.getElementById('editListForm');
                 if (form) {
-                    form.addEventListener('submit', function (e) {
+                    form.addEventListener('submit', async function (e) {
                         e.preventDefault();
 
-                        const newTitle = document.getElementById('editListTitle').value;
-                        const newDesc = document.getElementById('editListDescription').value;
+                        const newTitle = document.getElementById('editListTitle').value.trim();
+                        const newDesc = document.getElementById('editListDescription').value.trim();
+                        const isPublic = document.getElementById('editVisibilityPublic') && document.getElementById('editVisibilityPublic').checked ? 1 : 0;
+                        const isCollaborative = document.querySelector('#editListForm input[name="editCollaborative"]')?.checked ? 1 : 0;
 
-                        // Actualizar visualización
-                        document.getElementById('listTitleDisplay').textContent = newTitle;
-                        document.getElementById('listDescriptionDisplay').textContent = newDesc;
+                        if (!newTitle) { showNotification('El título es obligatorio', 'error'); return; }
 
-                        modal.hide();
-                        showNotification('Información actualizada', 'success');
+                        try {
+                            const resp = await fetch(`/api/lists/${data.list.id}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ title: newTitle, description: newDesc, is_public: isPublic, is_collaborative: isCollaborative })
+                            });
+                            const j = await resp.json();
+                            if (!resp.ok || !j || !j.success) {
+                                showNotification((j && j.message) ? j.message : 'Error actualizando la lista', 'error');
+                                return;
+                            }
+
+                            // Actualizar visualización
+                            document.getElementById('listTitleDisplay').textContent = j.list.title;
+                            document.getElementById('listDescriptionDisplay').textContent = j.list.description || 'Sin descripción';
+
+                            modal.hide();
+                            showNotification('Información actualizada', 'success');
+
+                            // Notify other scripts (list-modals.js) that list was updated
+                            try { document.dispatchEvent(new CustomEvent('list:updated', { detail: { list: j.list } })); } catch (e) { console.error('Could not dispatch list:updated', e); }
+                        } catch (err) {
+                            console.error('Error updating list:', err);
+                            showNotification('Error de red al actualizar la lista', 'error');
+                        }
                     });
                 }
             });

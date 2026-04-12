@@ -244,9 +244,17 @@
                                     
                                     <!-- Botones de acción -->
                                     <div class="d-flex justify-content-between">
-                                        <a href="/lists/<%= list.id %>" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit me-1"></i> Editar
-                                        </a>
+                                        <% const collStatus = list.collaborator_status || list.collaboratorStatus || null; %>
+                                        <% if (collStatus === 'pending') { %>
+                                            <div>
+                                                <button class="btn btn-sm btn-success respond-invite-btn" data-action="accept" data-list-id="<%= list.id %>">Aceptar</button>
+                                                <button class="btn btn-sm btn-danger respond-invite-btn" data-action="reject" data-list-id="<%= list.id %>">Rechazar</button>
+                                            </div>
+                                        <% } else { %>
+                                            <a href="/lists/<%= list.id %>" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit me-1"></i> Editar
+                                            </a>
+                                        <% } %>
                                         <div class="btn-group">
                                             <button class="btn btn-sm btn-outline-secondary share-btn" 
                                                     data-list-id="<%= list.id %>"
@@ -461,19 +469,13 @@
                                 <div id="collaborativeSettings" class="mt-3" style="display: none;">
                                     <label class="form-label mb-2">Invitar colaboradores</label>
                                     <div class="input-group mb-2">
-                                        <select class="form-select" id="collaboratorSelect">
-                                            <option value="">Seleccionar usuario validado...</option>
-                                            <% data.validContacts.forEach(contact => { %>
-                                            <option value="<%= contact.id %>">
-                                                <%= contact.name %> (<%= contact.type === 'validated' ? 'Validado' : 'Registrado' %>)
-                                            </option>
-                                            <% }) %>
-                                        </select>
+                                        <input type="text" class="form-control" id="collaboratorSearchCreate" placeholder="Escribe al menos 3 caracteres para buscar usuarios validados...">
                                         <button type="button" class="btn btn-outline-primary" id="addCollaboratorBtn">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </div>
-                                    
+                                    <div id="collaboratorSuggestionsCreate" class="list-group mb-2" style="max-height:200px; overflow:auto;"></div>
+
                                     <div id="collaboratorsList" class="mb-3">
                                         <!-- Lista dinámica de colaboradores -->
                                     </div>

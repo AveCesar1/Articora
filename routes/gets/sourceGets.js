@@ -212,6 +212,139 @@ module.exports = function (app) {
         }
     });
 
+    // API: Return sources as JSON for list modal (supports search, filters and excluding an existing list)
+    app.get('/api/listsources', async (req, res) => {
+        try {
+            const query = req.query.q || '';
+            const page = parseInt(req.query.page) || 1;
+            const perPage = parseInt(req.query.perPage) || 10;
+            const db = req.db;
+
+            const selectedSourceType = req.query.sourceType || req.query.type || null;
+            const selectedCategory = req.query.category ? Number(req.query.category) : null;
+            const selectedSubcategory = req.query.subcategory ? Number(req.query.subcategory) : null;
+            const excludeListId = req.query.exclude_list_id ? Number(req.query.exclude_list_id) : null;
+
+            // resolve source type id if passed as name
+            let sourceTypeId = null;
+            if (selectedSourceType) {
+                const stRow = db.prepare('SELECT id FROM source_types WHERE LOWER(name) = LOWER(?) LIMIT 1').get(selectedSourceType);
+                if (stRow) sourceTypeId = stRow.id;
+            }
+
+            let results = [];
+            let totalResults = 0;
+
+            if (!query || query.trim().length === 0) {
+                const whereParts = [];
+                const params = [];
+                if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
+                if (selectedCategory) { whereParts.push('s.category_id = ?'); params.push(selectedCategory); }
+                if (selectedSubcategory) { whereParts.push('s.subcategory_id = ?'); params.push(selectedSubcategory); }
+                if (excludeListId) { whereParts.push(`s.id NOT IN (SELECT source_id FROM list_sources WHERE list_id = ?)`); params.push(excludeListId); }
+
+                const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+                const rows = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.doi, s.keywords, st.name AS type, s.pages, s.primary_url, s.cover_image_url, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id ${whereClause} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`).all(...params, perPage, (page - 1) * perPage);
+
+                const countRow = db.prepare(`SELECT COUNT(1) as c FROM sources s ${whereClause}`).get(...params);
+                totalResults = countRow ? (countRow.c || 0) : 0;
+
+                results = rows.map(r => {
+                    const authorsRows = db.prepare('SELECT a.full_name FROM authors a JOIN source_authors sa ON a.id = sa.author_id WHERE sa.source_id = ? ORDER BY sa.sort_order').all(r.id);
+                    const authors = authorsRows.map(a => a.full_name);
+                    const keywords = r.keywords ? String(r.keywords).split(',').map(k => k.trim()).filter(Boolean) : [];
+
+                    let uploader = { id: null, name: 'Usuario' };
+                    try {
+                        if (r.uploaded_by) {
+                            const u = db.prepare('SELECT id, username, full_name FROM users WHERE id = ? LIMIT 1').get(r.uploaded_by);
+                            if (u) uploader = { id: u.id, name: u.full_name || u.username || 'Usuario' };
+                        }
+                    } catch (e) { uploader = { id: null, name: 'Usuario' }; }
+
+                    return {
+                        id: r.id,
+                        title: r.title,
+                        authors,
+                        year: r.year,
+                        type: r.type || 'Book',
+                        pages: r.pages,
+                        doi: r.doi,
+                        keywords,
+                        uploadDate: r.created_at || null,
+                        uploader,
+                        cover: r.cover_image_url || null
+                    };
+                });
+            } else {
+                let pyResults = [];
+                try { pyResults = await searchWithPython(query); } catch (e) { console.error('TF-IDF error', e); pyResults = []; }
+
+                if (Array.isArray(pyResults) && pyResults.length > 0) {
+                    const ids = pyResults.map(r => r.source_id).filter(Boolean);
+                    if (ids.length > 0) {
+                        const placeholders = ids.map(() => '?').join(',');
+                        const whereParts = [`s.id IN (${placeholders})`];
+                        const params = [...ids];
+                        if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
+                        if (selectedCategory) { whereParts.push('s.category_id = ?'); params.push(selectedCategory); }
+                        if (selectedSubcategory) { whereParts.push('s.subcategory_id = ?'); params.push(selectedSubcategory); }
+                        if (excludeListId) { whereParts.push(`s.id NOT IN (SELECT source_id FROM list_sources WHERE list_id = ?)`); params.push(excludeListId); }
+
+                        const whereClause = `WHERE ${whereParts.join(' AND ')}`;
+
+                        const rows = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.doi, s.keywords, st.name AS type, s.pages, s.primary_url, s.cover_image_url, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id ${whereClause}`).all(...params);
+
+                        const rowMap = new Map();
+                        rows.forEach(r => rowMap.set(r.id, r));
+
+                        const ordered = [];
+                        for (const item of pyResults) {
+                            const rid = item.source_id;
+                            const row = rowMap.get(rid);
+                            if (!row) continue;
+                            const authorsRows = db.prepare('SELECT a.full_name FROM authors a JOIN source_authors sa ON a.id = sa.author_id WHERE sa.source_id = ? ORDER BY sa.sort_order').all(row.id);
+                            const authors = authorsRows.map(a => a.full_name);
+                            const keywords = row.keywords ? String(row.keywords).split(',').map(k => k.trim()).filter(Boolean) : [];
+
+                            let uploader = { id: null, name: 'Usuario' };
+                            try {
+                                if (row.uploaded_by) {
+                                    const u = db.prepare('SELECT id, username, full_name FROM users WHERE id = ? LIMIT 1').get(row.uploaded_by);
+                                    if (u) uploader = { id: u.id, name: u.full_name || u.username || 'Usuario' };
+                                }
+                            } catch (e) { uploader = { id: null, name: 'Usuario' }; }
+
+                            ordered.push({
+                                id: row.id,
+                                title: row.title,
+                                authors,
+                                year: row.year,
+                                type: row.type || 'Book',
+                                pages: row.pages,
+                                doi: row.doi,
+                                keywords,
+                                uploadDate: row.created_at || null,
+                                uploader,
+                                cover: row.cover_image_url || null,
+                                score: item.score
+                            });
+                        }
+
+                        totalResults = ordered.length;
+                        results = ordered.slice((page - 1) * perPage, page * perPage);
+                    }
+                }
+            }
+
+            return res.json({ success: true, results, pagination: { currentPage: page, totalPages: Math.max(1, Math.ceil(totalResults / perPage)), totalResults } });
+        } catch (err) {
+            console.error('Error in GET /api/listsources', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+    
     // Detalle de fuente (fetch dinámico por id desde DB)
     app.get('/post/:id', (req, res) => {
         const postId = parseInt(req.params.id, 10);
@@ -334,6 +467,28 @@ module.exports = function (app) {
         } catch (err) {
             console.error('Error fetching post by id:', err);
             res.status(500).send('Internal server error');
+        }
+    });
+
+    // Redirect /source/:id to existing /post/:id for compatibility
+    app.get('/source/:id', (req, res) => {
+        const id = req.params.id;
+        return res.redirect(302, `/post/${id}`);
+    });
+
+    // API: search validated users by username or full_name (for collaborator invites)
+    app.get('/api/users/search', IsRegistered, (req, res) => {
+        try {
+            const q = (req.query.q || '').trim();
+            if (!q || q.length < 3) return res.json({ success: true, results: [] });
+            const db = req.db;
+            const like = `%${q}%`;
+            const rows = db.prepare("SELECT id, username, full_name FROM users WHERE is_validated = 1 AND (username LIKE ? OR full_name LIKE ?) ORDER BY username LIMIT 20").all(like, like);
+            const results = rows.map(r => ({ id: r.id, username: r.username, full_name: r.full_name, name: r.full_name || r.username }));
+            return res.json({ success: true, results });
+        } catch (err) {
+            console.error('Error in GET /api/users/search', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
 
