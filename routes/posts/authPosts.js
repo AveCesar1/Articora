@@ -435,17 +435,22 @@ module.exports = function (app) {
                 id: user.id,
                 username: user.username,
                 is_validated: user.is_validated,
-                is_verified: user.is_verified
+                is_verified: user.is_verified,
+                is_admin: user.is_admin
             });
 
             // Set session variables for authentication and role
             req.session.userId = user.id;
             req.session.is_validated = user.is_validated;
+            // Persist admin flag in session; provide both snake_case and camelCase for compatibility
+            req.session.is_admin = (typeof user.is_admin !== 'undefined') ? user.is_admin : 0;
+            req.session.isAdmin = !!req.session.is_admin;
 
             // Debugging for session variables
             if (debugging) console.log('Session after login:', {
                 userId: req.session.userId,
-                is_validated: req.session.is_validated
+                is_validated: req.session.is_validated,
+                is_admin: req.session.is_admin,
             });
 
             // Configurar cookie HTTP-only y Secure. Extiende duración si "rememberMe" está activo.

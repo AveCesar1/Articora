@@ -67,6 +67,7 @@
     </style>
 </head>
 <body>
+    <% const __isAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : ((typeof user !== 'undefined' && user && user.isAdmin) ? user.isAdmin : false); %>
     <!-- Barra de navegación estilo barra de biblioteca -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
@@ -96,21 +97,36 @@
                             <i class="fas fa-home me-1"></i> Inicio
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'lists' ? 'active' : '' %>" href="/lists">
-                            <i class="fas fa-book-open me-1"></i> Colecciones
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'faq' ? 'active' : '' %>" href="/faq">
-                            <i class="fas fa-info-circle me-1"></i> Acerca de
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'chat' ? 'active' : '' %>" href="/chat">
-                            <i class="fas fa-comments me-1"></i> Chat
-                        </a>
-                    </li>
+                    <% if (__isAdmin) { %>
+                        <li class="nav-item">
+                            <a class="nav-link <%= currentPage === 'admin' ? 'active' : '' %>" href="/admin">
+                                <i class="fas fa-tools me-1"></i> Administración
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= currentPage === 'compare' ? 'active' : '' %>" href="/compare/admin">
+                                <i class="fas fa-cogs me-1"></i> Comparar Fuentes
+                            </a>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item">
+                            <a class="nav-link <%= currentPage === 'lists' ? 'active' : '' %>" href="/lists">
+                                <i class="fas fa-list me-1"></i> Listas
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= currentPage === 'faq' ? 'active' : '' %>" href="/faq">
+                                <i class="fas fa-info-circle me-1"></i> Acerca de
+                            </a>
+                        </li>
+                        <% if (!__isAdmin) { %>
+                            <li class="nav-item">
+                                <a class="nav-link <%= currentPage === 'chat' ? 'active' : '' %>" href="/chat">
+                                    <i class="fas fa-comments me-1"></i> Chat
+                                </a>
+                            </li>
+                        <% } %>
+                    <% } %>
                     
                     <% if (typeof loggedIn !== 'undefined' && loggedIn) { %>
                         <!-- Usuario autenticado: mostrar enlace a cuenta (no se muestran datos sensibles) -->

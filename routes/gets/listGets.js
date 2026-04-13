@@ -1,11 +1,13 @@
 const IsRegistered = require('../../middlewares/auth');
 const checkRoles = require('../../middlewares/checkrole');
 const soloValidado = checkRoles(['validado', 'admin']);
+// Middleware that prevents admins from accessing certain user-facing pages
+const noAdmin = checkRoles(['validado', 'no_validado']);
 const { sanitizeText } = require('../../middlewares/sanitize');
 
 module.exports = function (app) {
     // Página: Listas (lista del usuario + públicas)
-    app.get('/lists', IsRegistered, (req, res) => {
+    app.get('/lists', IsRegistered, noAdmin, (req, res) => {
         try {
             const userId = req.user && req.user.id;
             if (!userId) return res.redirect('/login');
@@ -172,7 +174,7 @@ module.exports = function (app) {
     });
 
     // Detalle de lista
-    app.get('/lists/:id', IsRegistered, (req, res) => {
+    app.get('/lists/:id', IsRegistered, noAdmin, (req, res) => {
         try {
             const listId = parseInt(req.params.id, 10);
             const userId = req.user && req.user.id;

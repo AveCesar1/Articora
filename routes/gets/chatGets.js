@@ -2,6 +2,8 @@ const isRegistered = require('../../middlewares/auth');
 const authenticate = require('../../middlewares/auth');
 const fs = require('fs');
 const path = require('path');
+const checkRoles = require('../../middlewares/checkrole');
+const noAdmin = checkRoles(['validado', 'no_validado']);
 
 
 module.exports = function(app) {
@@ -135,7 +137,7 @@ module.exports = function(app) {
     });
 
     // Página principal del chat
-    app.get('/chat', isRegistered, (req, res) => {
+    app.get('/chat', isRegistered, noAdmin, (req, res) => {
         const currentUserId = req.user.id;
 
         try {
@@ -361,13 +363,11 @@ module.exports = function(app) {
                 { ext: 'pptx', name: 'PowerPoint', icon: 'file-powerpoint', color: '#e67e22' },
                 { ext: 'zip', name: 'ZIP', icon: 'file-archive', color: '#f39c12' }
             ] ;
+            // Reasons for reporting messages/comments in chat (per spec)
             const reportReasons = [
+                'Lenguaje ofensivo/abusivo',
+                'Spam',
                 'Contenido inapropiado',
-                'Spam o publicidad no solicitada',
-                'Información falsa o engañosa',
-                'Acoso o comportamiento ofensivo',
-                'Violación de derechos de autor',
-                'Contenido no académico',
                 'Otro'
             ];
 

@@ -482,11 +482,7 @@
                     <div class="mb-3">
                         <label for="reportReason" class="form-label">Motivo</label>
                         <select class="form-select" id="reportReason" required>
-                            <option value="duplicado">Posible duplicado</option>
-                            <option value="informacion_falsa">Información falsa</option>
-                            <option value="lenguaje_ofensivo">Lenguaje ofensivo/abuso</option>
-                            <option value="spam">Spam</option>
-                            <option value="otro">Otro</option>
+                            <!-- options populated dynamically -->
                         </select>
                     </div>
                     <div class="mb-3">
@@ -515,6 +511,7 @@ document.addEventListener('DOMContentLoaded', function(){
             document.getElementById('report_target_type').value = 'post';
             document.getElementById('report_comment_id').value = '';
             document.getElementById('report_reported_user_id').value = '<%= post.uploadedById || '' %>';
+            populateReportReasons('post');
             reportModal.show();
         });
     }
@@ -527,9 +524,62 @@ document.addEventListener('DOMContentLoaded', function(){
             document.getElementById('report_target_type').value = 'comment';
             document.getElementById('report_comment_id').value = cid || '';
             document.getElementById('report_reported_user_id').value = cuser || '';
+            populateReportReasons('comment');
             reportModal.show();
         });
     });
+
+    // Populate report reasons dynamically depending on the target type
+    const reasonSelect = document.getElementById('reportReason');
+    const reportReasonsByType = {
+        post: [
+            { value: 'contenido_explicito', text: 'Contenido explícito/vulgar/violento' },
+            { value: 'hipervinculo_incorrecto', text: 'Hipervínculo no corresponde a metadatos' },
+            { value: 'sitio_peligroso', text: 'Sitio peligroso (malware, phishing)' },
+            { value: 'duplicado', text: 'Duplicado (ya existe)' },
+            { value: 'spam', text: 'Spam' },
+            { value: 'otro', text: 'Otro' }
+        ],
+        source: [
+            { value: 'contenido_explicito', text: 'Contenido explícito/vulgar/violento' },
+            { value: 'hipervinculo_incorrecto', text: 'Hipervínculo no corresponde a metadatos' },
+            { value: 'sitio_peligroso', text: 'Sitio peligroso (malware, phishing)' },
+            { value: 'duplicado', text: 'Duplicado (ya existe)' },
+            { value: 'spam', text: 'Spam' },
+            { value: 'otro', text: 'Otro' }
+        ],
+        user: [
+            { value: 'informacion_falsa', text: 'Información falsa en perfil' },
+            { value: 'publicaciones_problemas', text: 'Publicaciones problemáticas (fuentes eliminadas previamente)' },
+            { value: 'otro', text: 'Otro' }
+        ],
+        comment: [
+            { value: 'lenguaje_ofensivo', text: 'Lenguaje ofensivo/abusivo' },
+            { value: 'spam', text: 'Spam' },
+            { value: 'contenido_inapropiado', text: 'Contenido inapropiado' },
+            { value: 'otro', text: 'Otro' }
+        ],
+        message: [
+            { value: 'lenguaje_ofensivo', text: 'Lenguaje ofensivo/abusivo' },
+            { value: 'spam', text: 'Spam' },
+            { value: 'contenido_inapropiado', text: 'Contenido inapropiado' },
+            { value: 'otro', text: 'Otro' }
+        ]
+    };
+
+    function populateReportReasons(type) {
+        const list = reportReasonsByType[type] || reportReasonsByType['source'];
+        reasonSelect.innerHTML = '';
+        list.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.value;
+            opt.textContent = r.text;
+            reasonSelect.appendChild(opt);
+        });
+    }
+
+    // Initialize with post/source reasons by default
+    try { populateReportReasons(document.getElementById('report_target_type').value || 'post'); } catch (e) {}
 
     document.getElementById('submitReportBtn').addEventListener('click', async () => {
         const type = document.getElementById('report_target_type').value || 'post';

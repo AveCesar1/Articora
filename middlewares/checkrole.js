@@ -29,6 +29,28 @@ const checkRole = (rolesPermitidos) => {
             const isValidatedFlag = !!isValidated;
             const isAdminFlag = !!isAdmin;
 
+            // Propagate flags into session/user/locals so templates and downstream handlers can rely on them
+            try {
+                if (req.session) {
+                    if (typeof req.session.is_validated === 'undefined' && typeof isValidated !== 'undefined') req.session.is_validated = isValidated;
+                    if (typeof req.session.is_admin === 'undefined' && typeof isAdmin !== 'undefined') req.session.is_admin = isAdmin;
+                }
+
+                req.user = req.user || {};
+                req.user.id = req.session.userId;
+                req.user.isAdmin = !!isAdminFlag;
+
+                res.locals = res.locals || {};
+                res.locals.loggedIn = true;
+                res.locals.user = res.locals.user || {};
+                res.locals.user.id = req.session.userId;
+                res.locals.user.isAdmin = !!isAdminFlag;
+                res.locals.isAdmin = !!isAdminFlag;
+                res.locals.isValidated = !!isValidatedFlag;
+            } catch (e) {
+                if (debugging) console.warn('checkRole: failed to propagate locals', e.message);
+            }
+
             const userRole = isAdminFlag ? 'admin' : (isValidatedFlag ? 'validado' : 'no_validado');
             if (debugging) console.log(`checkRole: Interpreted user role based on validation: ${userRole}`);
 

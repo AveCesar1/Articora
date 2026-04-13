@@ -86,6 +86,25 @@ app.use(session({
     }
 }));
 
+// Expose admin flag and session-derived user flags to templates on every request
+app.use((req, res, next) => {
+    try {
+        const sessionIsAdmin = req.session && (typeof req.session.is_admin !== 'undefined' ? req.session.is_admin : req.session.isAdmin);
+        const sessionIsValidated = req.session && (typeof req.session.is_validated !== 'undefined' ? req.session.is_validated : false);
+
+        res.locals.isAdmin = !!sessionIsAdmin;
+        res.locals.isValidated = !!sessionIsValidated;
+        res.locals.loggedIn = res.locals.loggedIn || !!(req.session && req.session.userId);
+
+        res.locals.user = res.locals.user || {};
+        if (req.session && req.session.userId) res.locals.user.id = req.session.userId;
+        if (typeof res.locals.user.isAdmin === 'undefined') res.locals.user.isAdmin = !!sessionIsAdmin;
+    } catch (e) {
+        if (global.debugging) console.warn('locals middleware error', e && e.message);
+    }
+    next();
+});
+
 // Temporary request logger for verification endpoints to assist debugging
 app.use((req, res, next) => {
     if (req.path && req.path.startsWith('/verificacion')) {
