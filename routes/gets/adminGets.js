@@ -167,7 +167,30 @@ module.exports = function (app) {
         // Fetch manual (user-submitted) reports from DB, most recent first
         let manualRows = [];
         try {
-            manualRows = db.prepare(`SELECT r.id, r.report_type, r.reporter_id, ru.username AS reporter_username, r.source_id, s.title AS source_title, r.reported_user_id, ru2.username AS reported_username, r.comment_id, r.reason, r.description, r.reported_at, r.status FROM reports r LEFT JOIN users ru ON r.reporter_id = ru.id LEFT JOIN users ru2 ON r.reported_user_id = ru2.id LEFT JOIN sources s ON r.source_id = s.id WHERE r.status = 'pending' ORDER BY r.reported_at ASC`).all();
+            manualRows = db.prepare(`
+                SELECT r.id,
+                       r.report_type,
+                       r.reporter_id,
+                       ru.username AS reporter_username,
+                       r.source_id,
+                       rt.source_id AS comment_source_id,
+                       COALESCE(s.title, s2.title) AS source_title,
+                       r.reported_user_id,
+                       ru2.username AS reported_username,
+                       r.comment_id,
+                       r.reason,
+                       r.description,
+                       r.reported_at,
+                       r.status
+                FROM reports r
+                LEFT JOIN users ru ON r.reporter_id = ru.id
+                LEFT JOIN users ru2 ON r.reported_user_id = ru2.id
+                LEFT JOIN ratings rt ON r.comment_id = rt.id
+                LEFT JOIN sources s ON r.source_id = s.id
+                LEFT JOIN sources s2 ON rt.source_id = s2.id
+                WHERE r.status = 'pending'
+                ORDER BY r.reported_at ASC
+            `).all();
         } catch (e) {
             console.error('Error fetching manual reports from DB:', e.message);
             manualRows = [];
@@ -180,7 +203,7 @@ module.exports = function (app) {
             return {
                 id: r.id,
                 type: r.report_type || (r.comment_id ? 'comment' : (r.reported_user_id ? 'user' : 'source')),
-                sourceId: r.source_id || null,
+                sourceId: r.source_id || r.comment_source_id || null,
                 title: r.source_title || null,
                 reason: r.reason || 'otro',
                 description: r.description || '',
@@ -264,5 +287,63 @@ module.exports = function (app) {
             currentPage: 'terms', 
             cssFile: 'terms.css' 
         });
+    });
+
+
+    ///////////
+    // API's //
+    ///////////
+
+    // Lists reports with reporter/reported info
+    app.get('/api/admin/reports', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const rows = db.prepare(`
+                SELECT r.*, ru.username AS reporter_username, u.username AS reported_username, s.title AS source_title
+                FROM reports r
+                LEFT JOIN users ru ON r.reporter_id = ru.id
+                LEFT JOIN users u ON r.reported_user_id = u.id
+                LEFT JOIN sources s ON r.source_id = s.id
+                ORDER BY r.reported_at DESC
+            `).all();
+
+            return res.json({ success: true, reports: rows });
+        } catch (e) {
+            console.error('GET /api/admin/reports error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Get detailed report
+    app.get('/api/admin/reports/:id', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(id);
+            if (!report) return res.status(404).json({ success: false, message: 'not_found' });
+
+            const reporter = report.reporter_id ? db.prepare('SELECT id, username, full_name, profile_picture, email FROM users WHERE id = ?').get(report.reporter_id) : null;
+            const reportedUser = report.reported_user_id ? db.prepare('SELECT id, username, full_name, profile_picture, bio FROM users WHERE id = ?').get(report.reported_user_id) : null;
+            // sources table does not have an `authors` text column (authors are normalized); fetch core fields
+            const comment = report.comment_id ? db.prepare('SELECT id, source_id, user_id, comment, created_at FROM ratings WHERE id = ?').get(report.comment_id) : null;
+            const message = report.message_id ? db.prepare('SELECT id, chat_id, user_id, encrypted_content, iv, encrypted_key, content_type, sent_at FROM messages WHERE id = ?').get(report.message_id) : null;
+
+            // Resolve source: prefer explicit report.source_id, then comment.source_id as fallback
+            let resolvedSource = null;
+            if (report.source_id) resolvedSource = report.source_id;
+            else if (comment && comment.source_id) resolvedSource = comment.source_id;
+
+            let source = null;
+            if (resolvedSource) {
+                source = db.prepare('SELECT id, title, primary_url, uploaded_by FROM sources WHERE id = ?').get(resolvedSource);
+            }
+
+            return res.json({ success: true, report, reporter, reportedUser, source, comment, message });
+        } catch (e) {
+            console.error('GET /api/admin/reports/:id error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
     });
 };

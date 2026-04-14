@@ -1,8 +1,19 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Estado del panel de administración
+    const adminContainer = document.querySelector('[data-admin-data]');
+    let adminData = { manualReports: [], systemReports: [], stats: {} };
+    if (adminContainer) {
+        try {
+            adminData = JSON.parse(adminContainer.getAttribute('data-admin-data')) || adminData;
+        } catch (e) {
+            console.warn('Failed to parse admin data attribute', e);
+        }
+    }
+
     const state = {
-        manualReports: window.manualReports || [],
-        systemReports: window.systemReports || [],
+        manualReports: adminData.manualReports || [],
+        systemReports: adminData.systemReports || [],
+        stats: adminData.stats || {},
         selectedReports: new Set(),
         filters: {
             type: 'all',
@@ -60,6 +71,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Delegación de eventos para reportes
         document.addEventListener('click', function(e) {
+            // Ver detalle
+            if (e.target.closest('.view-report')) {
+                const reportId = parseInt(e.target.closest('.view-report').dataset.reportId);
+                viewReport(reportId);
+            }
+
+            // Contactar reportante
+            if (e.target.closest('.contact-report')) {
+                const reportId = parseInt(e.target.closest('.contact-report').dataset.reportId);
+                contactReporter(reportId);
+            }
+
             // Resolver reporte manual
             if (e.target.closest('.resolve-report')) {
                 const reportId = parseInt(e.target.closest('.resolve-report').dataset.reportId);
@@ -112,36 +135,163 @@ document.addEventListener('DOMContentLoaded', function() {
         const report = state.manualReports.find(r => r.id === reportId);
         if (!report) return;
 
-        if (confirm(`¿Marcar el reporte #${reportId} como resuelto?`)) {
-            // En un sistema real, aquí se haría una petición al servidor
-            report.status = 'resuelto';
-            
-            // Actualizar UI
-            const row = document.querySelector(`.report-row[data-report-id="${reportId}"]`);
-            if (row) {
-                row.remove();
-                updateReportCounts();
-                showToast(`Reporte #${reportId} marcado como resuelto`, 'success');
-            }
+        // Build action options depending on report type
+        const actions = [];
+        if (report.type === 'source') actions.push({ value: 'delete_source', label: 'Eliminar fuente' });
+        if (report.type === 'user') actions.push({ value: 'suspend_user', label: 'Suspender usuario (7 días)' });
+        if (report.type === 'comment') actions.push({ value: 'delete_comment', label: 'Eliminar comentario' });
+        if (report.type === 'message') actions.push({ value: 'delete_message', label: 'Eliminar mensaje' });
+
+        if (actions.length === 0) {
+            showToast('No hay acciones configuradas para este tipo de reporte', 'warning');
+            return;
         }
+
+        const optionsHtml = actions.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
+        const body = `
+            <div class="mb-3">
+                <label class="form-label">Acción</label>
+                <select id="adminActionSelect" class="form-select form-select-sm">${optionsHtml}</select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Nota (opcional)</label>
+                <textarea id="adminActionNote" class="form-control form-control-sm" rows="3"></textarea>
+            </div>
+        `;
+
+        showFormModal('Resolver reporte #' + reportId, body, 'Aplicar acción', 'primary', async (modalEl, closeModal) => {
+            const action = modalEl.querySelector('#adminActionSelect').value;
+            const note = modalEl.querySelector('#adminActionNote').value || '';
+            try {
+                const resp = await fetch(`/api/admin/reports/${reportId}/resolve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, note })
+                });
+                const j = await resp.json();
+                if (j && j.success) {
+                    // remove row and update counts
+                    const row = document.querySelector(`.report-row[data-report-id="${reportId}"]`);
+                    if (row) row.remove();
+                    updateReportCounts();
+                    showToast('Acción aplicada correctamente', 'success');
+                    closeModal();
+                } else {
+                    showToast('Error aplicando acción', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Error de red', 'danger');
+            }
+        });
     }
 
     function rejectManualReport(reportId) {
-        const report = state.manualReports.find(r => r.id === reportId);
-        if (!report) return;
+        if (!confirm(`¿Rechazar el reporte #${reportId}?`)) return;
+        fetch(`/api/admin/reports/${reportId}/reject`, { method: 'POST' })
+            .then(r => r.json())
+            .then(j => {
+                if (j && j.success) {
+                    const row = document.querySelector(`.report-row[data-report-id="${reportId}"]`);
+                    if (row) row.remove();
+                    updateReportCounts();
+                    showToast(`Reporte #${reportId} rechazado`, 'info');
+                } else {
+                    showToast('Error rechazando reporte', 'danger');
+                }
+            }).catch(e => {
+                console.error(e);
+                showToast('Error de red', 'danger');
+            });
+    }
 
-        if (confirm(`¿Rechazar el reporte #${reportId}?`)) {
-            // En un sistema real, aquí se haría una petición al servidor
-            report.status = 'rechazado';
-            
-            // Actualizar UI
-            const row = document.querySelector(`.report-row[data-report-id="${reportId}"]`);
-            if (row) {
-                row.remove();
-                updateReportCounts();
-                showToast(`Reporte #${reportId} rechazado`, 'info');
-            }
+    // View report details (opens modal)
+    async function viewReport(reportId) {
+        try {
+            const resp = await fetch(`/api/admin/reports/${reportId}`);
+            const j = await resp.json();
+            if (!j || !j.success) return showToast('No se pudo obtener detalle', 'danger');
+
+            const { report, reporter, reportedUser, source, comment, message } = j;
+            let details = `<div class="small text-muted mb-2">Tipo: ${report.type || 'N/A'} | Motivo: ${report.reason || ''}</div>`;
+            details += `<div class="mb-2"><strong>Descripción:</strong> ${report.description || ''}</div>`;
+            if (reporter) details += `<div class="mb-2"><strong>Reportado por:</strong> ${reporter.username || reporter.full_name || reporter.email || 'N/A'}</div>`;
+            if (reportedUser) details += `<div class="mb-2"><strong>Usuario reportado:</strong> ${reportedUser.username || reportedUser.full_name || 'N/A'}</div>`;
+            if (source) details += `<div class="mb-2"><strong>Fuente:</strong> <a href="/post/${source.id}" class="text-brown">${source.title}</a></div>`;
+            if (comment) details += `<div class="mb-2"><strong>Comentario:</strong> ${comment.comment || ''}</div>`;
+            if (message) details += `<div class="mb-2"><strong>Mensaje (encrypted):</strong> Tipo: ${message.content_type || 'N/A'} | enviado: ${message.sent_at || ''}</div>`;
+
+            showCustomModal('Detalle reporte #' + reportId, details, 'Cerrar', 'secondary');
+        } catch (e) {
+            console.error(e);
+            showToast('Error obteniendo detalle', 'danger');
         }
+    }
+
+    // Contact reporter (open modal to send internal message)
+    function contactReporter(reportId) {
+        const body = `
+            <div class="mb-3">
+                <label class="form-label">Mensaje para el reportante</label>
+                <textarea id="adminContactText" class="form-control form-control-sm" rows="4" placeholder="Escribe un mensaje breve..."></textarea>
+            </div>
+        `;
+
+        showFormModal('Contactar reportante #' + reportId, body, 'Enviar mensaje', 'primary', async (modalEl, closeModal) => {
+            const text = modalEl.querySelector('#adminContactText').value || '';
+            if (!text.trim()) return showToast('Escribe un mensaje', 'warning');
+            try {
+                const resp = await fetch(`/api/admin/reports/${reportId}/contact`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                const j = await resp.json();
+                if (j && j.success) {
+                    showToast('Mensaje enviado al reportante', 'success');
+                    closeModal();
+                } else {
+                    showToast('Error enviando mensaje', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Error de red', 'danger');
+            }
+        });
+    }
+
+    // Helper to show a modal with a primary action button and callback
+    function showFormModal(title, content, primaryText = 'Enviar', primaryClass = 'primary', onPrimary) {
+        const modalId = 'form-modal-' + Date.now();
+        const modalHtml = `
+            <div class="modal fade" id="${modalId}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">${content}</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            <button type="button" class="btn btn-${primaryClass}" id="${modalId}-primary">${primaryText}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modalEl = document.getElementById(modalId);
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        const primaryBtn = modalEl.querySelector(`#${modalId}-primary`);
+        const cleanup = () => modalEl.remove();
+
+        primaryBtn.addEventListener('click', () => onPrimary(modalEl, () => { modal.hide(); }));
+
+        modalEl.addEventListener('hidden.bs.modal', function () { cleanup(); });
     }
 
     // Funciones para reportes automáticos

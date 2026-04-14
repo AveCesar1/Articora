@@ -325,29 +325,44 @@ module.exports = function(app) {
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toLocaleDateString('es-ES', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
 
-            const articoraMessages = [
-                { 
-                    id: 1001, 
-                    sender: 'Administración', 
-                    text: '⚠️ Mantenimiento programado: El sistema estará en mantenimiento el próximo domingo de 2:00 a 6:00 AM.', 
-                    time: 'Hoy 09:00', 
-                    isAnnouncement: true 
-                },
-                { 
-                    id: 1002, 
-                    sender: 'Administración', 
-                    text: '🎉 Nueva función: Ya está disponible el comparador de fuentes. Pruébalo en /compare', 
-                    time: 'Ayer 14:30', 
-                    isAnnouncement: true 
-                },
-                { 
-                    id: 1003, 
-                    sender: 'Administración', 
-                    text: `📢 Recordatorio: El límite semanal de archivos es de ${user.fileUploadLimit}. Actualmente llevas ${user.fileUploadsThisWeek} archivos subidos esta semana.`, 
-                    time: '2 días 11:15', 
-                    isAnnouncement: true 
+            // Build Artícora messages dynamically from system_alerts + a user-specific upload reminder
+            let articoraMessages = [];
+            try {
+                const alerts = req.db.prepare("SELECT id, alert_type, description, created_at FROM system_alerts ORDER BY created_at DESC LIMIT 3").all();
+                for (const a of alerts) {
+                    const formatTime = (ts) => {
+                        try {
+                            const d = new Date(ts);
+                            const now = new Date();
+                            const y = new Date(now);
+                            y.setDate(now.getDate() - 1);
+                            if (d.toDateString() === now.toDateString()) return 'Hoy ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            if (d.toDateString() === y.toDateString()) return 'Ayer ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                        } catch (e) {
+                            return String(ts);
+                        }
+                    };
+
+                    articoraMessages.push({
+                        id: 1000 + (a.id || 0),
+                        sender: 'Administración',
+                        text: a.description,
+                        time: formatTime(a.created_at),
+                        isAnnouncement: true
+                    });
                 }
-            ];
+            } catch (e) {
+                console.warn('Failed to load system alerts for Artícora channel', e && e.message);
+            }
+
+            // Always include a quick user-specific upload reminder as first item
+            try {
+                const uploadMsg = `📢 Recordatorio: El límite semanal de archivos es de ${user.fileUploadLimit}. Actualmente llevas ${user.fileUploadsThisWeek} archivos subidos esta semana.`;
+                articoraMessages.unshift({ id: 9999, sender: 'Administración', text: uploadMsg, time: todayStr, isAnnouncement: true });
+            } catch (e) {
+                // ignore
+            }
 
             // 7. Formatos de archivo y razones de reporte (estáticos)
             const fileFormats = [

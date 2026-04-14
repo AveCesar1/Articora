@@ -176,6 +176,7 @@
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    <!-- What the admin sees depending on type -->
                                                     <div class="report-content">
                                                         <% if (report.type === 'source') { %>
                                                             <a href="/post/<%= report.sourceId %>" class="text-brown fw-bold">
@@ -194,6 +195,7 @@
                                                         </div>
                                                     </div>
                                                 </td>
+                                                <!-- What the admin sees for the reason -->
                                                 <td>
                                                     <span class="badge bg-light text-dark border"><%= report.reason %></span>
                                                 </td>
@@ -209,7 +211,14 @@
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    <!-- What the admin can do with each report -->
                                                     <div class="btn-group btn-group-sm" role="group">
+                                                        <button class="btn btn-outline-secondary view-report" data-report-id="<%= report.id %>" title="Ver detalle">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-primary contact-report" data-report-id="<%= report.id %>" title="Contactar reportante">
+                                                            <i class="fas fa-envelope"></i>
+                                                        </button>
                                                         <% if (report.type === 'source') { %>
                                                             <a href="/post/<%= report.sourceId %>" class="btn btn-outline-brown" title="Ver fuente">
                                                                 <i class="fas fa-external-link-alt"></i>
