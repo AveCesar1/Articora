@@ -296,10 +296,29 @@ document.addEventListener('DOMContentLoaded', function() {
                             continue;
                         }
 
-                        // Para mensajes de texto: descifrar normalmente
-                        const encryptedKeys = JSON.parse(m.encrypted_key);
-                        const encryptedAESForMe = encryptedKeys[currentUser.id];
-                        if (!encryptedAESForMe) throw new Error('No hay clave para este usuario');
+                        // Para mensajes de texto: intentar descifrar si tenemos la clave privada
+                        let encryptedKeys = {};
+                        try {
+                            encryptedKeys = m.encrypted_key ? JSON.parse(m.encrypted_key) : {};
+                        } catch (e) {
+                            console.error('Error parseando encrypted_key:', e);
+                            encryptedKeys = {};
+                        }
+                        const encryptedAESForMe = encryptedKeys ? encryptedKeys[currentUser.id] : undefined;
+
+                        // Si no hay clave cifrada para este usuario o no tenemos privada, mostrar placeholder
+                        if (!encryptedAESForMe || !myPrivateKey) {
+                            decryptedMessages.push({
+                                id: m.id,
+                                sender: m.username,
+                                type: 'encrypted',
+                                text: '[Mensaje cifrado]',
+                                time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                                isOwn: m.user_id === currentUser.id,
+                                status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
+                            });
+                            continue;
+                        }
 
                         const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
                         const aesKey = await importAESKey(aesRaw);
@@ -429,8 +448,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Asegurar que el propio usuario esté incluido (por si acaso)
                 if (!encryptedKeys[currentUser.id]) {
-                    const myPublicKey = await importPublicKey(myPublicKeyBase64);
-                    encryptedKeys[currentUser.id] = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
+                    if (!myPublicKeyBase64) {
+                        console.warn('Clave pública propia ausente; no se añadirá la clave para el remitente. No podrás descifrar tus mensajes en este dispositivo.');
+                    } else {
+                        const myPublicKey = await importPublicKey(myPublicKeyBase64);
+                        encryptedKeys[currentUser.id] = await encryptAESKeyWithRSA(myPublicKey, aesRaw);
+                    }
                 }
             } else {
                 // Chat individual: destinatario
@@ -445,7 +468,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Cifrar para uno mismo
                 if (!myPublicKeyBase64) {
-                    throw new Error('No se encontró la clave pública propia');
+                    showNotification('Tu clave pública no está disponible. Genera claves en Registro/Perfil para poder descifrar tus mensajes en este dispositivo.', 'error');
+                    throw new Error('Clave pública propia ausente');
                 }
                 const myPublicKey = await importPublicKey(myPublicKeyBase64);
                 const encryptedForSelf = await encryptAESKeyWithRSA(myPublicKey, aesRaw);

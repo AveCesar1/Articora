@@ -163,6 +163,15 @@ module.exports = function(app) {
                 currentGroups: 0
             };
 
+            // Incluir la clave pública propia (si existe) para que el cliente pueda
+            // usarla cuando no tenga la copia en localStorage.
+            try {
+                const keyRow = req.db.prepare('SELECT public_key FROM user_keys WHERE user_id = ?').get(currentUserId);
+                user.publicKey = keyRow && keyRow.public_key ? keyRow.public_key : null;
+            } catch (e) {
+                user.publicKey = null;
+            }
+
             // 2. Contactos confirmados (chats individuales)
             const chats = req.db.prepare(`
                 SELECT c.id as chat_id
