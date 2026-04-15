@@ -27,8 +27,9 @@ onReady(function () {
 
             document.getElementById('publicKey').value = publicKeyBase64;
 
-            // Guardar en localStorage
-            localStorage.setItem('articora_private_key', privateKeyBase64);
+            // Guardar la clave pública en el formulario para enviarla al servidor.
+            // No guardamos la clave privada en localStorage aún; se almacenará
+            // localmente sólo después de completar el registro (opcional).
             localStorage.setItem('articora_public_key', publicKeyBase64);
 
             // Asignar al campo oculto del formulario
@@ -98,6 +99,20 @@ onReady(function () {
                 publicKey: publicKey
             };
 
+            // If we have a generated private key, encrypt it with the user's password
+            // and send the encrypted blob to the server so it can be stored safely.
+            if (privateKeyBase64) {
+                try {
+                    const encResult = await encryptPrivateKeyWithPassword(privateKeyBase64, password);
+                    formData.encryptedPrivateKey = encResult.encryptedPrivateKey;
+                    formData.privateKeyIv = encResult.iv;
+                    formData.privateKeySalt = encResult.salt;
+                    formData.privateKeyTag = encResult.tag;
+                } catch (e) {
+                    console.error('Error encrypting private key for server storage:', e);
+                }
+            }
+
             // Deshabilitar el botón para evitar doble envío
             const submitBtn = registerForm.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
@@ -125,6 +140,11 @@ onReady(function () {
                     showSuccess(result.message);
                     
                     // Redirigir a página de verificación después de 2 segundos
+                    // Guardar copia local de la clave privada para este dispositivo (opcional)
+                    try {
+                        if (privateKeyBase64) localStorage.setItem('articora_private_key', privateKeyBase64);
+                    } catch (e) { console.warn('No se pudo guardar clave privada localmente:', e); }
+
                     setTimeout(() => {
                         if (result.redirectTo) {
                             window.location.href = result.redirectTo;

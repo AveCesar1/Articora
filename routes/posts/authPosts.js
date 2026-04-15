@@ -17,7 +17,7 @@ module.exports = function (app) {
     app.post('/register', async (req, res) => {
         console.log('POST /register recibido:', req.body);
 
-        let { username, email, password, confirmPassword, publicKey } = req.body;
+        let { username, email, password, confirmPassword, publicKey, encryptedPrivateKey, privateKeyIv, privateKeySalt, privateKeyTag } = req.body;
         
         // Sanitize inputs (do not sanitize password)
         username = sanitizeText(username);
@@ -65,6 +65,8 @@ module.exports = function (app) {
             const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutos
 
             // Almacenar datos temporalmente en la sesión
+            // Guardamos también los campos del cliente que contienen la clave privada
+            // cifrada por el usuario (cliente deriva key with PBKDF2 y cifra con AES-GCM).
             req.session.pendingRegistration = {
                 username,
                 email,
@@ -72,7 +74,11 @@ module.exports = function (app) {
                 verificationCode,
                 expiresAt,
                 attempts: 0,
-                publicKey
+                publicKey,
+                encryptedPrivateKey: encryptedPrivateKey || null,
+                privateKeyIv: privateKeyIv || null,
+                privateKeySalt: privateKeySalt || null,
+                privateKeyTag: privateKeyTag || null
             };
 
             console.log(`=========================================`);
@@ -359,8 +365,15 @@ module.exports = function (app) {
 
             const userId = result.lastInsertRowid;
             const publicKey = pending.publicKey;
-            if (publicKey) {
-                req.db.prepare('INSERT INTO user_keys (user_id, public_key) VALUES (?, ?)').run(userId, publicKey);
+            const encryptedPrivateKey = pending.encryptedPrivateKey || null;
+            const privateKeyIv = pending.privateKeyIv || null;
+            const privateKeySalt = pending.privateKeySalt || null;
+            const privateKeyTag = pending.privateKeyTag || null;
+            if (publicKey || encryptedPrivateKey) {
+                req.db.prepare(`
+                    INSERT INTO user_keys (user_id, public_key, encrypted_private_key, private_key_iv, private_key_salt, private_key_tag)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `).run(userId, publicKey || null, encryptedPrivateKey, privateKeyIv, privateKeySalt, privateKeyTag);
             }
 
             // Insertar intereses
@@ -469,7 +482,22 @@ module.exports = function (app) {
                 return res.redirect('/dashboard');
             }
 
-            return res.json({ success: true, message: 'Inicio de sesión exitoso.' });
+            // Include encrypted private key materials (if present) in the JSON
+            // so the client can decrypt immediately with the user's password without
+            // needing a second authenticated request.
+            let keys = null;
+            try {
+                keys = req.db.prepare(`
+                    SELECT public_key, encrypted_private_key, private_key_iv, private_key_salt, private_key_tag
+                    FROM user_keys WHERE user_id = ?
+                `).get(user.id) || null;
+                if (debugging) console.log('Login: retrieved key row for user', user.id, { hasPublic: !!(keys && keys.public_key), hasEncryptedPrivate: !!(keys && keys.encrypted_private_key) });
+            } catch (e) {
+                console.error('Error retrieving user keys for login response:', e && e.message);
+                keys = null;
+            }
+
+            return res.json({ success: true, message: 'Inicio de sesión exitoso.', keys });
         } catch (error) {
             console.error('Error en el endpoint /login:', error.message, error.stack);
             if (req.headers.accept && req.headers.accept.includes('text/html')) {

@@ -136,6 +136,24 @@ module.exports = function(app) {
         }
     });
 
+    // Endpoints para obtener claves cifradas del usuario (protegido)
+    app.get('/api/keys', authenticate, (req, res) => {
+        const userId = req.user.id;
+        try {
+            if (global.debugging) console.log('/api/keys requested for user', userId);
+            const keyRow = req.db.prepare(`
+                SELECT public_key, encrypted_private_key, private_key_iv, private_key_salt, private_key_tag
+                FROM user_keys WHERE user_id = ?
+            `).get(userId);
+            if (!keyRow) return res.status(404).json({ error: 'No keys found' });
+            if (global.debugging) console.log('/api/keys returning row for user', userId, { hasPublic: !!keyRow.public_key, hasEncryptedPrivate: !!keyRow.encrypted_private_key });
+            res.json(keyRow);
+        } catch (err) {
+            console.error('Error getting user keys:', err);
+            res.status(500).json({ error: 'Error retrieving keys' });
+        }
+    });
+
     // Página principal del chat
     app.get('/chat', isRegistered, noAdmin, (req, res) => {
         const currentUserId = req.user.id;
@@ -163,13 +181,25 @@ module.exports = function(app) {
                 currentGroups: 0
             };
 
-            // Incluir la clave pública propia (si existe) para que el cliente pueda
-            // usarla cuando no tenga la copia en localStorage.
+            // Incluir la clave pública propia y la clave privada cifrada (si existen)
+            // para que el cliente pueda recuperar los datos criptográficos cuando
+            // termine el proceso de login (el cliente derivará la clave localmente).
             try {
-                const keyRow = req.db.prepare('SELECT public_key FROM user_keys WHERE user_id = ?').get(currentUserId);
+                const keyRow = req.db.prepare(`
+                    SELECT public_key, encrypted_private_key, private_key_iv, private_key_salt, private_key_tag
+                    FROM user_keys WHERE user_id = ?
+                `).get(currentUserId);
                 user.publicKey = keyRow && keyRow.public_key ? keyRow.public_key : null;
+                user.encryptedPrivateKey = keyRow && keyRow.encrypted_private_key ? keyRow.encrypted_private_key : null;
+                user.privateKeyIv = keyRow && keyRow.private_key_iv ? keyRow.private_key_iv : null;
+                user.privateKeySalt = keyRow && keyRow.private_key_salt ? keyRow.private_key_salt : null;
+                user.privateKeyTag = keyRow && keyRow.private_key_tag ? keyRow.private_key_tag : null;
             } catch (e) {
                 user.publicKey = null;
+                user.encryptedPrivateKey = null;
+                user.privateKeyIv = null;
+                user.privateKeySalt = null;
+                user.privateKeyTag = null;
             }
 
             // 2. Contactos confirmados (chats individuales)

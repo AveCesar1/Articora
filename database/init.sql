@@ -78,6 +78,10 @@ CREATE TABLE IF NOT EXISTS documentos_verificacion (
 CREATE TABLE IF NOT EXISTS user_keys (
     user_id INTEGER PRIMARY KEY,
     public_key TEXT NOT NULL,
+    encrypted_private_key TEXT,
+    private_key_iv TEXT,
+    private_key_salt TEXT,
+    private_key_tag TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
