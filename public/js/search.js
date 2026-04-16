@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Aplicar filtros
+    // Aplicar filtros (solo cuando se pulsa el botón)
     if (applyFiltersBtn) {
         applyFiltersBtn.addEventListener('click', function() {
             const filters = collectFilters();
@@ -93,37 +93,11 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             resetAllFilters();
             showAlert('info', 'Todos los filtros han sido restablecidos.');
+            goToSearchWithFilters({});
         });
     });
     
-    // Cambios en tiempo real para algunos filtros
-    if (sourceTypeFilter) {
-        sourceTypeFilter.addEventListener('change', function() {
-            applyFiltersDebounced();
-        });
-    }
-    
-    if (sortBy) {
-        sortBy.addEventListener('change', function() {
-            applyFiltersDebounced();
-        });
-    }
-    
-    if (yearFrom || yearTo) {
-        [yearFrom, yearTo].forEach(input => {
-            if (input) {
-                input.addEventListener('input', function() {
-                    applyFiltersDebounced();
-                });
-            }
-        });
-    }
-    
-    if (academicAdjustment) {
-        academicAdjustment.addEventListener('change', function() {
-            applyFiltersDebounced();
-        });
-    }
+    // No aplicar filtros automáticamente: el usuario hará click en "Aplicar Filtros"
     
     // Funciones auxiliares
     function initializeRangeSlider(slider) {
@@ -139,6 +113,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Configurar eventos para los handles (simulación)
         setupHandleEvents(minHandle, slider);
         setupHandleEvents(maxHandle, slider);
+        
+        // Posiciones iniciales y sincronizar valor visual/atributos
+        minHandle.style.left = '0%';
+        maxHandle.style.left = '100%';
+        updateSliderValue(slider, minHandle);
     }
     
     function setupHandleEvents(handle, slider) {
@@ -152,17 +131,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function mouseMoveHandler(e) {
             if (!isDragging) return;
-            
+
             const sliderRect = slider.getBoundingClientRect();
             let x = e.clientX - sliderRect.left;
             x = Math.max(0, Math.min(x, sliderRect.width));
-            
+
             const percentage = (x / sliderRect.width) * 100;
             handle.style.left = `${percentage}%`;
-            
+
             // Actualizar valor mostrado
             updateSliderValue(slider, handle);
-            applyFiltersDebounced();
         }
         
         function mouseUpHandler() {
@@ -180,13 +158,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const minHandle = slider.querySelector('.min');
             const maxHandle = slider.querySelector('.max');
             
-            const minPercent = parseFloat(minHandle.style.left || '25');
-            const maxPercent = parseFloat(maxHandle.style.left || '75');
+            const minPercent = parseFloat(minHandle.style.left || '0');
+            const maxPercent = parseFloat(maxHandle.style.left || '100');
             
             const minValue = (minPercent / 100 * 5).toFixed(1);
             const maxValue = (maxPercent / 100 * 5).toFixed(1);
             
             valueElement.textContent = `${minValue} - ${maxValue}`;
+
+            // Guardar los valores en atributos data para ser leídos por collectFilters
+            slider.dataset.min = minValue;
+            slider.dataset.max = maxValue;
         }
     }
     
@@ -234,6 +216,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (academicAdjustment) {
             filters.academicAdjustment = academicAdjustment.checked;
         }
+
+        // Leer valores de sliders (avgRating y criterios)
+        document.querySelectorAll('.range-slider').forEach(slider => {
+            if (!slider.id) return;
+            const base = slider.id.replace(/Slider$/, '');
+            const prefix = (base === 'avgRating') ? 'rating' : base; // avgRating -> rating
+            const min = slider.dataset.min;
+            const max = slider.dataset.max;
+            if (typeof min !== 'undefined' && typeof max !== 'undefined') {
+                const minNum = parseFloat(min);
+                const maxNum = parseFloat(max);
+                if (!Number.isNaN(minNum) && !Number.isNaN(maxNum)) {
+                    filters[`${prefix}Min`] = minNum;
+                    filters[`${prefix}Max`] = maxNum;
+                }
+            }
+        });
         
         return filters;
     }
@@ -258,8 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const minHandle = slider.querySelector('.min');
             const maxHandle = slider.querySelector('.max');
             
-            if (minHandle) minHandle.style.left = '25%';
-            if (maxHandle) maxHandle.style.left = '75%';
+            if (minHandle) minHandle.style.left = '0%';
+            if (maxHandle) maxHandle.style.left = '100%';
             
             updateSliderValue(slider, minHandle);
         });
@@ -271,20 +270,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (yearTo) yearTo.value = '';
         if (academicAdjustment) academicAdjustment.checked = false;
         
-        // Aplicar filtros después de resetear
-        applyFiltersDebounced();
-    }
-    
-    function applyFiltersDebounced() {
-        // Debounce para evitar muchas llamadas
-        clearTimeout(window.applyFiltersTimeout);
-        window.applyFiltersTimeout = setTimeout(() => {
-            const filters = collectFilters();
-            console.log('Filtros actualizados:', filters);
-
-            // Navegar con filtros aplicados
-            goToSearchWithFilters(filters);
-        }, 300);
+        // Actualizar visualmente los sliders tras resetear
+        document.querySelectorAll('.range-slider').forEach(slider => {
+            const minHandle = slider.querySelector('.min');
+            const maxHandle = slider.querySelector('.max');
+            if (minHandle) minHandle.style.left = '0%';
+            if (maxHandle) maxHandle.style.left = '100%';
+            updateSliderValue(slider, minHandle);
+        });
     }
 
     // Construye URL de búsqueda y navega
@@ -293,12 +286,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const q = qInput ? qInput.value.trim() : '';
         const params = new URLSearchParams();
         if (q) params.set('q', q);
-        if (filters.sourceType) params.set('type', filters.sourceType);
-        if (filters.categories && filters.categories.length > 0) params.set('category', filters.categories[0]);
-        if (filters.subcategories && filters.subcategories.length > 0) params.set('subcategory', filters.subcategories[0]);
+        // Enviar tanto 'type' como 'sourceType' para máxima compatibilidad
+        if (filters.sourceType) { params.set('type', filters.sourceType); params.set('sourceType', filters.sourceType); }
+        // Enviar listas como CSV para categorías/subcategorías (soporta múltiples selecciones)
+        if (filters.categories && filters.categories.length > 0) params.set('category', filters.categories.join(','));
+        if (filters.subcategories && filters.subcategories.length > 0) params.set('subcategory', filters.subcategories.join(','));
         if (filters.yearFrom) params.set('yearFrom', filters.yearFrom);
         if (filters.yearTo) params.set('yearTo', filters.yearTo);
-        if (filters.sortBy) params.set('sort', filters.sortBy);
+        if (filters.sortBy) { params.set('sort', filters.sortBy); params.set('sortBy', filters.sortBy); }
+
+        // Añadir el resto de filtros (sliders y flags)
+        Object.keys(filters).forEach(k => {
+            if (['categories','subcategories','sourceType','sortBy','yearFrom','yearTo'].includes(k)) return;
+            const v = filters[k];
+            if (typeof v === 'boolean') params.set(k, v ? '1' : '0');
+            else if (Array.isArray(v)) params.set(k, v.join(','));
+            else if (v !== undefined && v !== null) params.set(k, String(v));
+        });
         // Preserve current page param removed when applying new filters
 
         const qs = params.toString();

@@ -32,5 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_source_urls_source ON source_urls(source_id);
 -- 6) Reports: common filters for moderation UI
 CREATE INDEX IF NOT EXISTS idx_reports_status_reported_at ON reports(status, reported_at);
 CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports(reporter_id);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
+
 
 -- End of minimal index set

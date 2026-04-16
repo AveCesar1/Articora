@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.warn('login.js: error processing keys after login:', e);
                 }
 
-                // Redirigir al chat o dashboard
-                window.location.href = '/chat';
+                // Redirigir al dashboard
+                window.location.href = '/dashboard';
             } catch (err) {
                 console.error('Error en login:', err);
                 // Re-enable button

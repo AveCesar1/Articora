@@ -176,6 +176,22 @@ cron.schedule('0 2 * * *', () => {
   python.stderr.on('data', (data) => console.error(data.toString()));
 });
 
+// Verificación diaria de URLs (cron)
+try {
+    const verifyUrls = require('./lib/verifyUrls');
+    cron.schedule('30 3 * * *', async () => {
+        console.log('Ejecutando verificación diaria de URLs...');
+        try {
+            const result = await verifyUrls.run();
+            console.log('Verificación de URLs completada. Resumen:', result);
+        } catch (e) {
+            console.error('Error en verificación de URLs', e && e.message);
+        }
+    });
+} catch (e) {
+    console.warn('verifyUrls module not available, saltando cron de verificación de URLs');
+}
+
 // Cerrar la base de datos correctamente al salir
 process.on('SIGINT', () => {
     console.log('\nCerrando aplicación...');

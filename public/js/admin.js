@@ -77,11 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 viewReport(reportId);
             }
 
-            // Contactar reportante
-            if (e.target.closest('.contact-report')) {
-                const reportId = parseInt(e.target.closest('.contact-report').dataset.reportId);
-                contactReporter(reportId);
-            }
+            // Contactar reportante (removed - replaced by message modal on resolve/reject)
 
             // Resolver reporte manual
             if (e.target.closest('.resolve-report')) {
@@ -154,19 +150,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 <select id="adminActionSelect" class="form-select form-select-sm">${optionsHtml}</select>
             </div>
             <div class="mb-3">
-                <label class="form-label">Nota (opcional)</label>
-                <textarea id="adminActionNote" class="form-control form-control-sm" rows="3"></textarea>
+                <label class="form-label">Nota interna (opcional)</label>
+                <textarea id="adminActionNote" class="form-control form-control-sm" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Mensaje para el reportante (se publicará en Artícora)</label>
+                <textarea id="adminResponseMessage" class="form-control form-control-sm" rows="3" placeholder="Mensaje que verá el usuario/reportante..."></textarea>
             </div>
         `;
 
         showFormModal('Resolver reporte #' + reportId, body, 'Aplicar acción', 'primary', async (modalEl, closeModal) => {
             const action = modalEl.querySelector('#adminActionSelect').value;
             const note = modalEl.querySelector('#adminActionNote').value || '';
+            const adminMessage = modalEl.querySelector('#adminResponseMessage').value || '';
             try {
                 const resp = await fetch(`/api/admin/reports/${reportId}/resolve`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, note })
+                    body: JSON.stringify({ action, note, adminMessage })
                 });
                 const j = await resp.json();
                 if (j && j.success) {
@@ -187,22 +188,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function rejectManualReport(reportId) {
-        if (!confirm(`¿Rechazar el reporte #${reportId}?`)) return;
-        fetch(`/api/admin/reports/${reportId}/reject`, { method: 'POST' })
-            .then(r => r.json())
-            .then(j => {
+        const body = `
+            <div class="mb-3">
+                <label class="form-label">Mensaje para el reportante (opcional)</label>
+                <textarea id="adminRejectMessage" class="form-control form-control-sm" rows="4" placeholder="Explica por qué se rechaza el reporte..."></textarea>
+            </div>
+        `;
+
+        showFormModal('Rechazar reporte #' + reportId, body, 'Confirmar rechazo', 'danger', async (modalEl, closeModal) => {
+            const adminMessage = modalEl.querySelector('#adminRejectMessage').value || '';
+            try {
+                const resp = await fetch(`/api/admin/reports/${reportId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ note: adminMessage, adminMessage })
+                });
+                const j = await resp.json();
                 if (j && j.success) {
                     const row = document.querySelector(`.report-row[data-report-id="${reportId}"]`);
                     if (row) row.remove();
                     updateReportCounts();
-                    showToast(`Reporte #${reportId} rechazado`, 'info');
+                    showToast(`Reporte #${reportId} rechazado y notificado`, 'info');
+                    closeModal();
                 } else {
                     showToast('Error rechazando reporte', 'danger');
                 }
-            }).catch(e => {
+            } catch (e) {
                 console.error(e);
                 showToast('Error de red', 'danger');
-            });
+            }
+        });
     }
 
     // View report details (opens modal)
@@ -228,37 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Contact reporter (open modal to send internal message)
-    function contactReporter(reportId) {
-        const body = `
-            <div class="mb-3">
-                <label class="form-label">Mensaje para el reportante</label>
-                <textarea id="adminContactText" class="form-control form-control-sm" rows="4" placeholder="Escribe un mensaje breve..."></textarea>
-            </div>
-        `;
-
-        showFormModal('Contactar reportante #' + reportId, body, 'Enviar mensaje', 'primary', async (modalEl, closeModal) => {
-            const text = modalEl.querySelector('#adminContactText').value || '';
-            if (!text.trim()) return showToast('Escribe un mensaje', 'warning');
-            try {
-                const resp = await fetch(`/api/admin/reports/${reportId}/contact`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text })
-                });
-                const j = await resp.json();
-                if (j && j.success) {
-                    showToast('Mensaje enviado al reportante', 'success');
-                    closeModal();
-                } else {
-                    showToast('Error enviando mensaje', 'danger');
-                }
-            } catch (e) {
-                console.error(e);
-                showToast('Error de red', 'danger');
-            }
-        });
-    }
+    // contactReporter removed; messaging moved into resolve/reject flows
 
     // Helper to show a modal with a primary action button and callback
     function showFormModal(title, content, primaryText = 'Enviar', primaryClass = 'primary', onPrimary) {

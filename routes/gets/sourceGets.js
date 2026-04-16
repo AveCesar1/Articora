@@ -20,14 +20,40 @@ module.exports = function (app) {
 
         // Read filters from querystring (keeps compatibility with template)
         const selectedSourceType = req.query.sourceType || req.query.type || null; // e.g. 'book' (accept alias 'type')
-        const selectedCategory = req.query.category ? Number(req.query.category) : null; // category_id (single)
-        const selectedSubcategory = req.query.subcategory ? Number(req.query.subcategory) : null; // subcategory_id (single)
+        const selectedSort = req.query.sort || req.query.sortBy || null;
+
+        // Support multiple categories/subcategories passed as CSV or repeated params
+        const selectedCategories = (() => {
+            if (!req.query.category) return [];
+            if (Array.isArray(req.query.category)) return req.query.category.map(Number).filter(Boolean);
+            return String(req.query.category).split(',').map(s => Number(s)).filter(Boolean);
+        })();
+
+        const selectedSubcategories = (() => {
+            if (!req.query.subcategory) return [];
+            if (Array.isArray(req.query.subcategory)) return req.query.subcategory.map(Number).filter(Boolean);
+            return String(req.query.subcategory).split(',').map(s => Number(s)).filter(Boolean);
+        })();
+
+        const yearFromParam = req.query.yearFrom ? Number(req.query.yearFrom) : null;
+        const yearToParam = req.query.yearTo ? Number(req.query.yearTo) : null;
+        const ratingMin = (typeof req.query.ratingMin !== 'undefined') ? Number(req.query.ratingMin) : null;
+        const ratingMax = (typeof req.query.ratingMax !== 'undefined') ? Number(req.query.ratingMax) : null;
+        const academicAdjustmentFlag = (req.query.academicAdjustment === '1' || req.query.academicAdjustment === 'true' || req.query.academicAdjustment === 'on');
 
         // Build filters object compatible with the EJS template (arrays for categories/subcategories)
         const filters = {
             sourceType: selectedSourceType || 'book',
-            categories: selectedCategory ? [selectedCategory] : [],
-            subcategories: selectedSubcategory ? [selectedSubcategory] : []
+            type: selectedSourceType || 'book',
+            categories: selectedCategories,
+            subcategories: selectedSubcategories,
+            sort: selectedSort || '',
+            sortBy: selectedSort || '',
+            academicAdjustment: academicAdjustmentFlag,
+            yearFrom: yearFromParam,
+            yearTo: yearToParam,
+            ratingMin: ratingMin,
+            ratingMax: ratingMax
         };
 
         const categoryColorMap = req.app.locals.categoryColorMap || {};
@@ -44,6 +70,12 @@ module.exports = function (app) {
                 subcategories: subcatRows.map(sc => ({ id: sc.id, name: sc.name }))
             };
         });
+
+        // Build quick lookup maps for categories/subcategories
+        const categoryMap = new Map();
+        categories.forEach(c => categoryMap.set(c.id, { name: c.name, color: c.color }));
+        const subcategoryMap = new Map();
+        categories.forEach(c => c.subcategories.forEach(sc => subcategoryMap.set(sc.id, sc.name)));
 
         // Rating criteria: keep as static list (not stored in DB currently)
         const ratingCriteria = [
@@ -70,21 +102,33 @@ module.exports = function (app) {
             let totalResults = 0;
 
             if (!query || query.trim().length === 0) {
-                // No query: return recent sources optionally filtered by type/category/subcategory
+                // No query: return recent sources optionally filtered by type/category/subcategory/year/rating
                 const whereParts = [];
                 const params = [];
                 if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
-                if (selectedCategory) { whereParts.push('s.category_id = ?'); params.push(selectedCategory); }
-                if (selectedSubcategory) { whereParts.push('s.subcategory_id = ?'); params.push(selectedSubcategory); }
+                if (selectedCategories.length) { whereParts.push(`s.category_id IN (${selectedCategories.map(() => '?').join(',')})`); params.push(...selectedCategories); }
+                if (selectedSubcategories.length) { whereParts.push(`s.subcategory_id IN (${selectedSubcategories.map(() => '?').join(',')})`); params.push(...selectedSubcategories); }
+                if (yearFromParam) { whereParts.push('s.publication_year >= ?'); params.push(yearFromParam); }
+                if (yearToParam) { whereParts.push('s.publication_year <= ?'); params.push(yearToParam); }
+                if (ratingMin !== null) { whereParts.push('s.overall_rating >= ?'); params.push(ratingMin); }
+                if (ratingMax !== null) { whereParts.push('s.overall_rating <= ?'); params.push(ratingMax); }
 
                 const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
 
-                const rows = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.doi, s.keywords, st.name AS type, s.pages, s.primary_url, s.cover_image_url, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id ${whereClause} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`).all(...params, perPage, (page - 1) * perPage);
+                let orderClause = 'ORDER BY s.created_at DESC';
+                if (selectedSort) {
+                    if (selectedSort === 'rating') orderClause = 'ORDER BY s.overall_rating DESC';
+                    else if (selectedSort === 'recent') orderClause = 'ORDER BY s.created_at DESC';
+                    else if (selectedSort === 'popular') orderClause = 'ORDER BY s.total_reads DESC';
+                    else if (selectedSort === 'difficulty') orderClause = 'ORDER BY s.avg_technical_difficulty DESC';
+                }
+
+                const rows = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.doi, s.keywords, st.name AS type, s.pages, s.primary_url, s.cover_image_url, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at, s.overall_rating, s.total_ratings, s.total_reads, s.avg_technical_difficulty FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id ${whereClause} ${orderClause} LIMIT ? OFFSET ?`).all(...params, perPage, (page - 1) * perPage);
 
                 const countRow = db.prepare(`SELECT COUNT(1) as c FROM sources s ${whereClause}`).get(...params);
                 totalResults = countRow ? (countRow.c || 0) : 0;
 
-                // attach authors and normalize keywords
+                // attach authors, normalize keywords and populate metadata
                 results = rows.map(r => {
                     const authorsRows = db.prepare('SELECT a.full_name FROM authors a JOIN source_authors sa ON a.id = sa.author_id WHERE sa.source_id = ? ORDER BY sa.sort_order').all(r.id);
                     const authors = authorsRows.map(a => a.full_name);
@@ -99,20 +143,26 @@ module.exports = function (app) {
                         }
                     } catch (e) { uploader = { id: null, name: 'Usuario' }; }
 
+                    const pagesDisplay = r.pages ? r.pages : 'Completo';
+                    const ratingAvg = (typeof r.overall_rating !== 'undefined' && r.overall_rating !== null) ? r.overall_rating : 0;
+                    const ratingCount = r.total_ratings || 0;
+                    const cat = categoryMap.get(r.category_id) || { name: '', color: categoryColorMap[''] || '#6c757d' };
+                    const subcatName = subcategoryMap.get(r.subcategory_id) || '';
+
                     return {
                         id: r.id,
                         title: r.title,
                         authors,
                         year: r.year,
                         type: r.type || 'Book',
-                        pages: r.pages,
+                        pages: pagesDisplay,
                         doi: r.doi,
                         keywords,
                         excerpt: '',
-                        rating: { average: 0, count: 0, criteria: [] },
-                        category: { id: r.category_id },
-                        subcategory: { id: r.subcategory_id },
-                        stats: {},
+                        rating: { average: ratingAvg, count: ratingCount, criteria: [], avgDifficulty: r.avg_technical_difficulty || 0 },
+                        category: { id: r.category_id, name: cat.name, color: cat.color },
+                        subcategory: { id: r.subcategory_id, name: subcatName },
+                        stats: { views: (typeof r.total_reads !== 'undefined' && r.total_reads !== null && r.total_reads > 0) ? r.total_reads : 'N/A', bookmarks: 'N/A' },
                         uploadDate: r.created_at || null,
                         uploader: uploader,
                     };
@@ -136,12 +186,16 @@ module.exports = function (app) {
                         const whereParts = [`s.id IN (${placeholders})`];
                         const params = [...ids];
                         if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
-                        if (selectedCategory) { whereParts.push('s.category_id = ?'); params.push(selectedCategory); }
-                        if (selectedSubcategory) { whereParts.push('s.subcategory_id = ?'); params.push(selectedSubcategory); }
+                        if (selectedCategories.length) { whereParts.push(`s.category_id IN (${selectedCategories.map(() => '?').join(',')})`); params.push(...selectedCategories); }
+                        if (selectedSubcategories.length) { whereParts.push(`s.subcategory_id IN (${selectedSubcategories.map(() => '?').join(',')})`); params.push(...selectedSubcategories); }
+                        if (yearFromParam) { whereParts.push('s.publication_year >= ?'); params.push(yearFromParam); }
+                        if (yearToParam) { whereParts.push('s.publication_year <= ?'); params.push(yearToParam); }
+                        if (ratingMin !== null) { whereParts.push('s.overall_rating >= ?'); params.push(ratingMin); }
+                        if (ratingMax !== null) { whereParts.push('s.overall_rating <= ?'); params.push(ratingMax); }
 
                         const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
 
-                        const rows = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.doi, s.keywords, st.name AS type, s.pages, s.primary_url, s.cover_image_url, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id ${whereClause}`).all(...params);
+                        const rows = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.doi, s.keywords, st.name AS type, s.pages, s.primary_url, s.cover_image_url, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at, s.overall_rating, s.total_ratings, s.total_reads, s.avg_technical_difficulty FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id ${whereClause}`).all(...params);
 
                         // Map rows by id
                         const rowMap = new Map();
@@ -166,24 +220,38 @@ module.exports = function (app) {
                                 }
                             } catch (e) { uploader = { id: null, name: 'Usuario' }; }
 
+                            const pagesDisplay = row.pages ? row.pages : 'Completo';
+                            const ratingAvg = (typeof row.overall_rating !== 'undefined' && row.overall_rating !== null) ? row.overall_rating : 0;
+                            const ratingCount = row.total_ratings || 0;
+                            const cat = categoryMap.get(row.category_id) || { name: '', color: categoryColorMap[''] || '#6c757d' };
+                            const subcatName = subcategoryMap.get(row.subcategory_id) || '';
+
                             ordered.push({
                                 id: row.id,
                                 title: row.title,
                                 authors,
                                 year: row.year,
                                 type: row.type || 'Book',
-                                pages: row.pages,
+                                pages: pagesDisplay,
                                 doi: row.doi,
                                 keywords,
                                 excerpt: '',
-                                rating: { average: 0, count: 0, criteria: [] },
-                                category: { id: row.category_id },
-                                subcategory: { id: row.subcategory_id },
-                                stats: {},
+                                rating: { average: ratingAvg, count: ratingCount, criteria: [], avgDifficulty: row.avg_technical_difficulty || 0 },
+                                category: { id: row.category_id, name: cat.name, color: cat.color },
+                                subcategory: { id: row.subcategory_id, name: subcatName },
+                                stats: { views: (typeof row.total_reads !== 'undefined' && row.total_reads !== null && row.total_reads > 0) ? row.total_reads : 'N/A', bookmarks: 'N/A' },
                                 uploadDate: row.created_at || null,
                                 uploader: uploader,
                                 score: item.score
                             });
+                        }
+
+                        // Apply alternative sorting if requested (TF-IDF order preserved by default)
+                        if (selectedSort) {
+                            if (selectedSort === 'rating') ordered.sort((a,b) => (b.rating.average || 0) - (a.rating.average || 0));
+                            else if (selectedSort === 'recent') ordered.sort((a,b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+                            else if (selectedSort === 'popular') ordered.sort((a,b) => ( (b.stats.views === 'N/A' ? 0 : b.stats.views) - (a.stats.views === 'N/A' ? 0 : a.stats.views) ));
+                            else if (selectedSort === 'difficulty') ordered.sort((a,b) => ( (b.rating.avgDifficulty || 0) - (a.rating.avgDifficulty || 0) ));
                         }
 
                         totalResults = ordered.length;

@@ -364,19 +364,26 @@
                                             <!-- Calificación -->
                                             <div class="source-rating mb-3">
                                                 <div class="d-flex align-items-center mb-2">
+                                                    <% const avgRating = (source.rating && typeof source.rating.average === 'number') ? source.rating.average : 0; %>
+                                                    <% const ratingCount = (source.rating && typeof source.rating.count === 'number') ? source.rating.count : 0; %>
                                                     <div class="rating-stars">
                                                         <% for (let i = 1; i <= 5; i++) { %>
-                                                            <% if (i <= Math.floor(source.rating.average)) { %>
+                                                            <% if (i <= Math.floor(avgRating)) { %>
                                                                 <i class="fas fa-star text-warning"></i>
-                                                            <% } else if (i === Math.ceil(source.rating.average) && source.rating.average % 1 !== 0) { %>
+                                                            <% } else if (i === Math.ceil(avgRating) && avgRating % 1 !== 0) { %>
                                                                 <i class="fas fa-star-half-alt text-warning"></i>
                                                             <% } else { %>
                                                                 <i class="far fa-star text-warning"></i>
                                                             <% } %>
                                                         <% } %>
                                                     </div>
-                                                    <strong class="ms-2"><%= source.rating.average.toFixed(1) %></strong>
-                                                    <span class="text-muted ms-1">(<%= source.rating.count %>)</span>
+                                                    <% if (ratingCount > 0) { %>
+                                                        <strong class="ms-2"><%= avgRating.toFixed(1) %></strong>
+                                                        <span class="text-muted ms-1">(<%= ratingCount %>)</span>
+                                                    <% } else { %>
+                                                        <strong class="ms-2">N/A</strong>
+                                                        <span class="text-muted ms-1">(0)</span>
+                                                    <% } %>
                                                 </div>
                                             </div>
                                             

@@ -531,16 +531,16 @@ CREATE TABLE IF NOT EXISTS user_notification_settings (
 -- ============================================
 
 INSERT INTO source_types (name) VALUES 
-('Book'),
-('Book Chapter'),
-('Journal Article'),
+('Libro'),
+('Capítulo de Libro'),
+('Artículo de Revista'),
 ('Preprint'),
-('Thesis or Dissertation'),
-('Online Article'),
-('Conference Proceedings'),
-('Technical Report'),
-('Encyclopedia or Dictionary'),
-('Audiovisual Material');
+('Tesis o Disertación'),
+('Artículo en Línea'),
+('Actas de Conferencia'),
+('Informe Técnico'),
+('Enciclopedia o Diccionario'),
+('Material Audiovisual');
 
 INSERT INTO categories (name, description, icon_name) VALUES 
 ('Ciencias Cognitivas', 'Psicología, Neurociencia, Ciencias del Aprendizaje, Educación, Lingüística', 'brain'),
