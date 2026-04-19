@@ -7,6 +7,13 @@
 <script>
     // Expose server data to client JS
     window.availableSources = <%- JSON.stringify(availableSources || []).replace(/</g, '\\u003c') %>;
+    // If the server provided preselected sources (via ?ids=...), expose them so the client can auto-open the comparison
+    window.preselectedSources = <%- JSON.stringify(selectedSources || []).replace(/</g, '\\u003c') %>;
+    window.preselectedIds = <%- JSON.stringify((selectedSources || []).map(s => s.id)) %>;
+
+    console.log('Fuentes disponibles para comparación:', window.availableSources);
+    console.log('Fuentes preseleccionadas (desde query):', window.preselectedSources);
+    console.log('IDs preseleccionados:', window.preselectedIds);
 </script>
 
 <div class="container-fluid py-4">
@@ -347,3 +354,4 @@
 <%- include('partials/footer', {
     jsFile: 'compare-admin.js'
 }) %>
+

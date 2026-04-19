@@ -6,159 +6,167 @@ const soloAdmin = checkRoles(['admin']);
 module.exports = function (app) {
     // COMPARE DOCUMENTS - ADMIN VERSION
     app.get('/compare/admin', soloAdmin, (req, res) => {
-        const mockSources = [
-            {
-                id: 1,
-                title: "Cognitive Science: An Introduction to the Study of Mind",
-                authors: ["Jay Friedenberg", "Gordon Silverman"],
-                year: 2021,
-                type: "Libro",
-                category: "Ciencias Cognitivas",
-                subcategory: "Neurociencia Cognitiva",
-                publisher: "SAGE Publications",
-                volume: "4",
-                number: "2",
-                pages: "480-495",
-                edition: "4",
-                doi: "10.1000/182",
-                keywords: ["ciencia cognitiva", "mente", "neurociencia", "cognición"],
-                url: "https://example.com/cognitive-science",
-                uploadDate: "2023-10-15",
-                uploadedBy: "usuario123",
-                verificationStatus: "verificado",
-                reports: 0,
-                lastModified: "2023-11-20",
-                history: [
-                    { date: "2023-10-15", action: "Creación", user: "usuario123" },
-                    { date: "2023-10-20", action: "Verificación aprobada", user: "admin1" },
-                    { date: "2023-11-20", action: "Actualización de metadatos", user: "usuario123" }
-                ],
-                isDuplicate: true
-            },
-            {
-                id: 2,
-                title: "Cognitive Science: An Introduction to the Study of Mind",
-                authors: ["Jay Friedenberg", "Gordon Silverman"],
-                year: 2021,
-                type: "Libro",
-                category: "Ciencias Cognitivas",
-                subcategory: "Neurociencia Cognitiva",
-                publisher: "SAEG Publications",
-                volume: "4",
-                number: "2",
-                pages: "480-495",
-                edition: "4",
-                doi: "10.1000/182",
-                keywords: ["ciencia cognitiva", "mente", "neurociencia", "cognición"],
-                url: "https://another-example.com/cognitive-science",
-                uploadDate: "2023-11-01",
-                uploadedBy: "usuario456",
-                verificationStatus: "pendiente",
-                reports: 1,
-                lastModified: "2023-11-10",
-                history: [
-                    { date: "2023-11-01", action: "Creación", user: "usuario456" },
-                    { date: "2023-11-05", action: "Reporte por posible duplicado", user: "usuario789" },
-                    { date: "2023-11-10", action: "Actualización de URL", user: "usuario456" }
-                ],
-                isDuplicate: true
-            },
-            {
-                id: 3,
-                title: "Deep Learning with Python",
-                authors: ["François Chollet"],
-                year: 2021,
-                type: "Libro",
-                category: "Ciencias Computacionales",
-                subcategory: "Aprendizaje Automático",
-                publisher: "Manning Publications",
-                volume: "2",
-                number: null,
-                pages: "384",
-                edition: "2",
-                doi: "10.1000/183",
-                keywords: ["deep learning", "python", "redes neuronales", "IA"],
-                url: "https://example.com/deep-learning",
-                uploadDate: "2023-11-05",
-                uploadedBy: "programadorAI",
-                verificationStatus: "verificado",
-                reports: 0,
-                lastModified: "2023-11-18",
-                history: [
-                    { date: "2023-11-05", action: "Creación", user: "programadorAI" },
-                    { date: "2023-11-10", action: "Verificación aprobada", user: "admin2" },
-                    { date: "2023-11-18", action: "Corrección de autores", user: "programadorAI" }
-                ],
-                isDuplicate: false
-            },
-            {
-                id: 4,
-                title: "A Brief History of Time",
-                authors: ["Stephen Hawking"],
-                year: 1988,
-                type: "Libro",
-                category: "Ciencias Exactas",
-                subcategory: "Cosmología",
-                publisher: "Bantam Books",
-                volume: "1",
-                number: null,
-                pages: "256",
-                edition: "1",
-                doi: "10.1000/184",
-                keywords: ["cosmología", "big bang", "agujeros negros", "física teórica"],
-                url: "https://example.com/brief-history-time",
-                uploadDate: "2023-08-30",
-                uploadedBy: "fisico99",
-                verificationStatus: "verificado",
-                reports: 0,
-                lastModified: "2023-10-12",
-                history: [
-                    { date: "2023-08-30", action: "Creación", user: "fisico99" },
-                    { date: "2023-09-05", action: "Verificación aprobada", user: "admin1" },
-                    { date: "2023-10-12", action: "Actualización de edición", user: "fisico99" }
-                ],
-                isDuplicate: false
-            },
-            {
-                id: 5,
-                title: "The Structure of Scientific Revolutions",
-                authors: ["Thomas S. Kuhn"],
-                year: 1962,
-                type: "Libro",
-                category: "Ciencias Humanistas",
-                subcategory: "Filosofía de la Ciencia",
-                publisher: "University of Chicago Press",
-                volume: "1",
-                number: null,
-                pages: "264",
-                edition: "1",
-                doi: "10.1000/185",
-                keywords: ["revoluciones científicas", "paradigma", "ciencia", "historia"],
-                url: "https://example.com/structure-revolutions",
-                uploadDate: "2023-10-08",
-                uploadedBy: "filosofo77",
-                verificationStatus: "rechazado",
-                reports: 3,
-                lastModified: "2023-11-22",
-                history: [
-                    { date: "2023-10-08", action: "Creación", user: "filosofo77" },
-                    { date: "2023-10-15", action: "Reporte por información falsa", user: "usuario123" },
-                    { date: "2023-10-20", action: "Rechazo de verificación", user: "admin1" },
-                    { date: "2023-11-22", action: "Intento de corrección", user: "filosofo77" }
-                ],
-                isDuplicate: false
+        const db = req.db;
+        try {
+            // If an ids query param is provided, preselect those sources
+            const idsParam = req.query.ids ? String(req.query.ids).split(',').map(s => Number(s.trim())).filter(n => !Number.isNaN(n)) : [];
+
+            // Fetch available sources (recent, up to 200)
+            const rows = db.prepare(`
+                SELECT s.id, s.title, s.publication_year AS year, st.name AS type, s.primary_url AS url,
+                       s.journal_publisher AS publisher, s.volume, s.issue_number AS number, s.pages, s.edition, s.doi, s.keywords,
+                       cat.name AS category, sub.name AS subcategory,
+                       s.created_at AS uploadDate, s.updated_at AS lastModified, s.is_active,
+                       s.uploaded_by, u.username AS uploadedByName,
+                       (SELECT COUNT(*) FROM reports WHERE source_id = s.id) AS reports,
+                       (SELECT GROUP_CONCAT(a.full_name, ', ') FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = s.id ORDER BY sa.sort_order) AS authors
+                FROM sources s
+                LEFT JOIN source_types st ON s.source_type_id = st.id
+                LEFT JOIN users u ON s.uploaded_by = u.id
+                LEFT JOIN categories cat ON s.category_id = cat.id
+                LEFT JOIN subcategories sub ON s.subcategory_id = sub.id
+                ORDER BY s.created_at DESC
+                LIMIT 200
+            `).all();
+
+            const availableSources = rows.map(r => ({
+                id: r.id,
+                title: r.title || '',
+                authors: r.authors ? r.authors.split(',').map(a => a.trim()) : [],
+                year: r.year || null,
+                type: r.type || '',
+                category: r.category || null,
+                subcategory: r.subcategory || null,
+                publisher: r.publisher || null,
+                volume: r.volume || null,
+                number: r.number || null,
+                pages: r.pages || null,
+                edition: r.edition || null,
+                doi: r.doi || null,
+                keywords: r.keywords ? r.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+                url: r.url || r.primary_url || null,
+                verificationStatus: r.is_active ? 'verificado' : 'inactivo',
+                reports: r.reports || 0,
+                uploadDate: r.uploadDate || null,
+                uploadedBy: r.uploadedByName || r.uploaded_by || null,
+                isDuplicate: false,
+                lastModified: r.lastModified || null
+            }));
+
+            let selectedSources = [];
+            if (idsParam.length > 0) {
+                const placeholders = idsParam.map(() => '?').join(',');
+                const selRows = db.prepare(`
+                    SELECT s.id, s.title, s.publication_year AS year, st.name AS type, s.primary_url AS url,
+                           s.created_at AS uploadDate, s.updated_at AS lastModified, s.is_active,
+                           s.uploaded_by, u.username AS uploadedByName,
+                           (SELECT COUNT(*) FROM reports WHERE source_id = s.id) AS reports,
+                           (SELECT GROUP_CONCAT(a.full_name, ', ') FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = s.id ORDER BY sa.sort_order) AS authors
+                    FROM sources s
+                    LEFT JOIN source_types st ON s.source_type_id = st.id
+                    LEFT JOIN users u ON s.uploaded_by = u.id
+                    WHERE s.id IN (${placeholders})
+                `).all(...idsParam);
+
+                selectedSources = selRows.map(r => ({
+                    id: r.id,
+                    title: r.title || '',
+                    authors: r.authors ? r.authors.split(',').map(a => a.trim()) : [],
+                    year: r.year || null,
+                    type: r.type || '',
+                    verificationStatus: r.is_active ? 'verificado' : 'inactivo',
+                    reports: r.reports || 0,
+                    uploadDate: r.uploadDate || null,
+                    uploadedBy: r.uploadedByName || r.uploaded_by || null,
+                    isDuplicate: false,
+                    lastModified: r.lastModified || null
+                }));
             }
-        ];
-        res.render('compare-admin', { 
-            title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora', 
-            currentPage: 'compare-admin', 
-            cssFile: 'compare.css', 
-            jsFile: 'compare-admin.js', 
-            userType: 'admin', 
-            availableSources: mockSources, 
-            selectedSources: [], 
-            totalSourcesCount: mockSources.length 
-        });
+
+            const stats = { totalAvailable: availableSources.length };
+
+            res.render('compare-admin', {
+                title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora',
+                currentPage: 'compare-admin',
+                cssFile: 'compare.css',
+                jsFile: 'compare-admin.js',
+                userType: 'admin',
+                availableSources: availableSources,
+                selectedSources: selectedSources,
+                stats,
+                totalSourcesCount: availableSources.length
+            });
+        } catch (e) {
+            console.error('Error fetching compare-admin sources:', e && e.message);
+            res.render('compare-admin', {
+                title: 'Análisis y Comparación Masiva - Panel de Administración - Artícora',
+                currentPage: 'compare-admin',
+                cssFile: 'compare.css',
+                jsFile: 'compare-admin.js',
+                userType: 'admin',
+                availableSources: [],
+                selectedSources: [],
+                stats: {},
+                totalSourcesCount: 0
+            });
+        }
+    });
+
+    // API: GET sources by ids for comparison
+    app.get('/api/admin/compare/sources', soloAdmin, (req, res) => {
+        const db = req.db;
+        try {
+            const idsParam = req.query.ids ? String(req.query.ids).split(',').map(s => Number(s.trim())).filter(n => !Number.isNaN(n)) : [];
+
+            if (!idsParam.length) return res.json({ success: true, sources: [] });
+
+            const placeholders = idsParam.map(() => '?').join(',');
+            const rows = db.prepare(`
+                  SELECT s.id, s.title, s.publication_year AS year, st.name AS type, s.primary_url AS url,
+                      s.journal_publisher AS publisher, s.volume, s.issue_number AS number, s.pages, s.edition, s.doi, s.keywords,
+                      cat.name AS category, sub.name AS subcategory,
+                      s.created_at AS uploadDate, s.updated_at AS lastModified, s.is_active,
+                      s.uploaded_by, u.username AS uploadedByName,
+                      (SELECT COUNT(*) FROM reports WHERE source_id = s.id) AS reports,
+                      (SELECT GROUP_CONCAT(a.full_name, ', ') FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = s.id ORDER BY sa.sort_order) AS authors
+                  FROM sources s
+                  LEFT JOIN source_types st ON s.source_type_id = st.id
+                  LEFT JOIN users u ON s.uploaded_by = u.id
+                  LEFT JOIN categories cat ON s.category_id = cat.id
+                  LEFT JOIN subcategories sub ON s.subcategory_id = sub.id
+                  WHERE s.id IN (${placeholders})
+                 `).all(...idsParam);
+
+            const sources = rows.map(r => ({
+                id: r.id,
+                title: r.title || '',
+                authors: r.authors ? r.authors.split(',').map(a => a.trim()) : [],
+                year: r.year || null,
+                type: r.type || '',
+                category: r.category || null,
+                subcategory: r.subcategory || null,
+                publisher: r.publisher || null,
+                volume: r.volume || null,
+                number: r.number || null,
+                pages: r.pages || null,
+                edition: r.edition || null,
+                doi: r.doi || null,
+                keywords: r.keywords ? r.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+                url: r.url || r.primary_url || null,
+                verificationStatus: r.is_active ? 'verificado' : 'inactivo',
+                reports: r.reports || 0,
+                uploadDate: r.uploadDate || null,
+                uploadedBy: r.uploadedByName || r.uploaded_by || null,
+                isDuplicate: false,
+                lastModified: r.lastModified || null,
+                history: []
+            }));
+
+            return res.json({ success: true, sources });
+        } catch (err) {
+            console.error('GET /api/admin/compare/sources error:', err && err.message);
+            return res.status(500).json({ success: false, error: 'Error fetching sources' });
+        }
     });
 
     // ADMIN
@@ -214,93 +222,63 @@ module.exports = function (app) {
             };
         });
 
-        // Reportes automáticos del sistema — construir desde system_alerts
+        // Reportes automáticos del sistema (tomados de system_alerts)
         let systemReports = [];
         try {
-            const alerts = db.prepare("SELECT id, alert_type, severity, description, details, created_at, resolved_at FROM system_alerts ORDER BY created_at DESC LIMIT 200").all();
-
-            // Pre-fetch broken-url-check entries to compute consecutive failures per source_url
-            const brokenChecks = db.prepare("SELECT id, details, created_at FROM system_alerts WHERE alert_type = 'broken-url-check'").all();
-            const checksMap = {};
-            const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-            for (const c of brokenChecks) {
-                try {
-                    const d = JSON.parse(c.details || '{}');
-                    const sid = d.source_url_id;
-                    if (!sid) continue;
-                    const created = c.created_at ? new Date(c.created_at.replace(' ', 'T')) : null;
-                    if (!created || created < threeDaysAgo) continue;
-                    checksMap[sid] = (checksMap[sid] || 0) + 1;
-                } catch (e) {
-                    // ignore parse errors
-                }
-            }
-
+            const alerts = db.prepare("SELECT id, alert_type, severity, description, details, created_at FROM system_alerts WHERE resolved_at IS NULL ORDER BY created_at DESC").all();
             systemReports = alerts.map(a => {
-                let detail = {};
-                try { detail = a.details ? JSON.parse(a.details) : {}; } catch (e) { detail = {}; }
-
-                if (a.alert_type === 'offensive-language') {
-                    return {
-                        id: a.id,
-                        type: 'offensive-language',
-                        detectedText: detail.detectedText || a.description || '',
-                        context: {
-                            userId: detail.user_id || detail.userId || detail.user || 'desconocido',
-                            sourceId: detail.source_id || detail.sourceId || null,
-                            date: a.created_at
-                        },
-                        detectedDate: a.created_at,
-                        status: a.resolved_at ? 'resuelto' : 'pendiente',
-                        autoGenerated: true
-                    };
-                } else if (a.alert_type === 'broken-url' || a.alert_type === 'broken-url-check') {
-                    const srcUrlId = detail.source_url_id || null;
+                let details = {};
+                try { details = a.details ? JSON.parse(a.details) : {}; } catch (e) { details = {}; }
+                const t = (a.alert_type || '').toString().toLowerCase();
+                if (t === 'broken-url' || t === 'broken_url' || t === 'url_failure') {
                     return {
                         id: a.id,
                         type: 'broken-url',
-                        sourceId: detail.source_id || null,
-                        sourceTitle: detail.source_title || detail.title || null,
-                        url: detail.url || null,
-                        errorCode: detail.status_code || null,
-                        errorDays: srcUrlId ? (checksMap[srcUrlId] || 0) : 0,
+                        sourceId: details.source_id || details.sourceId || null,
+                        sourceTitle: details.source_title || details.title || null,
+                        url: details.url || null,
+                        errorCode: details.status || details.last_status || null,
+                        errorDays: details.consecutive_errors || null,
                         detectedDate: a.created_at,
-                        status: a.resolved_at ? 'resuelto' : 'pendiente',
+                        status: 'pendiente',
                         autoGenerated: true
                     };
-                } else if (a.alert_type === 'duplicate-detection') {
+                } else if (t === 'offensive-language' || t === 'offensive_language' || t === 'offensive') {
+                    return {
+                        id: a.id,
+                        type: 'offensive-language',
+                        detectedText: details.detectedText || details.text || details.snippet || '',
+                        context: { userId: details.user_id || details.userId || null, sourceId: details.source_id || null, date: a.created_at },
+                        detectedDate: a.created_at,
+                        status: 'pendiente',
+                        autoGenerated: true
+                    };
+                } else if (t === 'duplicate-detection' || t === 'duplicate_detection' || t === 'duplicates') {
                     return {
                         id: a.id,
                         type: 'duplicate-detection',
-                        sourceIds: detail.source_ids || detail.sourceIds || (detail.source_id ? [detail.source_id] : []),
-                        sourcesTitles: detail.titles || detail.sourcesTitles || [],
-                        similarity: detail.similarity || null,
+                        sourceIds: details.sourceIds || details.source_ids || [],
+                        sourcesTitles: details.titles || [],
+                        similarity: details.similarity || null,
                         detectedDate: a.created_at,
-                        status: a.resolved_at ? 'resuelto' : 'pendiente',
+                        status: 'pendiente',
                         autoGenerated: true
                     };
                 }
-
-                return {
-                    id: a.id,
-                    type: a.alert_type || 'system',
-                    detectedText: a.description || '',
-                    detectedDate: a.created_at,
-                    status: a.resolved_at ? 'resuelto' : 'pendiente',
-                    autoGenerated: true
-                };
-            });
+                return null;
+            }).filter(Boolean);
         } catch (e) {
-            console.error('Error fetching system alerts:', e && e.message);
+            console.error('Error fetching system_alerts:', e && e.message);
             systemReports = [];
         }
-        const stats = { totalPending: manualReports.filter(r => r.status === 'pendiente').length + systemReports.filter(r => r.status === 'pendiente').length, pendingManual: manualReports.filter(r => r.status === 'pendiente').length, pendingSystem: systemReports.filter(r => r.status === 'pendiente').length, highPriority: manualReports.filter(r => r.priority === 'alta' && r.status === 'pendiente').length, resolvedToday: 3, avgResolutionTime: "2.5 días" };
+
+        const stats = { totalPending: manualReports.length + systemReports.length, pendingManual: manualReports.length, pendingSystem: systemReports.length, highPriority: manualReports.filter(r => r.priority === 'alta').length, resolvedToday: 3, avgResolutionTime: "2.5 días" };
 
         res.render('admin', { 
             title: 'Panel de Administración - Artícora', 
             currentPage: 'admin', 
             cssFile: 'admin.css', 
-            jsFile: 'admin.js', 
+            jsFile: 'admin/admin.js', 
             userType: 'admin', 
             manualReports: manualReports, 
             systemReports: systemReports, 

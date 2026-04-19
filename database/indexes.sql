@@ -1,7 +1,6 @@
 -- Minimal set of indexes for Artícora
 -- Purpose: keep only essential indexes that materially improve common read/lookup patterns
 -- and avoid the write/maintenance cost of many rarely-used indexes.
--- Use CREATE INDEX IF NOT EXISTS so applying this file is safe on existing DBs.
 
 PRAGMA foreign_keys = ON;
 
@@ -36,3 +35,12 @@ CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
 
 
 -- End of minimal index set
+
+-- Additional indexes to speed up comparison and dedup operations
+CREATE INDEX IF NOT EXISTS idx_source_urls_url ON source_urls(url);
+CREATE INDEX IF NOT EXISTS idx_source_authors_source ON source_authors(source_id);
+CREATE INDEX IF NOT EXISTS idx_source_authors_author ON source_authors(author_id);
+CREATE INDEX IF NOT EXISTS idx_reports_source_id ON reports(source_id);
+CREATE INDEX IF NOT EXISTS idx_ratings_user_id ON ratings(user_id);
+-- Functional index for case-insensitive title lookups (used by duplicate heuristics)
+CREATE INDEX IF NOT EXISTS idx_sources_title_lower ON sources(LOWER(title));

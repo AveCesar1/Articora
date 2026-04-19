@@ -176,21 +176,32 @@ cron.schedule('0 2 * * *', () => {
   python.stderr.on('data', (data) => console.error(data.toString()));
 });
 
-// Verificación diaria de URLs (cron)
-try {
-    const verifyUrls = require('./lib/verifyUrls');
-    cron.schedule('30 3 * * *', async () => {
+// Daily URL verification (persistent broken URLs detection)
+const { runDailyUrlChecks } = require('./lib/url_checker');
+const { runCommentChecks } = require('./lib/offensive_checker');
+cron.schedule('0 3 * * *', () => {
+    try {
         console.log('Ejecutando verificación diaria de URLs...');
-        try {
-            const result = await verifyUrls.run();
-            console.log('Verificación de URLs completada. Resumen:', result);
-        } catch (e) {
-            console.error('Error en verificación de URLs', e && e.message);
-        }
-    });
-} catch (e) {
-    console.warn('verifyUrls module not available, saltando cron de verificación de URLs');
-}
+        // dbModule.db is the shared better-sqlite3 connection
+        runDailyUrlChecks(dbModule.db).then((r) => {
+            if (global && global.debugging) console.log('runDailyUrlChecks result', r);
+        }).catch(e => console.error('runDailyUrlChecks failed', e && e.message));
+    } catch (e) {
+        console.error('Error programando verificación de URLs:', e && e.message);
+    }
+});
+
+// Daily offensive-language checks on comments (run at 04:00)
+cron.schedule('0 4 * * *', () => {
+    try {
+        console.log('Ejecutando verificación diaria de lenguaje ofensivo en comentarios...');
+        runCommentChecks(dbModule.db).then(r => {
+            if (global && global.debugging) console.log('runCommentChecks result', r);
+        }).catch(e => console.error('runCommentChecks failed', e && e.message));
+    } catch (e) {
+        console.error('Error programando verificación de lenguaje ofensivo:', e && e.message);
+    }
+});
 
 // Cerrar la base de datos correctamente al salir
 process.on('SIGINT', () => {
