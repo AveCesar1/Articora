@@ -8,6 +8,7 @@ const fs = require('fs');
 const { sanitizeText } = require('../../middlewares/sanitize');
 const autenticacion = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
+const { encryptEmail, decryptEmail } = require('../../lib/crypto_utils');
 
 // Usa esto como condicional para activar los debuggings.
 const debugging = global.debugging;
@@ -48,8 +49,8 @@ module.exports = function (app) {
 
         try {
             // Verificar si el usuario o correo ya existen (en BD real)
-            const hashedEmailForCheck = crypto.createHash('sha256').update(email).digest('hex');
-            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(username, hashedEmailForCheck);
+            const encryptedEmailForCheck = encryptEmail(email, req.app);
+            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(username, encryptedEmailForCheck);
 
             if (userExists) {
                 console.log('Usuario ya existe:', userExists);
@@ -333,10 +334,10 @@ module.exports = function (app) {
             const allowedLevels = ['Licenciatura', 'Maestría', 'Doctorado', 'Estudiante', 'Profesional'];
             if (academicLevel && !allowedLevels.includes(academicLevel)) academicLevel = null;
 
-            const hashedEmail = crypto.createHash('sha256').update(pending.email).digest('hex');
+            const encryptedEmail = encryptEmail(pending.email, req.app);
 
             // Verificar que no se haya registrado en el ínterin
-            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(pending.username, hashedEmail);
+            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(pending.username, encryptedEmail);
             if (userExists) {
                 return res.status(400).json({ success: false, message: 'El nombre de usuario o correo ya están registrados.' });
             }
@@ -351,7 +352,7 @@ module.exports = function (app) {
 
             const result = insertStmt.run(
                 pending.username,
-                hashedEmail,
+                encryptedEmail,
                 pending.password,
                 firstName,
                 lastName,
@@ -416,8 +417,8 @@ module.exports = function (app) {
 
             if (isEmail) {
                 // Si es email, hashearlo para buscar en la BD
-                const hashedEmail = crypto.createHash('sha256').update(username).digest('hex');
-                user = req.db.prepare('SELECT * FROM users WHERE email = ?').get(hashedEmail);
+                const encryptedEmailForLogin = encryptEmail(username, req.app);
+                user = req.db.prepare('SELECT * FROM users WHERE email = ?').get(encryptedEmailForLogin);
             } else {
                 // Si es username, buscar por username
                 user = req.db.prepare('SELECT * FROM users WHERE username = ?').get(username);

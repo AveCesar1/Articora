@@ -1,4 +1,5 @@
 const IsRegistered = require('../../middlewares/auth');
+const { decryptEmail } = require('../../lib/crypto_utils');
 
 // Usa esto como condicional para activar los debuggings.
 const debugging = global.debugging;
@@ -193,7 +194,7 @@ module.exports = function (app) {
 
         const userData = {
             username: userRow.username,
-            email: userRow.email,
+            email: (function(){ try { return decryptEmail(userRow.email, req.app); } catch(e) { console.error('Email decryption failed:', e); return userRow.email; } })(),
             bio: userRow.bio || '',
             first_name: userRow.first_name || '',
             last_name: userRow.last_name || '',

@@ -598,9 +598,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
                     <i class="fas fa-paperclip"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Llamada">
-                    <i class="fas fa-phone"></i>
-                </button>
                 <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reportModal">
                     <i class="fas fa-flag"></i>
                 </button>
@@ -623,9 +620,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </button>
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
                         <i class="fas fa-paperclip"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Llamada">
-                        <i class="fas fa-phone"></i>
                     </button>
                     <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reportModal">
                         <i class="fas fa-flag"></i>

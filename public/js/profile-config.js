@@ -241,7 +241,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 institution: document.getElementById('institution')?.value || '',
                 first_name: document.getElementById('firstName')?.value || '',
                 last_name: document.getElementById('lastName')?.value || '',
-                
             };
 
             try {

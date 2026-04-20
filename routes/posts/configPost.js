@@ -1,9 +1,10 @@
 const isRegistered = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
 const bcrypt = require('bcrypt');
+const { encryptEmail } = require('../../lib/crypto_utils');
 
 module.exports = function (app) {
-       // Actualizar perfil del usuario
+    // Actualizar perfil del usuario
     app.post('/profile/config-profile/update', isRegistered, (req, res) => {
         try {
             const userId = req.session.userId;
@@ -25,9 +26,16 @@ module.exports = function (app) {
             if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
                 return res.status(400).json({ success: false, message: 'Email inválido' });
             }
+            let encryptedEmail;
+            try {
+                encryptedEmail = encryptEmail(email, req.app);
+            } catch (e) {
+                console.error('Error encrypting email:', e);
+                return res.status(500).json({ success: false, message: 'Error interno: no se pudo encriptar el email' });
+            }
 
             // Verificar si el email ya existe para otro usuario
-            const existingEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, userId);
+            const existingEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(encryptedEmail, userId);
             if (existingEmail) {
                 return res.status(400).json({ success: false, message: 'El email ya está registrado' });
             }
@@ -44,7 +52,7 @@ module.exports = function (app) {
                 WHERE id = ?
             `);
 
-            actualizar.run(email, bio || null, academicDegree || null, institution || null, first_name, last_name, userId);
+            actualizar.run(encryptedEmail, bio || null, academicDegree || null, institution || null, first_name, last_name, userId);
 
             if (Array.isArray(interests)) {
 

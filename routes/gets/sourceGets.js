@@ -452,7 +452,6 @@ module.exports = function (app) {
                 edition: row.edition || null,
                 pages: row.pages || null,
                 doi: row.doi || null,
-                abstract: '',
                 keywords: keywords,
                 category: { id: row.category_id },
                 subcategory: row.subcategory_id ? String(row.subcategory_id) : null,
