@@ -282,10 +282,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Enviar al servidor para crear la lista
                 (async function () {
+                    const selectedCoverType = document.querySelector('input[name="coverType"]:checked')?.value || 'auto';
                     const payload = {
                         title: title,
                         description: description,
-                        cover_type: document.querySelector('input[name="coverType"]:checked')?.value || 'auto',
+                        cover_type: selectedCoverType,
+                        cover_category: (selectedCoverType === 'category' && categorySelect) ? categorySelect.value : null,
                         is_public: (document.getElementById('visibilityPublic') && document.getElementById('visibilityPublic').checked) ? 1 : 0,
                         is_collaborative: collaborativeSwitch?.checked ? 1 : 0,
                         collaborators: appState.collaborators.map(c => c.id)
@@ -419,16 +421,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function confirmDeleteList(listId) {
-        // En una implementación real, esto sería un modal de confirmación
-        if (confirm('¿Estás seguro de que quieres eliminar esta lista? Esta acción es irreversible.')) {
-            // Simular eliminación
-            showNotification('Lista eliminada exitosamente', 'success');
-
-            // Simular recarga de la página
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+    async function confirmDeleteList(listId) {
+        if (!confirm('¿Estás seguro de que quieres eliminar esta lista? Esta acción es irreversible.')) return;
+        try {
+            const resp = await fetch(`/api/remove-list/${listId}`, { method: 'POST' });
+            const j = await resp.json().catch(() => null);
+            if (resp.ok && j && j.success) {
+                showNotification('Lista eliminada exitosamente', 'success');
+                setTimeout(() => window.location.reload(), 750);
+            } else {
+                showNotification((j && j.message) ? j.message : 'No se pudo eliminar la lista', 'error');
+            }
+        } catch (err) {
+            console.error('Error eliminando lista:', err);
+            showNotification('Error de red al eliminar la lista', 'error');
         }
     }
 

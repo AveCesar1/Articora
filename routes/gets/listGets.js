@@ -6,6 +6,30 @@ const noAdmin = checkRoles(['validado', 'no_validado']);
 const { sanitizeText } = require('../../middlewares/sanitize');
 
 module.exports = function (app) {
+
+    // Helper: normalize cover URLs coming from DB
+    function normalizeCoverUrl(raw, sourceId) {
+        if (!raw) {
+            return sourceId ? `/portadas/fuente_${sourceId}.png` : null;
+        }
+        const s = String(raw).trim();
+        if (!s) return sourceId ? `/portadas/fuente_${sourceId}.png` : null;
+        if (s.match(/^https?:\/\//i)) return s;
+        if (s.startsWith('/')) return s;
+        if (s.startsWith('portadas/')) return '/' + s;
+        const idx = s.indexOf('/portadas/');
+        if (idx !== -1) {
+            // ensure leading slash
+            return s.startsWith('/') ? s.slice(idx) : s.slice(idx);
+        }
+        // If it's a bare filename, assume it's under /portadas/
+        if (!s.includes('/')) {
+            if (s.includes('.')) return `/portadas/${s}`;
+            return `/portadas/${s}.png`;
+        }
+        // Fallback: prepend slash
+        return '/' + s;
+    }
     // Página: Listas (lista del usuario + públicas)
     app.get('/lists', IsRegistered, noAdmin, (req, res) => {
         try {
@@ -70,14 +94,31 @@ module.exports = function (app) {
                     });
                 }
 
-                let coverImage = list.cover_image || null;
+                let coverImage = null;
+                if (list.cover_image) {
+                    const catMatch = knowledgeCategories.find(c => String(c.name) === String(list.cover_image));
+                    if (catMatch) {
+                        coverImage = `https://placehold.co/300x200/${String(catMatch.color).replace('#','')}/f5f1e6?text=${encodeURIComponent(catMatch.name)}`;
+                    } else {
+                        const token = String(list.cover_image).trim().toLowerCase();
+                        if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
+                            coverImage = null; // fallthrough to first source
+                        } else {
+                            coverImage = normalizeCoverUrl(list.cover_image, null);
+                        }
+                    }
+                }
                 if (!coverImage) {
                     const firstSource = req.db.prepare(`
-                        SELECT s.cover_image_url FROM list_sources ls
+                        SELECT s.id, s.cover_image_url
+                        FROM list_sources ls
                         JOIN sources s ON ls.source_id = s.id
-                        WHERE ls.list_id = ? ORDER BY ls.added_at ASC LIMIT 1
+                        WHERE ls.list_id = ?
+                        ORDER BY ls.added_at ASC, s.title ASC
+                        LIMIT 1
                     `).get(list.id);
-                    coverImage = (firstSource && firstSource.cover_image_url) ? firstSource.cover_image_url : 'https://placehold.co/300x200/5d4037/f5f1e6?text=Primera+Fuente';
+                    if (firstSource) coverImage = normalizeCoverUrl(firstSource.cover_image_url, firstSource.id);
+                    else coverImage = 'https://placehold.co/300x200/5d4037/f5f1e6?text=Primera+Fuente';
                 }
 
                 const collaborators = req.db.prepare(`
@@ -115,7 +156,21 @@ module.exports = function (app) {
             const publicRows = req.db.prepare('SELECT cl.*, u.full_name as creatorName FROM curatorial_lists cl JOIN users u ON cl.user_id = u.id WHERE cl.is_public = 1 ORDER BY cl.created_at DESC LIMIT 30').all();
             const publicLists = publicRows.map(list => {
                 const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(list.id).c || 0;
-                const coverImage = list.cover_image || 'https://placehold.co/300x200/2c1810/f5f1e6?text=Primera+Fuente';
+                let coverImage = null;
+                if (list.cover_image) {
+                    const catMatch = knowledgeCategories.find(c => String(c.name) === String(list.cover_image));
+                    if (catMatch) {
+                        coverImage = `https://placehold.co/300x200/${String(catMatch.color).replace('#','')}/f5f1e6?text=${encodeURIComponent(catMatch.name)}`;
+                    } else {
+                        const token = String(list.cover_image).trim().toLowerCase();
+                        if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
+                            coverImage = null;
+                        } else {
+                            coverImage = normalizeCoverUrl(list.cover_image, null);
+                        }
+                    }
+                }
+                if (!coverImage) coverImage = 'https://placehold.co/300x200/2c1810/f5f1e6?text=Primera+Fuente';
                 return {
                     id: list.id,
                     title: list.title,
@@ -143,7 +198,7 @@ module.exports = function (app) {
                 ORDER BY s.created_at DESC
                 LIMIT 8
             `).all();
-            const availableSources = availableSourcesRows.map(s => ({ id: s.id, title: s.title, author: 'N/A', year: s.year, category: s.category || 'Desconocida', rating: s.rating || 0, cover: s.cover || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada' }));
+            const availableSources = availableSourcesRows.map(s => ({ id: s.id, title: s.title, author: 'N/A', year: s.year, category: s.category || 'Desconocida', rating: s.rating || 0, cover: normalizeCoverUrl(s.cover, s.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada' }));
 
             const deletedRows = req.db.prepare('SELECT id, title FROM sources WHERE is_active = 0 ORDER BY updated_at DESC LIMIT 3').all();
             const deletedSources = deletedRows.map(s => ({ id: s.id, title: s.title, author: 'N/A', year: null, category: 'Desconocida', rating: 0, isDeleted: true, cover: 'https://placehold.co/150x200/cccccc/999999?text=Eliminado' }));
@@ -229,7 +284,7 @@ module.exports = function (app) {
 
             const sources = sourcesRows.map(s => {
                 const isDeleted = !s.is_active;
-                const cover = !isDeleted && s.cover ? s.cover : 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada';
+                const cover = !isDeleted ? (normalizeCoverUrl(s.cover, s.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada') : 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada';
 
                 const uploader = (s.uploaded_by) ? req.db.prepare('SELECT full_name FROM users WHERE id = ?').get(s.uploaded_by) : null;
                 const author = uploader ? (uploader.full_name || 'Usuario') : 'N/A';
@@ -261,7 +316,22 @@ module.exports = function (app) {
 
             const collaborators = req.db.prepare("SELECT u.id, u.full_name as name, u.profile_picture, lc.status FROM list_collaborators lc JOIN users u ON lc.user_id = u.id WHERE lc.list_id = ?").all(listId).map(r => ({ id: r.id, name: r.name || 'Usuario', avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || 'Usuario')}&background=2E8B57&color=fff`, status: r.status }));
 
-            const list = {
+                let computedCoverImage = null;
+                if (listRow.cover_image) {
+                    const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[listRow.cover_image] : null;
+                    if (catColor) {
+                        computedCoverImage = `https://placehold.co/600x300/${String(catColor).replace('#','')}/f5f1e6?text=${encodeURIComponent(listRow.cover_image)}`;
+                    } else {
+                        const token = String(listRow.cover_image).trim().toLowerCase();
+                        if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
+                            computedCoverImage = null;
+                        } else {
+                            computedCoverImage = normalizeCoverUrl(listRow.cover_image, sources && sources[0] ? sources[0].id : null);
+                        }
+                    }
+                }
+
+                const list = {
                 id: listRow.id,
                 title: listRow.title,
                 description: listRow.description,
@@ -274,7 +344,7 @@ module.exports = function (app) {
                 categoriesDistribution,
                 collaborators,
                 sources,
-                coverImage: listRow.cover_image || (sources[0] && sources[0].cover) || 'https://placehold.co/400x250/5d4037/f5f1e6?text=Primera+Fuente',
+                coverImage: computedCoverImage || (sources[0] && sources[0].cover) || 'https://placehold.co/400x250/5d4037/f5f1e6?text=Primera+Fuente',
                 createdAt: listRow.created_at,
                 lastModified: listRow.updated_at || listRow.created_at
             };

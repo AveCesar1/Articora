@@ -17,6 +17,20 @@ module.exports = function(app) {
 			const isPublic = body.is_public === true || body.is_public === 1 || body.is_public === '1' ? 1 : 0;
 			const isCollaborative = body.is_collaborative === true || body.is_collaborative === 1 || body.is_collaborative === '1' ? 1 : 0;
 
+			// Determine cover_image value to persist. We store either the category name or the token 'Primera Portada'
+			const coverType = (body.cover_type || 'auto').toString();
+			let coverImageValue = null;
+			if (coverType === 'category') {
+				const catId = body.cover_category ? Number(body.cover_category) : null;
+				if (catId && !Number.isNaN(catId)) {
+					const catRow = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId);
+					if (catRow && catRow.name) coverImageValue = sanitizeText(catRow.name);
+				}
+				if (!coverImageValue) coverImageValue = 'Primera Portada';
+			} else {
+				coverImageValue = 'Primera Portada';
+			}
+
 			if (!title) return res.status(400).json({ success: false, message: 'title_required' });
 			if (title.length > 50) return res.status(400).json({ success: false, message: 'title_too_long' });
 			if (description && description.length > 500) return res.status(400).json({ success: false, message: 'description_too_long' });
@@ -29,11 +43,11 @@ module.exports = function(app) {
 			if (currentCount >= maxLists) return res.status(400).json({ success: false, message: 'max_lists_reached' });
 
 			const insert = db.prepare(`
-				INSERT INTO curatorial_lists (user_id, title, description, is_public, is_collaborative, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+				INSERT INTO curatorial_lists (user_id, title, description, cover_image, is_public, is_collaborative, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
 			`);
 
-			const result = insert.run(userId, title, description || null, isPublic, isCollaborative);
+			const result = insert.run(userId, title, description || null, coverImageValue, isPublic, isCollaborative);
 			const listId = result.lastInsertRowid;
 
 			const list = db.prepare('SELECT id, user_id as userId, title, description, cover_image as coverImage, is_public as isPublic, is_collaborative as isCollaborative, total_sources as totalSources, total_views as totalViews, created_at as createdAt, updated_at as updatedAt FROM curatorial_lists WHERE id = ?').get(listId);
@@ -198,7 +212,25 @@ module.exports = function(app) {
 			if (title.length > 50) return res.status(400).json({ success: false, message: 'title_too_long' });
 			if (description && description.length > 500) return res.status(400).json({ success: false, message: 'description_too_long' });
 
-			db.prepare('UPDATE curatorial_lists SET title = ?, description = ?, is_public = ?, is_collaborative = ?, updated_at = datetime(\'now\') WHERE id = ?').run(title, description || null, isPublic, isCollaborative, listId);
+			// Update cover_image only if client provided cover_type/cover_category to avoid overwriting unintentionally
+			const coverProvided = Object.prototype.hasOwnProperty.call(body, 'cover_type') || Object.prototype.hasOwnProperty.call(body, 'cover_category');
+			if (coverProvided) {
+				const coverType = (body.cover_type || 'auto').toString();
+				let coverImageValue = null;
+				if (coverType === 'category') {
+					const catId = body.cover_category ? Number(body.cover_category) : null;
+					if (catId && !Number.isNaN(catId)) {
+						const catRow = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId);
+						if (catRow && catRow.name) coverImageValue = sanitizeText(catRow.name);
+					}
+					if (!coverImageValue) coverImageValue = 'Primera Portada';
+				} else {
+					coverImageValue = 'Primera Portada';
+				}
+				db.prepare('UPDATE curatorial_lists SET title = ?, description = ?, is_public = ?, is_collaborative = ?, cover_image = ?, updated_at = datetime(\'now\') WHERE id = ?').run(title, description || null, isPublic, isCollaborative, coverImageValue, listId);
+			} else {
+				db.prepare('UPDATE curatorial_lists SET title = ?, description = ?, is_public = ?, is_collaborative = ?, updated_at = datetime(\'now\') WHERE id = ?').run(title, description || null, isPublic, isCollaborative, listId);
+			}
 
 			const updated = db.prepare('SELECT id, user_id as userId, title, description, cover_image as coverImage, is_public as isPublic, is_collaborative as isCollaborative, total_sources as totalSources, total_views as totalViews, created_at as createdAt, updated_at as updatedAt FROM curatorial_lists WHERE id = ?').get(listId);
 			return res.json({ success: true, list: updated });
