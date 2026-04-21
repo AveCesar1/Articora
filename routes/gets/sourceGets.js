@@ -4,6 +4,20 @@ const { spawn } = require('child_process');
 
 //Alias de middlewares
 const soloValidado = checkRoles(['validado', 'admin']);
+
+// Small helper to unescape common HTML entities stored in DB (e.g. &#x2F; for /)
+function htmlUnescape(s) {
+    if (!s && s !== '') return s;
+    return String(s)
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#x2F;/gi, '/')
+        .replace(/&sol;/g, '/');
+}
+
 module.exports = function (app) {
 
     //////////////////
@@ -149,6 +163,16 @@ module.exports = function (app) {
                     const cat = categoryMap.get(r.category_id) || { name: '', color: categoryColorMap[''] || '#6c757d' };
                     const subcatName = subcategoryMap.get(r.subcategory_id) || '';
 
+                    const citationFormats = {
+                        apa: `${authors.join(', ')} (${r.year || ''}). ${r.title}. ${r.journal || r.publisher || ''}${r.primary_url ? ' ' + htmlUnescape(r.primary_url) : ''}`,
+                        chicago: `${authors.join('. ')}. ${r.title}. ${r.journal || r.publisher || ''} ${r.year || ''}. ${htmlUnescape(r.primary_url || '')}`,
+                        harvard: `${authors.join(', ')} (${r.year || ''}) ${r.title}. ${r.journal || r.publisher || ''}. Available at: ${htmlUnescape(r.primary_url || '')}`,
+                        mla: `${authors.join(', ')}. "${r.title}." ${r.journal || r.publisher || ''}, ${r.year || ''}. ${htmlUnescape(r.primary_url || '')}`,
+                        ieee: `${authors.join(', ')} \"${r.title},\" ${r.journal || r.publisher || ''}, ${r.year || ''}. [Online]. Available: ${htmlUnescape(r.primary_url || '')}`,
+                        vancouver: `${authors.join(', ')}. ${r.title}. ${r.journal || r.publisher || ''}. ${r.year || ''}. Available from: ${htmlUnescape(r.primary_url || '')}`,
+                        bibtex: `@article{source${r.id}, title={${r.title}}, author={${authors.join(' and ')}}, year={${r.year}}${r.primary_url ? `, url={${htmlUnescape(r.primary_url)}}` : ''} }`
+                    };
+
                     return {
                         id: r.id,
                         title: r.title,
@@ -165,6 +189,7 @@ module.exports = function (app) {
                         stats: { views: (typeof r.total_reads !== 'undefined' && r.total_reads !== null && r.total_reads > 0) ? r.total_reads : 'N/A', bookmarks: 'N/A' },
                         uploadDate: r.created_at || null,
                         uploader: uploader,
+                        citationFormats: citationFormats
                     };
                 });
             } else {
@@ -226,6 +251,16 @@ module.exports = function (app) {
                             const cat = categoryMap.get(row.category_id) || { name: '', color: categoryColorMap[''] || '#6c757d' };
                             const subcatName = subcategoryMap.get(row.subcategory_id) || '';
 
+                            const citationFormats = {
+                                apa: `${authors.join(', ')} (${row.year || ''}). ${row.title}. ${row.journal || row.publisher || ''}${row.primary_url ? ' ' + htmlUnescape(row.primary_url) : ''}`,
+                                chicago: `${authors.join('. ')}. ${row.title}. ${row.journal || row.publisher || ''} ${row.year || ''}. ${htmlUnescape(row.primary_url || '')}`,
+                                harvard: `${authors.join(', ')} (${row.year || ''}) ${row.title}. ${row.journal || row.publisher || ''}. Available at: ${htmlUnescape(row.primary_url || '')}`,
+                                mla: `${authors.join(', ')}. "${row.title}." ${row.journal || row.publisher || ''}, ${row.year || ''}. ${htmlUnescape(row.primary_url || '')}`,
+                                ieee: `${authors.join(', ')} \"${row.title},\" ${row.journal || row.publisher || ''}, ${row.year || ''}. [Online]. Available: ${htmlUnescape(row.primary_url || '')}`,
+                                vancouver: `${authors.join(', ')}. ${row.title}. ${row.journal || row.publisher || ''}. ${row.year || ''}. Available from: ${htmlUnescape(row.primary_url || '')}`,
+                                bibtex: `@article{source${row.id}, title={${row.title}}, author={${authors.join(' and ')}}, year={${row.year}}${row.primary_url ? `, url={${htmlUnescape(row.primary_url)}}` : ''} }`
+                            };
+
                             ordered.push({
                                 id: row.id,
                                 title: row.title,
@@ -242,16 +277,17 @@ module.exports = function (app) {
                                 stats: { views: (typeof row.total_reads !== 'undefined' && row.total_reads !== null && row.total_reads > 0) ? row.total_reads : 'N/A', bookmarks: 'N/A' },
                                 uploadDate: row.created_at || null,
                                 uploader: uploader,
-                                score: item.score
+                                score: item.score,
+                                citationFormats: citationFormats
                             });
                         }
 
                         // Apply alternative sorting if requested (TF-IDF order preserved by default)
                         if (selectedSort) {
-                            if (selectedSort === 'rating') ordered.sort((a,b) => (b.rating.average || 0) - (a.rating.average || 0));
-                            else if (selectedSort === 'recent') ordered.sort((a,b) => new Date(b.uploadDate) - new Date(a.uploadDate));
-                            else if (selectedSort === 'popular') ordered.sort((a,b) => ( (b.stats.views === 'N/A' ? 0 : b.stats.views) - (a.stats.views === 'N/A' ? 0 : a.stats.views) ));
-                            else if (selectedSort === 'difficulty') ordered.sort((a,b) => ( (b.rating.avgDifficulty || 0) - (a.rating.avgDifficulty || 0) ));
+                            if (selectedSort === 'rating') ordered.sort((a, b) => (b.rating.average || 0) - (a.rating.average || 0));
+                            else if (selectedSort === 'recent') ordered.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+                            else if (selectedSort === 'popular') ordered.sort((a, b) => ((b.stats.views === 'N/A' ? 0 : b.stats.views) - (a.stats.views === 'N/A' ? 0 : a.stats.views)));
+                            else if (selectedSort === 'difficulty') ordered.sort((a, b) => ((b.rating.avgDifficulty || 0) - (a.rating.avgDifficulty || 0)));
                         }
 
                         totalResults = ordered.length;
@@ -412,7 +448,7 @@ module.exports = function (app) {
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
-    
+
     // Detalle de fuente (fetch dinámico por id desde DB)
     app.get('/post/:id', (req, res) => {
         const postId = parseInt(req.params.id, 10);
@@ -440,7 +476,7 @@ module.exports = function (app) {
                 }
             } catch (e) { uploader = 'Usuario'; }
 
-                const post = {
+            const post = {
                 id: row.id,
                 title: row.title,
                 authors: authors,
@@ -462,9 +498,35 @@ module.exports = function (app) {
                 uploadDate: row.created_at || null,
                 language: null,
                 license: null,
-                url: row.url || null,
+                url: htmlUnescape(row.url) || null,
                 coverImage: row.coverImage || `/portadas/fuente_${row.id}.png`
             };
+
+            // Populate aggregated ratings breakdown (avg per criterion + overall)
+            try {
+                const agg = db.prepare(`SELECT COUNT(1) as cnt, AVG(readability) AS avg_readability, AVG(completeness) AS avg_completeness, AVG(detail_level) AS avg_detail_level, AVG(veracity) AS avg_veracity, AVG(technical_difficulty) AS avg_technical_difficulty FROM ratings WHERE source_id = ?`).get(postId);
+                const total = agg ? (agg.cnt || 0) : 0;
+                const avgRead = parseFloat(((agg && agg.avg_readability) || 0).toFixed(2));
+                const avgComp = parseFloat(((agg && agg.avg_completeness) || 0).toFixed(2));
+                const avgDetail = parseFloat(((agg && agg.avg_detail_level) || 0).toFixed(2));
+                const avgVer = parseFloat(((agg && agg.avg_veracity) || 0).toFixed(2));
+                const avgTech = parseFloat(((agg && agg.avg_technical_difficulty) || 0).toFixed(2));
+                const overall = total ? parseFloat(((avgRead + avgComp + avgDetail + avgVer + avgTech) / 5).toFixed(2)) : 0;
+
+                post.rating = {
+                    average: overall,
+                    count: total,
+                    criteria: [
+                        { name: 'Extensión de lectura', score: avgRead },
+                        { name: 'Completitud', score: avgComp },
+                        { name: 'Nivel de detalle', score: avgDetail },
+                        { name: 'Veracidad', score: avgVer },
+                        { name: 'Dificultad técnica', score: avgTech }
+                    ]
+                };
+            } catch (e) {
+                console.error('Error computing aggregates for post', postId, e);
+            }
 
             // Load comments from ratings table (ratings that include a non-empty comment)
             let commentRows = [];
@@ -526,6 +588,21 @@ module.exports = function (app) {
                 bibtex: `@book{source${post.id}, title={${post.title}}, author={${post.authors.join(' and ')}}, year={${post.year}} }`
             };
 
+            // Compute basic stats: lecturas (from user_readings), reseñas (ratings count), descargas (appearances in lists)
+            try {
+                const readsRow = db.prepare('SELECT COUNT(1) as c FROM user_readings WHERE source_id = ? AND status = ?').get(postId, 'read');
+                const reviewsRow = db.prepare('SELECT COUNT(1) as c FROM ratings WHERE source_id = ?').get(postId);
+                const downloadsRow = db.prepare('SELECT COUNT(1) as c FROM list_sources WHERE source_id = ?').get(postId);
+
+                post.stats = {
+                    reads: (readsRow && readsRow.c) ? readsRow.c : 0,
+                    reviews: (reviewsRow && reviewsRow.c) ? reviewsRow.c : 0,
+                    downloads: (downloadsRow && downloadsRow.c) ? downloadsRow.c : 0
+                };
+            } catch (e) {
+                console.error('Error computing post stats for', postId, e && e.message);
+                post.stats = { reads: 0, reviews: 0, downloads: 0 };
+            }
             res.render('post', {
                 title: `${post.title} - Artícora`,
                 currentPage: 'post',
@@ -593,7 +670,7 @@ module.exports = function (app) {
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
-    
+
     // Subir fuente (carga dinámica de categorías, subcategorías y tipos de fuente desde DB)
     app.get('/upload', soloValidado, (req, res) => {
         const db = req.db;
@@ -640,17 +717,17 @@ module.exports = function (app) {
         try {
             // Usar el sistema TF-IDF ya implementado (llama a Python)
             const results = await searchWithPython(title);
-            
+
             // Filtrar por similitud > 0.3 (ajustable)
             const similares = results.filter(r => r.score > 0.3);
-            
+
             if (similares.length === 0) {
                 return res.json({ duplicado: false, fuentes: [] });
             }
 
             const ids = similares.map(r => r.source_id);
             const placeholders = ids.map(() => '?').join(',');
-            
+
             // if(debugging) console.log('Placeholders:', placeholders);
             // if(debugging) console.log('Real values:', ids);
 
@@ -689,7 +766,7 @@ module.exports = function (app) {
                 mensaje: '¿Es su fuente alguna de estas?',
                 fuentes: fuentes.sort((a, b) => b.score - a.score).slice(0, 5) // top 5
             });
-            
+
         } catch (err) {
             console.error('Error en verificación título:', err);
             res.status(500).json({ error: 'Error interno' });
@@ -698,7 +775,7 @@ module.exports = function (app) {
 
     // Endpoint de verificación de títulos duplicados + autores
     app.get('/api/check-duplicate-title-authors', async (req, res) => {
-        if(debugging) console.log('Received check-duplicate-title-authors request with query:', req.query);
+        if (debugging) console.log('Received check-duplicate-title-authors request with query:', req.query);
 
         const { title, authors } = req.query;
         if (!title || !authors) return res.json({ duplicado: false });
@@ -716,17 +793,17 @@ module.exports = function (app) {
             // 1. Primero buscar títulos similares con TF-IDF
             const similares = await searchWithPython(title);
             const titulosSimilares = similares.filter(r => r.score > 0.3);
-            
+
             if (titulosSimilares.length === 0) {
                 return res.json({ duplicado: false });
             }
 
             const idsSimilares = titulosSimilares.map(r => r.source_id);
-            
+
             // Construir placeholders
             const idsPlaceholders = idsSimilares.map(() => '?').join(',');
             const autoresPlaceholders = autoresArray.map(() => '?').join(',');
-            
+
             // Buscar fuentes que tengan título similar y al menos un autor coincidente
             const fuentes = await db.prepare(`
                 SELECT s.id, s.title, 
@@ -761,7 +838,7 @@ module.exports = function (app) {
                     autores: f.authors
                 }))
             });
-            
+
         } catch (err) {
             console.error('Error en verificación título+autores:', err);
             res.status(500).json({ error: 'Error interno' });
@@ -806,10 +883,10 @@ module.exports = function (app) {
                     JOIN source_authors sa ON a.id = sa.author_id
                     WHERE sa.source_id = ?
                 `).all(p.id);
-                
+
                 const nombresAutores = autoresFuente.map(a => a.full_name).sort();
                 const autoresBuscados = [...autoresArray].sort(); // copia ordenada
-                
+
                 // Comparar conjuntos de autores (misma longitud y mismos nombres)
                 if (nombresAutores.length === autoresBuscados.length &&
                     nombresAutores.every((val, idx) => val === autoresBuscados[idx])) {
@@ -826,7 +903,7 @@ module.exports = function (app) {
             res.json({
                 duplicado: true,
                 exacto: true,
-                redirect: true, 
+                redirect: true,
                 fuente: {
                     id: fuenteEncontrada.id,
                     titulo: fuenteEncontrada.title,   // mantenemos 'titulo' para el frontend
@@ -834,7 +911,7 @@ module.exports = function (app) {
                     edicion: fuenteEncontrada.edition
                 }
             });
-            
+
         } catch (err) {
             console.error('Error en verificación exacta:', err);
             res.status(500).json({ error: 'Error interno' });
@@ -845,29 +922,29 @@ module.exports = function (app) {
 
 // Función para buscar
 function searchWithPython(query) {
-  return new Promise((resolve, reject) => {
-    try {
-      const args = ['tf-idf/search.py', query];
-      const py = spawn('python3', args, { cwd: process.cwd() });
-      let output = '';
-      let errOutput = '';
-      py.stdout.on('data', (data) => { output += data.toString(); });
-      py.stderr.on('data', (data) => { errOutput += data.toString(); console.error(`Python error: ${data}`); });
-      py.on('close', (code) => {
-        if (code === 0) {
-          try {
-            const results = JSON.parse(output);
-            resolve(results);
-          } catch (e) {
+    return new Promise((resolve, reject) => {
+        try {
+            const args = ['tf-idf/search.py', query];
+            const py = spawn('python3', args, { cwd: process.cwd() });
+            let output = '';
+            let errOutput = '';
+            py.stdout.on('data', (data) => { output += data.toString(); });
+            py.stderr.on('data', (data) => { errOutput += data.toString(); console.error(`Python error: ${data}`); });
+            py.on('close', (code) => {
+                if (code === 0) {
+                    try {
+                        const results = JSON.parse(output);
+                        resolve(results);
+                    } catch (e) {
+                        reject(e);
+                    }
+                } else {
+                    reject(new Error(`Python exited with code ${code}: ${errOutput}`));
+                }
+            });
+            py.on('error', (err) => reject(err));
+        } catch (e) {
             reject(e);
-          }
-        } else {
-          reject(new Error(`Python exited with code ${code}: ${errOutput}`));
         }
-      });
-      py.on('error', (err) => reject(err));
-    } catch (e) {
-      reject(e);
-    }
-  });
+    });
 }

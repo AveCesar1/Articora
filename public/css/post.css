@@ -7,6 +7,15 @@
     color: #ffc107;
 }
 
+/* Make interactive star widgets have tight hit area and pointer cursor */
+.star-rating {
+    display: inline-block;
+    user-select: none;
+}
+.star {
+    cursor: pointer;
+}
+
 .rating-stars .far,
 .rating-stars .fas.fa-star-half-alt {
     color: #ffc107;

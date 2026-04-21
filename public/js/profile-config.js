@@ -244,6 +244,27 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
+                // If a new avatar was selected, upload it first
+                if (profilePictureInput && profilePictureInput.files && profilePictureInput.files[0]) {
+                    const fd = new FormData();
+                    fd.append('avatar', profilePictureInput.files[0]);
+                    try {
+                        const upRes = await fetch('/profile/config-profile/upload-avatar', { method: 'POST', body: fd });
+                        const upData = await upRes.json();
+                        if (!upData || !upData.success) {
+                            showAlert('danger', upData && upData.message ? upData.message : 'Error al subir la imagen');
+                            return;
+                        } else {
+                            // update avatar preview to server path
+                            if (upData.profile_picture) profileAvatar.src = upData.profile_picture;
+                        }
+                    } catch (err) {
+                        console.error('Upload error', err);
+                        showAlert('danger', 'Error al subir la imagen');
+                        return;
+                    }
+                }
+
                 const response = await fetch('/profile/config-profile/update', {
                     method: 'POST',
                     headers: {
@@ -406,7 +427,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 emailMessages: document.getElementById('emailMessages').checked,
                 emailComments: document.getElementById('emailComments').checked,
                 emailVerification: document.getElementById('emailVerification').checked,
-                emailNewsletter: document.getElementById('emailNewsletter').checked,
                 platformMessages: document.getElementById('platformMessages').checked,
                 platformComments: document.getElementById('platformComments').checked,
                 platformRatings: document.getElementById('platformRatings').checked,
@@ -484,10 +504,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (removePictureBtn && profileAvatar) {
-        removePictureBtn.addEventListener('click', function() {
-            profileAvatar.src = `https://placehold.co/200x200/2c1810/e0d6c2?text=${profileAvatar.alt.charAt(0)}`;
-            if (profilePictureInput) {
-                profilePictureInput.value = '';
+        removePictureBtn.addEventListener('click', async function() {
+            if (!confirm('¿Eliminar foto de perfil?')) return;
+            try {
+                const resp = await fetch('/profile/config-profile/remove-avatar', { method: 'POST' });
+                const data = await resp.json();
+                if (data && data.success) {
+                    profileAvatar.src = `https://placehold.co/200x200/2c1810/e0d6c2?text=${profileAvatar.alt.charAt(0)}`;
+                    if (profilePictureInput) profilePictureInput.value = '';
+                    showAlert('success', 'Foto de perfil eliminada');
+                } else {
+                    showAlert('danger', data && data.message ? data.message : 'No se pudo eliminar la foto');
+                }
+            } catch (err) {
+                console.error('Error removing avatar', err);
+                showAlert('danger', 'Error de conexión al eliminar la foto');
             }
         });
     }

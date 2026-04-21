@@ -2,6 +2,7 @@ const isRegistered = require('../../middlewares/auth');
 const authenticate = require('../../middlewares/auth');
 const fs = require('fs');
 const path = require('path');
+const { encryptEmail, decryptEmail } = require('../../lib/crypto_utils');
 const checkRoles = require('../../middlewares/checkrole');
 const noAdmin = checkRoles(['validado', 'no_validado']);
 
@@ -136,6 +137,71 @@ module.exports = function(app) {
         }
     });
 
+    // Información del chat / participante (para panel lateral derecho)
+    app.get('/api/chats/:chatId/info', authenticate, (req, res) => {
+        try {
+            const userId = req.user.id;
+            const chatId = parseInt(req.params.chatId, 10);
+
+            // Canal Artícora (id 0) respuesta rápida
+            if (chatId === 0) {
+                return res.json({ type: 'channel', id: 0, name: 'Artícora', description: 'Canal oficial de anuncios y notificaciones' });
+            }
+
+            // Verificar pertenencia
+            const participant = req.db.prepare('SELECT 1 FROM chat_participants WHERE chat_id = ? AND user_id = ?').get(chatId, userId);
+            if (!participant) return res.status(403).json({ error: 'No perteneces a este chat' });
+
+            const chatRow = req.db.prepare('SELECT id, chat_type, group_name FROM chats WHERE id = ?').get(chatId);
+            if (!chatRow) return res.status(404).json({ error: 'Chat no encontrado' });
+
+            if (chatRow.chat_type === 'individual') {
+                // Obtener el otro participante
+                const other = req.db.prepare(`
+                    SELECT u.id, u.username, u.full_name, u.profile_picture, u.email
+                    FROM chat_participants cp
+                    JOIN users u ON cp.user_id = u.id
+                    WHERE cp.chat_id = ? AND cp.user_id != ?
+                `).get(chatId, userId);
+
+                if (!other) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+                let encryptedEmail = null;
+                try {
+                    encryptedEmail = decryptEmail(other.email, req.app);
+                } catch (e) {
+                    encryptedEmail = other.email;
+                }
+                return res.json({
+                    type: 'individual',
+                    user: {
+                        id: other.id,
+                        username: other.username,
+                        full_name: other.full_name,
+                        avatar: other.profile_picture,
+                        encryptedEmail
+                    }
+                });
+            }
+
+            if (chatRow.chat_type === 'group') {
+                const participants = req.db.prepare(`
+                    SELECT u.id as user_id, u.username, u.full_name, u.profile_picture
+                    FROM chat_participants cp
+                    JOIN users u ON cp.user_id = u.id
+                    WHERE cp.chat_id = ?
+                `).all(chatId);
+
+                return res.json({ type: 'group', id: chatId, name: chatRow.group_name, participants });
+            }
+
+            return res.status(400).json({ error: 'Tipo de chat no soportado' });
+        } catch (err) {
+            console.error('Error in GET /api/chats/:chatId/info', err);
+            return res.status(500).json({ error: 'internal_error' });
+        }
+    });
+
     // Endpoints para obtener claves cifradas del usuario (protegido)
     app.get('/api/keys', authenticate, (req, res) => {
         const userId = req.user.id;
@@ -161,11 +227,12 @@ module.exports = function(app) {
         try {
             // 1. Datos del usuario actual
             const userRow = req.db.prepare(`
-                SELECT id, username, full_name, profile_picture, is_validated, last_login
+                SELECT id, username, full_name, profile_picture, is_validated, last_login, weekly_file_uploads
                 FROM users WHERE id = ?
             `).get(currentUserId);
 
             if (!userRow) return res.redirect('/login');
+            if (global.debugging) console.log(`User file uploads this week: ${userRow.weekly_file_uploads}`);
 
             const user = {
                 id: userRow.id,
@@ -174,7 +241,7 @@ module.exports = function(app) {
                 isAdmin: false, // pendiente de tabla de roles
                 avatar: userRow.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(userRow.full_name || userRow.username)}&background=8d6e63&color=fff`,
                 status: 'offline',
-                fileUploadsThisWeek: 0,   // pendiente de módulo de uploads
+                fileUploadsThisWeek: userRow.weekly_file_uploads || 0,
                 fileUploadLimit: userRow.is_validated ? 50 : 20,
                 canCreateGroups: userRow.is_validated,
                 maxGroups: 5,

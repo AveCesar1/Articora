@@ -14,7 +14,7 @@
             <div class="row align-items-center">
                 <!-- Columna izquierda: Avatar y datos básicos -->
                 <div class="col-md-4 text-center mb-4 mb-md-0">
-                    <img src="https://placehold.co/200x200/2c1810/e0d6c2?text=<%= user.fullName.charAt(0) %>" 
+                    <img src="<%= user.profile_picture ? user.profile_picture : ('https://placehold.co/200x200/2c1810/e0d6c2?text=' + encodeURIComponent((user.fullName || '').charAt(0))) %>" 
                          alt="Foto de perfil" class="profile-avatar mb-4">
                     
                     <h2 class="profile-name mb-2"><%= user.fullName %></h2>

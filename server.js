@@ -203,6 +203,17 @@ cron.schedule('0 4 * * *', () => {
     }
 });
 
+// Reset semanal de contadores de archivos (cada domingo 00:00)
+cron.schedule('0 0 * * 0', () => {
+    try {
+        console.log('Ejecutando reset semanal de weekly_file_uploads...');
+        dbModule.db.prepare('UPDATE users SET weekly_file_uploads = 0').run();
+        console.log('Reset semanal completado: weekly_file_uploads = 0 para todos los usuarios');
+    } catch (e) {
+        console.error('Error al resetear weekly_file_uploads:', e && e.message);
+    }
+});
+
 // Cerrar la base de datos correctamente al salir
 process.on('SIGINT', () => {
     console.log('\nCerrando aplicación...');

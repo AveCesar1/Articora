@@ -2,6 +2,10 @@ const isRegistered = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
 const bcrypt = require('bcrypt');
 const { encryptEmail } = require('../../lib/crypto_utils');
+const { sanitizeText } = require('../../middlewares/sanitize');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 module.exports = function (app) {
     // Actualizar perfil del usuario
@@ -40,6 +44,12 @@ module.exports = function (app) {
                 return res.status(400).json({ success: false, message: 'El email ya está registrado' });
             }
 
+            // Sanitize inputs
+            const safeBio = sanitizeText(bio || '', { maxLength: 500 });
+            const safeInstitution = sanitizeText(institution || '', { maxLength: 255 });
+            const safeFirst = sanitizeText(first_name || '', { maxLength: 50 });
+            const safeLast = sanitizeText(last_name || '', { maxLength: 50 });
+
             // Actualizar usuario
             const actualizar = db.prepare(`
                 UPDATE users 
@@ -52,11 +62,11 @@ module.exports = function (app) {
                 WHERE id = ?
             `);
 
-            actualizar.run(encryptedEmail, bio || null, academicDegree || null, institution || null, first_name, last_name, userId);
+            actualizar.run(encryptedEmail, safeBio || null, academicDegree || null, safeInstitution || null, safeFirst, safeLast, userId);
 
             if (Array.isArray(interests)) {
 
-                const incoming = Array.from(new Set(interests.map(i => String(i || '').trim()).filter(Boolean)));
+                const incoming = Array.from(new Set(interests.map(i => sanitizeText(String(i || '').trim(), { maxLength: 100 })).filter(Boolean)));
                 const incomingLower = incoming.map(i => i.toLowerCase());
 
                 // Obtener intereses actuales desde la base de datos
@@ -274,7 +284,6 @@ module.exports = function (app) {
                 emailMessages,
                 emailComments,
                 emailVerification,
-                emailNewsletter,
                 platformMessages,
                 platformComments,
                 platformRatings,
@@ -290,16 +299,15 @@ module.exports = function (app) {
             db.prepare(`
                 INSERT OR REPLACE INTO user_notification_settings (
                     user_id, email_messages, email_comments, email_verification,
-                    email_newsletter, platform_messages, platform_comments,
+                    platform_messages, platform_comments,
                     platform_ratings, platform_system, notification_frequency,
                     urgent_notifications
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                 userId,
                 emailMessages ? 1 : 0,
                 emailComments ? 1 : 0,
                 emailVerification ? 1 : 0,
-                emailNewsletter ? 1 : 0,
                 platformMessages ? 1 : 0,
                 platformComments ? 1 : 0,
                 platformRatings ? 1 : 0,
@@ -319,6 +327,71 @@ module.exports = function (app) {
                 success: false, 
                 message: 'Error al actualizar las notificaciones' 
             });
+        }
+    });
+
+    // Upload profile avatar
+    const pfpDir = path.join(__dirname, '../../public/uploads/pfp');
+    if (!fs.existsSync(pfpDir)) fs.mkdirSync(pfpDir, { recursive: true });
+
+    const avatarStorage = multer.diskStorage({
+        destination: (req, file, cb) => cb(null, pfpDir),
+        filename: (req, file, cb) => {
+            const ext = path.extname(file.originalname).toLowerCase();
+            const filename = `pfp_${req.session.userId}_${Date.now()}${ext}`;
+            cb(null, filename);
+        }
+    });
+
+    const uploadAvatar = multer({
+        storage: avatarStorage,
+        limits: { fileSize: 2 * 1024 * 1024 },
+        fileFilter: (req, file, cb) => {
+            if (!file.mimetype.startsWith('image/')) return cb(new Error('Formato no permitido'), false);
+            cb(null, true);
+        }
+    });
+
+    app.post('/profile/config-profile/upload-avatar', isRegistered, uploadAvatar.single('avatar'), (req, res) => {
+        try {
+            const userId = req.session.userId;
+            if (!req.file) return res.status(400).json({ success: false, message: 'No se subió archivo' });
+
+            const filePath = `/uploads/pfp/${req.file.filename}`;
+
+            // delete previous local avatar if present
+            const prev = db.prepare('SELECT profile_picture FROM users WHERE id = ?').get(userId);
+            if (prev && prev.profile_picture && String(prev.profile_picture).startsWith('/uploads/pfp/')) {
+                try {
+                    const prevPath = path.join(__dirname, '../../public', prev.profile_picture);
+                    if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+                } catch (e) { /* non-fatal */ }
+            }
+
+            db.prepare('UPDATE users SET profile_picture = ? WHERE id = ?').run(filePath, userId);
+            return res.json({ success: true, profile_picture: filePath });
+        } catch (err) {
+            console.error('Error uploading avatar:', err);
+            return res.status(500).json({ success: false, message: 'Error al subir avatar' });
+        }
+    });
+
+    // Remove avatar
+    app.post('/profile/config-profile/remove-avatar', isRegistered, (req, res) => {
+        try {
+            const userId = req.session.userId;
+            const prev = db.prepare('SELECT profile_picture FROM users WHERE id = ?').get(userId);
+            if (prev && prev.profile_picture && String(prev.profile_picture).startsWith('/uploads/pfp/')) {
+                try {
+                    const prevPath = path.join(__dirname, '../../public', prev.profile_picture);
+                    if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+                } catch (e) { /* non-fatal */ }
+            }
+            db.prepare('UPDATE users SET profile_picture = NULL WHERE id = ?').run(userId);
+            return res.json({ success: true });
+        } catch (err) {
+            console.error('Error removing avatar:', err);
+            return res.status(500).json({ success: false, message: 'Error al eliminar avatar' });
         }
     });
 }

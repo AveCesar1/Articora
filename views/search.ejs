@@ -427,12 +427,21 @@
                                             <button type="button" class="btn btn-outline-primary btn-sm">
                                                 <i class="far fa-bookmark me-1"></i> Guardar
                                             </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm">
+                                            <a href="/post/<%= source.id %>?openRate=1" class="btn btn-outline-secondary btn-sm">
                                                 <i class="far fa-star me-1"></i> Calificar
-                                            </button>
-                                            <button type="button" class="btn btn-outline-info btn-sm">
+                                            </a>
+                                            <button type="button" class="btn btn-outline-info btn-sm cite-btn">
                                                 <i class="fas fa-quote-right me-1"></i> Citar
                                             </button>
+                                        </div>
+                                        <div class="d-none citation-templates">
+                                            <pre class="citation-apa"><%= source.citationFormats && source.citationFormats.apa ? source.citationFormats.apa : '' %></pre>
+                                            <pre class="citation-chicago"><%= source.citationFormats && source.citationFormats.chicago ? source.citationFormats.chicago : '' %></pre>
+                                            <pre class="citation-harvard"><%= source.citationFormats && source.citationFormats.harvard ? source.citationFormats.harvard : '' %></pre>
+                                            <pre class="citation-mla"><%= source.citationFormats && source.citationFormats.mla ? source.citationFormats.mla : '' %></pre>
+                                            <pre class="citation-ieee"><%= source.citationFormats && source.citationFormats.ieee ? source.citationFormats.ieee : '' %></pre>
+                                            <pre class="citation-vancouver"><%= source.citationFormats && source.citationFormats.vancouver ? source.citationFormats.vancouver : '' %></pre>
+                                            <pre class="citation-bibtex"><%= source.citationFormats && source.citationFormats.bibtex ? source.citationFormats.bibtex : '' %></pre>
                                         </div>
                                     </div>
                                 </div>
@@ -507,6 +516,40 @@
                         </div>
                     </div>
                 <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Citar modal -->
+<div class="modal fade" id="citeModal" tabindex="-1" aria-labelledby="citeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="citeModalLabel">Citar fuente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="citeFormatSelect" class="form-label">Formato</label>
+                    <select id="citeFormatSelect" class="form-select">
+                        <option value="apa" selected>APA 7</option>
+                        <option value="chicago">Chicago</option>
+                        <option value="harvard">Harvard</option>
+                        <option value="mla">MLA</option>
+                        <option value="ieee">IEEE</option>
+                        <option value="vancouver">Vancouver</option>
+                        <option value="bibtex">BibTeX</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="citeText" class="form-label">Cita</label>
+                    <textarea id="citeText" class="form-control" rows="5"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="copyCiteBtn">Copiar cita</button>
             </div>
         </div>
     </div>

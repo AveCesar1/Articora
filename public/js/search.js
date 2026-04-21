@@ -362,4 +362,54 @@ document.addEventListener('DOMContentLoaded', function() {
     popoverTriggerList.map(function (popoverTriggerEl) {
         return new bootstrap.Popover(popoverTriggerEl);
     });
+
+    // Citar: abrir modal con formatos para copiar
+    try {
+        const citeModalEl = document.getElementById('citeModal');
+        const citeModal = (citeModalEl && typeof bootstrap !== 'undefined' && bootstrap && typeof bootstrap.Modal === 'function') ? new bootstrap.Modal(citeModalEl) : null;
+        const citeSelect = document.getElementById('citeFormatSelect');
+        const citeText = document.getElementById('citeText');
+        const copyBtn = document.getElementById('copyCiteBtn');
+
+        document.querySelectorAll('.cite-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const card = btn.closest('.card');
+                if (!card) return;
+                const tpl = card.querySelector('.citation-templates');
+                if (!tpl) return;
+
+                const formats = {
+                    apa: (tpl.querySelector('.citation-apa') || { innerText: '' }).innerText.trim(),
+                    chicago: (tpl.querySelector('.citation-chicago') || { innerText: '' }).innerText.trim(),
+                    harvard: (tpl.querySelector('.citation-harvard') || { innerText: '' }).innerText.trim(),
+                    mla: (tpl.querySelector('.citation-mla') || { innerText: '' }).innerText.trim(),
+                    ieee: (tpl.querySelector('.citation-ieee') || { innerText: '' }).innerText.trim(),
+                    vancouver: (tpl.querySelector('.citation-vancouver') || { innerText: '' }).innerText.trim(),
+                    bibtex: (tpl.querySelector('.citation-bibtex') || { innerText: '' }).innerText.trim()
+                };
+
+                if (citeSelect) citeSelect.value = 'apa';
+                if (citeText) citeText.value = formats.apa || '';
+                if (citeModal) citeModal.show();
+
+                if (citeSelect) citeSelect.onchange = function() {
+                    const v = citeSelect.value || 'apa';
+                    if (citeText) citeText.value = formats[v] || '';
+                };
+
+                if (copyBtn && citeText) {
+                    copyBtn.onclick = function() {
+                        try {
+                            navigator.clipboard.writeText(citeText.value).then(() => {
+                                showAlert('success', 'Cita copiada al portapapeles');
+                                if (citeModal) citeModal.hide();
+                            }).catch(() => { alert('No se pudo copiar al portapapeles'); });
+                        } catch (e) {
+                            alert('No soportado: copia manual');
+                        }
+                    };
+                }
+            });
+        });
+    } catch (e) { /* ignore */ }
 });

@@ -124,6 +124,24 @@ function initPostRate() {
       attachStarHandlers(cn);
     });
 
+    // If the page was opened with ?openRate=1, scroll to rating card to prompt the user
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('openRate') === '1') {
+        const ratingCard = document.getElementById('ratingCard');
+        if (ratingCard) {
+          setTimeout(() => {
+            ratingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // try to focus first star container for keyboard users
+            const first = ratingCard.querySelector('.star-rating');
+            if (first && typeof first.focus === 'function') {
+              first.focus();
+            }
+          }, 250);
+        }
+      }
+    } catch (e) { /* ignore */ }
+
     // Submit rating (and optional comment included)
     const submitBtn = $id('submitRatingBtn');
     if (submitBtn) {

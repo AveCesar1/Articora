@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_login TIMESTAMP,
     account_active BOOLEAN DEFAULT 1,
     login_attempts INTEGER DEFAULT 0,
+    weekly_file_uploads INTEGER DEFAULT 0,
     locked_until TIMESTAMP
 );
 
@@ -514,7 +515,6 @@ CREATE TABLE IF NOT EXISTS user_notification_settings (
     email_messages BOOLEAN DEFAULT 1,
     email_comments BOOLEAN DEFAULT 1,
     email_verification BOOLEAN DEFAULT 1,
-    email_newsletter BOOLEAN DEFAULT 0,
     platform_messages BOOLEAN DEFAULT 1,
     platform_comments BOOLEAN DEFAULT 1,
     platform_ratings BOOLEAN DEFAULT 1,

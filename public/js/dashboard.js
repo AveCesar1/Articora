@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Elementos del DOM
     const refreshBtn = document.getElementById('refreshDashboard');
     const lastUpdateElement = document.getElementById('lastUpdate');
-    const viewActivityBtn = document.getElementById('viewActivity');
     
     // Contador de tiempo desde la última actualización
     let secondsSinceUpdate = 0;
@@ -55,24 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
             simulateStatsUpdate();
         }, 2000);
     });
-    
-    // Botón para ver actividad completa
-    if (viewActivityBtn) {
-        viewActivityBtn.addEventListener('click', function() {
-            // Redirigir a una página de estadísticas completas (simulado)
-            alert('En una implementación completa, esto mostraría estadísticas detalladas y gráficos históricos.');
-            
-            // Simular navegación
-            viewActivityBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Cargando...';
-            viewActivityBtn.disabled = true;
-            
-            setTimeout(() => {
-                viewActivityBtn.innerHTML = '<i class="fas fa-chart-line me-1"></i> Ver estadísticas completas';
-                viewActivityBtn.disabled = false;
-            }, 1500);
-        });
-    }
-    
+        
     // Función para simular actualización de estadísticas
     function simulateStatsUpdate() {
         // Simular aumento en lecturas totales

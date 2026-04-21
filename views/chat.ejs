@@ -526,9 +526,13 @@
             </div>
             <div class="modal-body">
                 <form id="reportForm">
+                    <!-- Hidden inputs set by JS before showing the modal -->
+                    <input type="hidden" id="report_target_type" value="">
+                    <input type="hidden" id="report_target_id" value="">
+
                     <div class="mb-3">
                         <label class="form-label">Seleccionar razón</label>
-                        <select class="form-select" required>
+                        <select id="reportReasonSelect" class="form-select" required>
                             <option value="">Seleccionar una razón...</option>
                             <% data.reportReasons.forEach(reason => { %>
                             <option value="<%= reason %>"><%= reason %></option>
@@ -538,7 +542,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Descripción adicional</label>
-                        <textarea class="form-control" rows="4" 
+                        <textarea id="reportDescription" class="form-control" rows="4" 
                                   placeholder="Proporciona detalles adicionales..."></textarea>
                         <div class="form-text">
                             Tu reporte será revisado por nuestro equipo de moderación.
@@ -555,6 +559,19 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="submit" class="btn btn-danger" form="reportForm">Enviar reporte</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Offcanvas: panel de información del chat/usuario -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="chatInfoOffcanvas" aria-labelledby="chatInfoOffcanvasLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="chatInfoOffcanvasLabel">Información</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="chatInfoBody">
+        <div class="text-muted text-center">
+            <i class="fas fa-spinner fa-spin"></i> Cargando...
         </div>
     </div>
 </div>

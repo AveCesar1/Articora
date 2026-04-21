@@ -123,19 +123,15 @@
                     <!-- Estadísticas -->
                     <div class="stats-grid mb-4">
                         <div class="row text-center">
-                            <div class="col-3">
+                            <div class="col-4">
                                 <div class="stat-value"><%= post.stats.reads %></div>
                                 <div class="stat-label">Lecturas</div>
                             </div>
-                            <div class="col-3">
+                            <div class="col-4">
                                 <div class="stat-value"><%= post.stats.reviews %></div>
                                 <div class="stat-label">Reseñas</div>
                             </div>
-                            <div class="col-3">
-                                <div class="stat-value"><%= post.stats.citations %></div>
-                                <div class="stat-label">Citas</div>
-                            </div>
-                            <div class="col-3">
+                            <div class="col-4">
                                 <div class="stat-value"><%= post.stats.downloads %></div>
                                 <div class="stat-label">Descargas</div>
                             </div>
@@ -384,7 +380,7 @@
                                 <div class="mb-3">
                                     <label class="form-label"><%= c.label %></label>
                                     <div class="d-flex align-items-center">
-                                        <div class="star-rating" data-criterion="<%= c.id %>" style="font-size:1.25rem; cursor:pointer;">
+                                        <div class="star-rating" tabindex="0" data-criterion="<%= c.id %>" style="font-size:1.25rem; cursor:pointer;">
                                             <% for (let s = 1; s <= 5; s++) { %>
                                                 <i class="far fa-star star" data-star="<%= s %>"></i>
                                             <% } %>
@@ -639,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 <% editCriteria.forEach(c => { %>
                     <div class="mb-3">
                         <label class="form-label"><%= c.label %></label>
-                        <div class="star-rating" data-criterion="<%= c.id %>" data-target-id="edit_rating_<%= c.id %>" style="font-size:1.4rem; cursor:pointer;">
+                        <div class="star-rating" tabindex="0" data-criterion="<%= c.id %>" data-target-id="edit_rating_<%= c.id %>" style="font-size:1.4rem; cursor:pointer;">
                             <% for (let s = 1; s <= 5; s++) { %>
                                 <i class="far fa-star star" data-star="<%= s %>"></i>
                             <% } %>

@@ -2,6 +2,8 @@ const authenticate = require('../../middlewares/auth');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const ejs = require('ejs');
+const { decryptEmail } = require('../../lib/crypto_utils');
 
 // Configuración de multer (solo para almacenar temporalmente)
 const upload = multer({ dest: 'uploads/temp/' });
@@ -47,6 +49,29 @@ module.exports = function(app) {
                 VALUES (?, ?, ?)
             `);
             const result = stmt.run(senderId, receiverId, initialMessage || null);
+
+            // Try to send e-mail notification to receiver (best-effort)
+            try {
+                const receiverRow = req.db.prepare('SELECT id, full_name, email FROM users WHERE id = ?').get(receiverId);
+                const notif = req.db.prepare('SELECT email_messages FROM user_notification_settings WHERE user_id = ?').get(receiverId) || { email_messages: 1 };
+                if (receiverRow && notif && notif.email_messages && req.app && req.app.locals && req.app.locals.transporter) {
+                    let receiverEmail = null;
+                    try { receiverEmail = decryptEmail(receiverRow.email, req.app); } catch (e) { receiverEmail = null; }
+                    if (receiverEmail) {
+                        const senderRow = req.db.prepare('SELECT id, username, full_name FROM users WHERE id = ?').get(senderId) || {};
+                        req.app.render('emails/contact_request', { senderName: senderRow.full_name || senderRow.username || 'Usuario', message: initialMessage || '', requestId: result.lastInsertRowid, host: req.get('host') }, (err, html) => {
+                            if (!err) {
+                                req.app.locals.transporter.sendMail({
+                                    from: 'articora.noreply@gmail.com',
+                                    to: receiverEmail,
+                                    subject: 'Nueva solicitud de contacto en Artícora',
+                                    html
+                                }, (err2) => { if (err2) console.error('Error sending contact_request email', err2); });
+                            } else console.error('Error rendering contact_request email template', err);
+                        });
+                    }
+                }
+            } catch (e) { console.error('Failed to send contact request email (non-fatal)', e && e.message); }
 
             // TODO: Emitir evento por socket al receptor
 
@@ -103,6 +128,23 @@ module.exports = function(app) {
                 message: 'Solicitud aceptada',
                 chatId
             });
+            // Notify original sender by email (best-effort)
+            try {
+                const senderRow = req.db.prepare('SELECT id, full_name, email FROM users WHERE id = ?').get(request.sender_id);
+                const notif = req.db.prepare('SELECT email_messages FROM user_notification_settings WHERE user_id = ?').get(request.sender_id) || { email_messages: 1 };
+                if (senderRow && notif && notif.email_messages && req.app && req.app.locals && req.app.locals.transporter) {
+                    let senderEmail = null;
+                    try { senderEmail = decryptEmail(senderRow.email, req.app); } catch (e) { senderEmail = null; }
+                    if (senderEmail) {
+                        const accepter = req.db.prepare('SELECT full_name, username FROM users WHERE id = ?').get(userId) || {};
+                        req.app.render('emails/contact_request_accepted', { accepterName: accepter.full_name || accepter.username || 'Usuario', chatId, host: req.get('host') }, (err, html) => {
+                            if (!err) {
+                                req.app.locals.transporter.sendMail({ from: 'articora.noreply@gmail.com', to: senderEmail, subject: 'Tu solicitud de contacto fue aceptada', html }, (err2) => { if (err2) console.error('Error sending contact accepted email', err2); });
+                            } else console.error('Error rendering contact_request_accepted template', err);
+                        });
+                    }
+                }
+            } catch (e) { console.error('Failed to notify sender after accept (non-fatal)', e && e.message); }
         } catch (err) {
             console.error(err);
             res.status(500).json({ error: 'Error al aceptar solicitud' });
@@ -125,6 +167,23 @@ module.exports = function(app) {
             `).run(requestId);
 
             res.json({ message: 'Solicitud rechazada' });
+            // Notify original sender by email (best-effort)
+            try {
+                const senderRow = req.db.prepare('SELECT id, full_name, email FROM users WHERE id = ?').get(request.sender_id);
+                const notif = req.db.prepare('SELECT email_messages FROM user_notification_settings WHERE user_id = ?').get(request.sender_id) || { email_messages: 1 };
+                if (senderRow && notif && notif.email_messages && req.app && req.app.locals && req.app.locals.transporter) {
+                    let senderEmail = null;
+                    try { senderEmail = decryptEmail(senderRow.email, req.app); } catch (e) { senderEmail = null; }
+                    if (senderEmail) {
+                        const rejecter = req.db.prepare('SELECT full_name, username FROM users WHERE id = ?').get(userId) || {};
+                        req.app.render('emails/contact_request_rejected', { rejecterName: rejecter.full_name || rejecter.username || 'Usuario', host: req.get('host') }, (err, html) => {
+                            if (!err) {
+                                req.app.locals.transporter.sendMail({ from: 'articora.noreply@gmail.com', to: senderEmail, subject: 'Tu solicitud de contacto fue rechazada', html }, (err2) => { if (err2) console.error('Error sending contact rejected email', err2); });
+                            } else console.error('Error rendering contact_request_rejected template', err);
+                        });
+                    }
+                }
+            } catch (e) { console.error('Failed to notify sender after reject (non-fatal)', e && e.message); }
         } catch (err) {
             console.error(err);
             res.status(500).json({ error: 'Error al rechazar solicitud' });
@@ -161,6 +220,29 @@ module.exports = function(app) {
             req.db.prepare('UPDATE chats SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?').run(chatId);
 
             // TODO: Emitir evento por socket a los otros participantes
+
+            // Try sending email notifications to other participants (best-effort)
+            try {
+                const participants = req.db.prepare('SELECT user_id FROM chat_participants WHERE chat_id = ? AND user_id != ?').all(chatId, userId) || [];
+                const senderRow = req.db.prepare('SELECT id, username, full_name FROM users WHERE id = ?').get(userId) || {};
+                for (const p of participants) {
+                    try {
+                        const notif = req.db.prepare('SELECT email_messages FROM user_notification_settings WHERE user_id = ?').get(p.user_id) || { email_messages: 1 };
+                        if (!notif.email_messages) continue;
+                        const uRow = req.db.prepare('SELECT email FROM users WHERE id = ?').get(p.user_id);
+                        if (!uRow || !uRow.email) continue;
+                        let targetEmail = null;
+                        try { targetEmail = decryptEmail(uRow.email, req.app); } catch (e) { targetEmail = null; }
+                        if (!targetEmail) continue;
+                        // Render and send email (no message body; content is encrypted) with a link to the chat
+                        req.app.render('emails/chat_message_notification', { senderName: senderRow.full_name || senderRow.username || 'Usuario', chatId, host: req.get('host') }, (err, html) => {
+                            if (!err) {
+                                req.app.locals.transporter.sendMail({ from: 'articora.noreply@gmail.com', to: targetEmail, subject: 'Nuevo mensaje en Artícora', html }, (err2) => { if (err2) console.error('Error sending chat notification', err2); });
+                            } else console.error('Error rendering chat_message_notification template', err);
+                        });
+                    } catch (e) { console.error('Failed to notify participant', p && p.user_id, e && e.message); }
+                }
+            } catch (e) { console.error('Error sending chat notifications (non-fatal)', e && e.message); }
 
             res.status(201).json({ 
                 message: 'Mensaje enviado',
@@ -274,21 +356,17 @@ module.exports = function(app) {
                 return res.status(403).json({ error: 'No perteneces a este chat' });
             }
 
-            // 2. Verificar límite semanal (50 archivos)
-            const weekStart = new Date();
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // domingo
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekEnd.getDate() + 7);
-
-            const countThisWeek = req.db.prepare(`
-                SELECT COUNT(*) as cnt FROM messages
-                WHERE user_id = ? AND content_type = 'file' AND sent_at BETWEEN ? AND ?
-            `).get(userId, weekStart.toISOString(), weekEnd.toISOString()).cnt;
-
-            if (countThisWeek >= 50) {
-                fs.unlinkSync(file.path);
-                return res.status(429).json({ error: 'Límite semanal de 50 archivos alcanzado' });
+            // 2. Verificar límite semanal (usamos contador en users.weekly_file_uploads)
+            try {
+                const urow = req.db.prepare('SELECT weekly_file_uploads, is_validated FROM users WHERE id = ?').get(userId);
+                const fileLimit = urow && urow.is_validated ? 50 : 20;
+                const currentCount = (urow && typeof urow.weekly_file_uploads === 'number') ? urow.weekly_file_uploads : 0;
+                if (currentCount >= fileLimit) {
+                    fs.unlinkSync(file.path);
+                    return res.status(429).json({ error: 'Límite semanal de archivos alcanzado' });
+                }
+            } catch (e) {
+                console.error('Error checking weekly_file_uploads:', e && e.message);
             }
 
             // 3. Validar extensión del archivo (según la lista permitida)
@@ -326,6 +404,13 @@ module.exports = function(app) {
 
             // 6. Actualizar last_message_at del chat
             req.db.prepare('UPDATE chats SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?').run(chatId);
+
+            // 7. Incrementar contador semanal de archivos del usuario
+            try {
+                req.db.prepare('UPDATE users SET weekly_file_uploads = COALESCE(weekly_file_uploads, 0) + 1 WHERE id = ?').run(userId);
+            } catch (e) {
+                console.error('Error incrementing weekly_file_uploads for user', userId, e && e.message);
+            }
 
             res.status(201).json({
                 message: 'Archivo enviado correctamente',

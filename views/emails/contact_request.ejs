@@ -1,0 +1,12 @@
+<div style="font-family: Arial, sans-serif; color: #222;">
+  <h2>Nueva solicitud de contacto en Artícora</h2>
+  <p><strong><%= senderName %></strong> te ha enviado una solicitud de contacto.</p>
+  <% if (message && message.length > 0) { %>
+    <p>Mensaje:</p>
+    <blockquote style="background:#f8f9fa;padding:10px;border-left:4px solid #ddd;"> <%= message %> </blockquote>
+  <% } %>
+  <p>Puedes revisar la solicitud en la plataforma:</p>
+  <p><a href="https://<%= host %>/profile/contacts">Ver solicitudes en Artícora</a></p>
+  <hr>
+  <p style="font-size:12px;color:#666;">Este correo fue generado automáticamente por Artícora.</p>
+</div>
