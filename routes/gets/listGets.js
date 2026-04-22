@@ -396,275 +396,211 @@ module.exports = function (app) {
         }
     });
 
-    // Comparar fuentes (simulado con datos mock)
-    app.get('/compare', soloValidado, (req, res) => {
-        const mockSources = [
-            {
-                id: 1,
-                title: "Cognitive Science: An Introduction to the Study of Mind",
-                authors: ["Jay Friedenberg", "Gordon Silverman"],
-                year: 2021,
-                type: "Libro",
-                category: "Ciencias Cognitivas",
-                subcategory: "Neurociencia Cognitiva",
-                publisher: "SAGE Publications",
-                pages: "480",
-                edition: 4,
-                rating: 4.7,
-                readCount: 342,
-                trend: "increasing",
-                criteria: {
-                    extension: 4.5,
-                    completeness: 4.8,
-                    detail: 4.6,
-                    veracity: 4.9,
-                    difficulty: 4.2
-                },
-                keywords: ["ciencia cognitiva", "mente", "neurociencia", "cognición"]
-            },
-            {
-                id: 2,
-                title: "The Social Construction of Reality: A Treatise in the Sociology of Knowledge",
-                authors: ["Peter L. Berger", "Thomas Luckmann"],
-                year: 1966,
-                type: "Libro",
-                category: "Ciencias Sociales",
-                subcategory: "Sociología del Conocimiento",
-                publisher: "Anchor Books",
-                pages: "240",
-                edition: 1,
-                rating: 4.8,
-                readCount: 512,
-                trend: "stable",
-                criteria: {
-                    extension: 4.7,
-                    completeness: 4.9,
-                    detail: 4.5,
-                    veracity: 4.8,
-                    difficulty: 4.0
-                },
-                keywords: ["construcción social", "realidad", "sociología", "conocimiento"]
-            },
-            {
-                id: 3,
-                title: "Deep Learning with Python",
-                authors: ["François Chollet"],
-                year: 2021,
-                type: "Libro",
-                category: "Ciencias Computacionales",
-                subcategory: "Aprendizaje Automático",
-                publisher: "Manning Publications",
-                pages: "384",
-                edition: 2,
-                rating: 4.6,
-                readCount: 789,
-                trend: "increasing",
-                criteria: {
-                    extension: 4.4,
-                    completeness: 4.7,
-                    detail: 4.8,
-                    veracity: 4.5,
-                    difficulty: 4.3
-                },
-                keywords: ["deep learning", "python", "redes neuronales", "IA"]
-            },
-            {
-                id: 4,
-                title: "A Brief History of Time: From the Big Bang to Black Holes",
-                authors: ["Stephen Hawking"],
-                year: 1988,
-                type: "Libro",
-                category: "Ciencias Exactas",
-                subcategory: "Cosmología",
-                publisher: "Bantam Books",
-                pages: "256",
-                edition: 1,
-                rating: 4.9,
-                readCount: 921,
-                trend: "stable",
-                criteria: {
-                    extension: 4.2,
-                    completeness: 4.8,
-                    detail: 4.4,
-                    veracity: 4.9,
-                    difficulty: 3.8
-                },
-                keywords: ["cosmología", "big bang", "agujeros negros", "física teórica"]
-            },
-            {
-                id: 5,
-                title: "The Structure of Scientific Revolutions",
-                authors: ["Thomas S. Kuhn"],
-                year: 1962,
-                type: "Libro",
-                category: "Ciencias Humanistas",
-                subcategory: "Filosofía de la Ciencia",
-                publisher: "University of Chicago Press",
-                pages: "264",
-                edition: 1,
-                rating: 4.8,
-                readCount: 654,
-                trend: "stable",
-                criteria: {
-                    extension: 4.3,
-                    completeness: 4.7,
-                    detail: 4.6,
-                    veracity: 4.8,
-                    difficulty: 4.1
-                },
-                keywords: ["revoluciones científicas", "paradigma", "ciencia", "historia"]
-            },
-            {
-                id: 6,
-                title: "Thinking, Fast and Slow",
-                authors: ["Daniel Kahneman"],
-                year: 2011,
-                type: "Libro",
-                category: "Ciencias Cognitivas",
-                subcategory: "Psicología Cognitiva",
-                publisher: "Farrar, Straus and Giroux",
-                pages: "499",
-                edition: 1,
-                rating: 4.7,
-                readCount: 1200,
-                trend: "increasing",
-                criteria: {
-                    extension: 4.6,
-                    completeness: 4.8,
-                    detail: 4.5,
-                    veracity: 4.9,
-                    difficulty: 3.9
-                },
-                keywords: ["psicología", "decisiones", "cognición", "sesgos"]
-            },
-            {
-                id: 7,
-                title: "The Order of Things: An Archaeology of the Human Sciences",
-                authors: ["Michel Foucault"],
-                year: 1966,
-                type: "Libro",
-                category: "Ciencias Humanistas",
-                subcategory: "Filosofía",
-                publisher: "Gallimard",
-                pages: "387",
-                edition: 1,
-                rating: 4.8,
-                readCount: 850,
-                trend: "stable",
-                criteria: {
-                    extension: 4.7,
-                    completeness: 4.5,
-                    detail: 4.8,
-                    veracity: 4.9,
-                    difficulty: 4.5
-                },
-                keywords: ["arqueología del saber", "ciencias humanas", "episteme", "Foucault"]
-            },
-            {
-                id: 8,
-                title: "The Theory of Communicative Action",
-                authors: ["Jürgen Habermas"],
-                year: 1981,
-                type: "Libro",
-                category: "Ciencias Sociales",
-                subcategory: "Sociología",
-                publisher: "Beacon Press",
-                pages: "465",
-                edition: 1,
-                rating: 4.6,
-                readCount: 720,
-                trend: "stable",
-                criteria: {
-                    extension: 4.8,
-                    completeness: 4.7,
-                    detail: 4.6,
-                    veracity: 4.8,
-                    difficulty: 4.4
-                },
-                keywords: ["acción comunicativa", "teoría social", "Habermas", "racionalidad"]
-            },
-            {
-                id: 9,
-                title: "The Logic of Scientific Discovery",
-                authors: ["Karl Popper"],
-                year: 1934,
-                type: "Libro",
-                category: "Ciencias Humanistas",
-                subcategory: "Filosofía de la Ciencia",
-                publisher: "Routledge",
-                pages: "513",
-                edition: 1,
-                rating: 4.9,
-                readCount: 950,
-                trend: "stable",
-                criteria: {
-                    extension: 4.5,
-                    completeness: 4.8,
-                    detail: 4.7,
-                    veracity: 4.9,
-                    difficulty: 4.3
-                },
-                keywords: ["filosofía de la ciencia", "falsabilidad", "Popper", "epistemología"]
-            },
-            {
-                id: 10,
-                title: "The Interpretation of Cultures",
-                authors: ["Clifford Geertz"],
-                year: 1973,
-                type: "Libro",
-                category: "Ciencias Sociales",
-                subcategory: "Antropología",
-                publisher: "Basic Books",
-                pages: "470",
-                edition: 1,
-                rating: 4.7,
-                readCount: 880,
-                trend: "increasing",
-                criteria: {
-                    extension: 4.6,
-                    completeness: 4.7,
-                    detail: 4.8,
-                    veracity: 4.8,
-                    difficulty: 4.2
-                },
-                keywords: ["antropología", "cultura", "interpretación", "símbolos"]
-            }
-        ];
+    // Comparar fuentes (DB-driven) — interfaz para usuarios registrados
+    app.get('/compare', IsRegistered, (req, res) => {
+        try {
+            // Optional pre-selected IDs via ?ids=1,2,3
+            const idsParam = (req.query.ids || '').toString().trim();
+            const selectedIds = idsParam ? idsParam.split(',').map(s => parseInt(s, 10)).filter(n => !isNaN(n)) : [];
 
-        const searchOptions = mockSources.map(
-            source => ({
-                id: source.id,
-                title: source.title,
-                authors: source.authors.join(', '),
-                year: source.year,
-                type: source.type,
-                category: source.category,
-                keywords: source.keywords.join(', ')
+            // Available sources for search selector (lightweight fields)
+            const availRows = req.db.prepare(`
+                SELECT s.id, s.title, s.publication_year as year, st.name as type, c.name as category, s.keywords
+                FROM sources s
+                LEFT JOIN source_types st ON s.source_type_id = st.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE s.is_active = 1
+                ORDER BY s.title COLLATE NOCASE
+                LIMIT 500
+            `).all();
+
+            const searchOptions = availRows.map(sr => ({
+                id: sr.id,
+                title: sr.title,
+                authors: (function(){
+                    const arows = req.db.prepare(`
+                        SELECT a.full_name FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = ? ORDER BY sa.sort_order ASC
+                    `).all(sr.id);
+                    return arows.map(a=>a.full_name).join(', ');
+                })(),
+                year: sr.year,
+                type: sr.type || 'N/A',
+                category: sr.category || 'Desconocida',
+                keywords: sr.keywords || ''
             }));
 
-        const searchExamples = [
-            "Cognitive Science",
-            "Stephen Hawking",
-            "Deep Learning",
-            "neurociencia",
-            "filosofía",
-            "sociología",
-            "Kuhn",
-            "Foucault",
-            "ciencias sociales",
-            "aprendizaje automático"
-        ];
+            // Build selectedSources full objects (limit to 4)
+            const selected = [];
+            const idsToFetch = (selectedIds.length ? selectedIds.slice(0,4) : []);
+            if (idsToFetch.length > 0) {
+                const placeholders = idsToFetch.map(()=>'?').join(',');
+                const q = req.db.prepare(`
+                    SELECT s.*, st.name as type, c.name as category
+                    FROM sources s
+                    LEFT JOIN source_types st ON s.source_type_id = st.id
+                    LEFT JOIN categories c ON s.category_id = c.id
+                    WHERE s.id IN (${placeholders})
+                `).all(...idsToFetch);
 
-        res.render('compare-user', {
-            title: 'Comparador de Fuentes - Artícora',
-            currentPage: 'compare',
-            cssFile: 'compare.css',
-            jsFile: 'compare.js',
-            userType: 'user',
-            availableSources: searchOptions,
-            selectedSources: mockSources.slice(0, 3),
-            searchExamples: searchExamples,
-            totalSourcesCount: mockSources.length
-        });
+                q.forEach(sr => {
+                    const authorsRows = req.db.prepare(`SELECT a.full_name FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = ? ORDER BY sa.sort_order ASC`).all(sr.id);
+                    const authors = authorsRows.map(a=>a.full_name);
+
+                    const criteria = {
+                        extension: roundTo(sr.avg_readability || 0, 1),
+                        completeness: roundTo(sr.avg_completeness || 0, 1),
+                        detail: roundTo(sr.avg_detail_level || 0, 1),
+                        veracity: roundTo(sr.avg_veracity || 0, 1),
+                        difficulty: roundTo(sr.avg_technical_difficulty || 0, 1)
+                    };
+
+                    selected.push({
+                        id: sr.id,
+                        title: sr.title,
+                        authors: authors,
+                        year: sr.publication_year,
+                        type: sr.type || 'N/A',
+                        category: sr.category || 'Desconocida',
+                        publisher: sr.journal_publisher || '',
+                        pages: sr.pages || '',
+                        edition: sr.edition || null,
+                        rating: roundTo(sr.overall_rating || 0, 1),
+                        readCount: sr.total_reads || 0,
+                        trend: 'stable',
+                        criteria,
+                        cover: normalizeCoverUrl(sr.cover_image_url, sr.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada',
+                        keywords: (sr.keywords || '').split(',').map(k=>k.trim()).filter(Boolean)
+                    });
+                });
+            }
+
+            // If no pre-selected ids, provide a small sample of most-read sources as initial selection
+            if (selected.length === 0) {
+                const sample = req.db.prepare(`SELECT id FROM sources WHERE is_active=1 ORDER BY total_reads DESC LIMIT 3`).all();
+                sample.forEach(r => { selected.push({ id: r.id }); });
+                // fetch details for these ids
+                const idsSample = selected.map(s=>s.id).filter(Boolean);
+                if (idsSample.length) {
+                    const placeholders = idsSample.map(()=>'?').join(',');
+                    const q = req.db.prepare(`
+                        SELECT s.*, st.name as type, c.name as category
+                        FROM sources s
+                        LEFT JOIN source_types st ON s.source_type_id = st.id
+                        LEFT JOIN categories c ON s.category_id = c.id
+                        WHERE s.id IN (${placeholders})
+                    `).all(...idsSample);
+                    // replace selected with full objects
+                    const full = [];
+                    q.forEach(sr => {
+                        const authorsRows = req.db.prepare(`SELECT a.full_name FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = ? ORDER BY sa.sort_order ASC`).all(sr.id);
+                        const authors = authorsRows.map(a=>a.full_name);
+                        const criteria = {
+                            extension: roundTo(sr.avg_readability || 0, 1),
+                            completeness: roundTo(sr.avg_completeness || 0, 1),
+                            detail: roundTo(sr.avg_detail_level || 0, 1),
+                            veracity: roundTo(sr.avg_veracity || 0, 1),
+                            difficulty: roundTo(sr.avg_technical_difficulty || 0, 1)
+                        };
+                        full.push({
+                            id: sr.id,
+                            title: sr.title,
+                            authors: authors,
+                            year: sr.publication_year,
+                            type: sr.type || 'N/A',
+                            category: sr.category || 'Desconocida',
+                            publisher: sr.journal_publisher || '',
+                            pages: sr.pages || '',
+                            edition: sr.edition || null,
+                            rating: roundTo(sr.overall_rating || 0, 1),
+                            readCount: sr.total_reads || 0,
+                            trend: 'stable',
+                            criteria,
+                            cover: normalizeCoverUrl(sr.cover_image_url, sr.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada',
+                            keywords: (sr.keywords || '').split(',').map(k=>k.trim()).filter(Boolean)
+                        });
+                    });
+                    selected.length = 0;
+                    Array.prototype.push.apply(selected, full);
+                }
+            }
+
+            const totalCount = req.db.prepare('SELECT COUNT(*) as c FROM sources WHERE is_active = 1').get().c || 0;
+
+            const searchExamples = [
+                'Cognitive Science', 'Stephen Hawking', 'Deep Learning', 'neurociencia', 'filosofía', 'sociología', 'Kuhn', 'Foucault', 'ciencias sociales', 'aprendizaje automático'
+            ];
+
+            res.render('compare-user', {
+                title: 'Comparador de Fuentes - Artícora',
+                currentPage: 'compare',
+                cssFile: 'compare.css',
+                jsFile: 'compare.js',
+                userType: 'user',
+                availableSources: searchOptions,
+                selectedSources: selected,
+                searchExamples: searchExamples,
+                totalSourcesCount: totalCount
+            });
+        } catch (err) {
+            console.error('Error en GET /compare:', err);
+            res.status(500).render('compare-user', { title: 'Comparador de Fuentes - Artícora', currentPage: 'compare', cssFile: 'compare.css', jsFile: 'compare.js', userType: 'user', availableSources: [], selectedSources: [], searchExamples: [], totalSourcesCount: 0 });
+        }
     });
+
+    // API: obtener datos agregados para una lista de fuentes (ids=1,2,3)
+    app.get('/api/compare/sources', IsRegistered, (req, res) => {
+        try {
+            const idsParam = (req.query.ids || '').toString().trim();
+            if (!idsParam) return res.status(400).json({ error: 'Debe indicar ids, por ejemplo ?ids=1,2' });
+            const ids = idsParam.split(',').map(s => parseInt(s,10)).filter(n => !isNaN(n));
+            if (ids.length < 2 || ids.length > 4) return res.status(400).json({ error: 'Se requieren entre 2 y 4 ids para comparar' });
+
+            const placeholders = ids.map(()=>'?').join(',');
+            const rows = req.db.prepare(`
+                SELECT s.*, st.name as type, c.name as category
+                FROM sources s
+                LEFT JOIN source_types st ON s.source_type_id = st.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE s.id IN (${placeholders})
+            `).all(...ids);
+
+            const out = rows.map(sr => {
+                const authorsRows = req.db.prepare(`SELECT a.full_name FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = ? ORDER BY sa.sort_order ASC`).all(sr.id);
+                const authors = authorsRows.map(a=>a.full_name);
+
+                const criteria = {
+                    extension: roundTo(sr.avg_readability || 0, 1),
+                    completeness: roundTo(sr.avg_completeness || 0, 1),
+                    detail: roundTo(sr.avg_detail_level || 0, 1),
+                    veracity: roundTo(sr.avg_veracity || 0, 1),
+                    difficulty: roundTo(sr.avg_technical_difficulty || 0, 1)
+                };
+
+                return {
+                    id: sr.id,
+                    title: sr.title,
+                    authors,
+                    year: sr.publication_year,
+                    type: sr.type || 'N/A',
+                    category: sr.category || 'Desconocida',
+                    publisher: sr.journal_publisher || '',
+                    rating: roundTo(sr.overall_rating || 0, 1),
+                    criteria,
+                    readCount: sr.total_reads || 0,
+                    cover: normalizeCoverUrl(sr.cover_image_url, sr.id) || null
+                };
+            });
+
+            res.json({ sources: out });
+        } catch (err) {
+            console.error('Error en GET /api/compare/sources', err);
+            res.status(500).json({ error: 'Error interno' });
+        }
+    });
+
+    // Helper: round to n decimals
+    function roundTo(v, decimals) {
+        const m = Math.pow(10, decimals || 0);
+        return Math.round((v || 0) * m) / m;
+    }
 };
