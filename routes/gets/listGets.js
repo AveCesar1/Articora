@@ -474,56 +474,6 @@ module.exports = function (app) {
                 });
             }
 
-            // If no pre-selected ids, provide a small sample of most-read sources as initial selection
-            if (selected.length === 0) {
-                const sample = req.db.prepare(`SELECT id FROM sources WHERE is_active=1 ORDER BY total_reads DESC LIMIT 3`).all();
-                sample.forEach(r => { selected.push({ id: r.id }); });
-                // fetch details for these ids
-                const idsSample = selected.map(s=>s.id).filter(Boolean);
-                if (idsSample.length) {
-                    const placeholders = idsSample.map(()=>'?').join(',');
-                    const q = req.db.prepare(`
-                        SELECT s.*, st.name as type, c.name as category
-                        FROM sources s
-                        LEFT JOIN source_types st ON s.source_type_id = st.id
-                        LEFT JOIN categories c ON s.category_id = c.id
-                        WHERE s.id IN (${placeholders})
-                    `).all(...idsSample);
-                    // replace selected with full objects
-                    const full = [];
-                    q.forEach(sr => {
-                        const authorsRows = req.db.prepare(`SELECT a.full_name FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id = ? ORDER BY sa.sort_order ASC`).all(sr.id);
-                        const authors = authorsRows.map(a=>a.full_name);
-                        const criteria = {
-                            extension: roundTo(sr.avg_readability || 0, 1),
-                            completeness: roundTo(sr.avg_completeness || 0, 1),
-                            detail: roundTo(sr.avg_detail_level || 0, 1),
-                            veracity: roundTo(sr.avg_veracity || 0, 1),
-                            difficulty: roundTo(sr.avg_technical_difficulty || 0, 1)
-                        };
-                        full.push({
-                            id: sr.id,
-                            title: sr.title,
-                            authors: authors,
-                            year: sr.publication_year,
-                            type: sr.type || 'N/A',
-                            category: sr.category || 'Desconocida',
-                            publisher: sr.journal_publisher || '',
-                            pages: sr.pages || '',
-                            edition: sr.edition || null,
-                            rating: roundTo(sr.overall_rating || 0, 1),
-                            readCount: sr.total_reads || 0,
-                            trend: 'stable',
-                            criteria,
-                            cover: normalizeCoverUrl(sr.cover_image_url, sr.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada',
-                            keywords: (sr.keywords || '').split(',').map(k=>k.trim()).filter(Boolean)
-                        });
-                    });
-                    selected.length = 0;
-                    Array.prototype.push.apply(selected, full);
-                }
-            }
-
             const totalCount = req.db.prepare('SELECT COUNT(*) as c FROM sources WHERE is_active = 1').get().c || 0;
 
             const searchExamples = [

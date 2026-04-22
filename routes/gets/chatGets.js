@@ -116,7 +116,7 @@ module.exports = function(app) {
                 SELECT m.id, m.user_id, m.encrypted_content, m.iv, m.encrypted_key,
                        m.content_type, m.file_name, m.file_path, m.file_type, m.file_size,
                        m.sent_at, m.read_at,
-                       u.username, u.profile_picture
+                       u.username, u.full_name, u.profile_picture
                 FROM messages m
                 JOIN users u ON m.user_id = u.id
                 WHERE m.chat_id = ?
@@ -386,7 +386,7 @@ module.exports = function(app) {
             for (const g of userGroups) {
                 // Obtener último mensaje (preview)
                 const lastMessage = req.db.prepare(`
-                    SELECT m.encrypted_content, m.user_id, u.username
+                    SELECT m.encrypted_content, m.content_type, m.user_id, u.username, u.full_name
                     FROM messages m
                     JOIN users u ON m.user_id = u.id
                     WHERE m.chat_id = ?
@@ -394,11 +394,14 @@ module.exports = function(app) {
                     LIMIT 1
                 `).get(g.id);
 
+                console.log(`Grupo ${g.name} tiene ${g.member_count} miembros. Último mensaje:`, lastMessage);
+
                 let lastMessagePreview = null;
                 if (lastMessage) {
                     lastMessagePreview = {
-                        sender: lastMessage.username,
-                        text: '[Mensaje cifrado]'
+                        sender: lastMessage.full_name || lastMessage.username,
+                        sender_username: lastMessage.username,
+                        text: lastMessage.content_type === 'file' ? '[Archivo]' : lastMessage.encrypted_content
                     };
                 }
 

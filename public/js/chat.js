@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Mensaje de archivo: no descifrar contenido
                             decryptedMessages.push({
                                 id: m.id,
-                                sender: m.username,
+                                sender: (m.full_name || m.username),
                                 type: 'file',
                                 fileName: m.file_name,
                                 filePath: m.file_path,
@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (!encryptedAESForMe || !myPrivateKey) {
                             decryptedMessages.push({
                                 id: m.id,
-                                sender: m.username,
+                                sender: (m.full_name || m.username),
                                 type: 'encrypted',
                                 text: '[Mensaje cifrado]',
                                 time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         decryptedMessages.push({
                             id: m.id,
-                            sender: m.username,
+                            sender: (m.full_name || m.username),
                             type: 'text',
                             text: plaintext,
                             time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.error('Error procesando mensaje:', err);
                         decryptedMessages.push({
                             id: m.id,
-                            sender: m.username,
+                            sender: (m.full_name || m.username),
                             type: 'error',
                             text: '[Mensaje no disponible]',
                             time: new Date(m.sent_at).toLocaleTimeString(),
@@ -769,8 +769,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (message.type === 'file') {
                     messageHtml = `
                         <div class="message ${message.isOwn ? 'own' : ''}">
+                            ${!message.isOwn && currentChat.type === 'group' ? `<small class="message-sender">${message.sender}</small>` : ''}
                             <div class="message-content">
-                                ${!message.isOwn && currentChat.type === 'group' ? `<small class="message-sender">${message.sender}</small>` : ''}
                                 <div class="message-bubble file-message d-flex align-items-center">
                                     <i class="fas ${getFileIconClass(message.fileName)} file-icon me-3"></i>
                                     <div class="file-meta flex-grow-1">
@@ -789,9 +789,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `;
                 } else if (message.type === 'text') {
+                    // Versión corregida, con el message-sender arriba, ambos a la izquierda:
                     messageHtml = `
                         <div class="message ${message.isOwn ? 'own' : ''}">
-                            <div class="message-content">
+                            <div class="message-content" style="display: flex; flex-direction: column; align-items: flex-start;">
                                 ${!message.isOwn && currentChat.type === 'group' ? `<small class="message-sender">${message.sender}</small>` : ''}
                                 <div class="message-bubble">
                                     <p class="mb-0">${escapeHtml(message.text).replace(/\n/g, '<br>')}</p>

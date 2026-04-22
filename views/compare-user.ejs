@@ -384,6 +384,24 @@
         </div>
     </div>
 </div>
+        <!-- Confirm modal to clear entire comparison -->
+        <div class="modal fade" id="confirmClearModal" tabindex="-1" aria-labelledby="confirmClearModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-sm modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirmClearModalLabel">Limpiar comparativa</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        ¿Seguro que quieres borrar la comparativa? Se eliminarán todas las fuentes seleccionadas.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" id="confirmClearBtn">Borrar comparativa</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
 <%- include('partials/footer', {
     jsFile: 'compare.js'

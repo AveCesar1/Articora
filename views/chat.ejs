@@ -149,7 +149,7 @@
                                     <i class="fas fa-users me-1"></i>
                                     <%= group.members %>/<%= group.maxMembers %> miembros
                                     <% if (group.lastMessage) { %>
-                                    • <strong><%= group.lastMessage.sender %>:</strong> <%= group.lastMessage.text %>
+                                        • <strong><%= group.lastMessage.sender_username %></strong>
                                     <% } %>
                                 </small>
                             </div>
@@ -322,11 +322,10 @@
                 <!-- Chat normal -->
                 <% data.activeChat.messages.forEach(message => { %>
                 <div class="message <%= message.isOwn ? 'own' : '' %>">
+                    <% if (!message.isOwn && data.activeChat.type === 'group') { %>
+                            <small class="message-sender"><%= message.sender %></small>
+                    <% } %>
                     <div class="message-content">
-                        <% if (!message.isOwn && data.activeChat.type === 'group') { %>
-                        <small class="message-sender"><%= message.sender %></small>
-                        <% } %>
-                        
                         <div class="message-bubble">
                             <p class="mb-0"><%= message.text %></p>
                         </div>

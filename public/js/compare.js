@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
         minSources: 2
     };
 
+    // Caching helper to avoid refetching same set repeatedly
+    let lastFetchedIds = '';
+
     // Elementos DOM
     const elements = {
         nameSearchInput: document.getElementById('nameSearchInput'),
@@ -15,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         multipleIdsInput: document.getElementById('multipleIdsInput'),
         nameResultsList: document.getElementById('nameResultsList'),
         idResultsList: document.getElementById('idResultsList'),
-        comparisonGrid: document.getElementById('comparisonGrid'),
+        comparisonContainer: document.getElementById('comparisonContainer'),
         selectedCount: document.getElementById('selectedCount'),
         comparisonCount: document.getElementById('comparisonCount'),
         clearSelection: document.getElementById('clearSelection'),
@@ -86,6 +89,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 handleIdSearch();
             }
         });
+
+        // Confirm modal actions
+        const confirmClearBtn = document.getElementById('confirmClearBtn');
+        if (confirmClearBtn) {
+            confirmClearBtn.addEventListener('click', function() {
+                const modalEl = document.getElementById('confirmClearModal');
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                state.selectedSources = [];
+                updateUI();
+                showToast('Comparación limpiada', 'info');
+                modal.hide();
+            });
+        }
     }
 
     // Mostrar ejemplos iniciales
@@ -315,27 +331,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function removeSource(index) {
+        // If removing would leave fewer than allowed, ask to clear the whole comparison
         if (state.selectedSources.length <= state.minSources) {
-            showToast(`Debes comparar mínimo ${state.minSources} fuentes`, 'warning');
+            const modalEl = document.getElementById('confirmClearModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
             return;
         }
 
         const removed = state.selectedSources.splice(index, 1)[0];
         updateUI();
-        showToast(`"${removed.title}" removida de la comparación`, 'info');
-        
+        showToast(`"${removed.title || removed.title || 'Fuente'}" removida de la comparación`, 'info');
         // Actualizar resultados de búsqueda
         handleNameSearch();
     }
 
     function clearSelection() {
         if (state.selectedSources.length === 0) return;
-        
-        if (confirm('¿Estás seguro de que quieres eliminar todas las fuentes de la comparación?')) {
-            state.selectedSources = [];
-            updateUI();
-            showToast('Comparación limpiada', 'info');
-        }
+        const modalEl = document.getElementById('confirmClearModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
     }
 
     // ========================================
@@ -455,9 +470,169 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Ensure we have rating/criteria/readCount for selected sources.
+    // For 2-4 sources we call /api/compare/sources; for a single source we call /api/sources/:id/ratings
+    async function ensureSelectedMetadata() {
+        try {
+            const sel = state.selectedSources || [];
+            if (!sel.length) return;
+
+            const ids = sel.map(s => s.id).filter(Boolean);
+            if (ids.length >= 2) {
+                const idsKey = ids.join(',');
+                const needFetch = sel.some(s => !s.criteria || typeof s.rating === 'undefined' || typeof s.readCount === 'undefined');
+                if (!needFetch && lastFetchedIds === idsKey) return;
+
+                // fetch aggregated metadata
+                const resp = await fetch(`/api/compare/sources?ids=${encodeURIComponent(idsKey)}`, { credentials: 'same-origin' });
+                if (!resp.ok) {
+                    console.warn('compare metadata fetch failed', resp.status);
+                    return;
+                }
+                const data = await resp.json();
+                if (!data || !Array.isArray(data.sources)) return;
+
+                // Merge returned fields into state.selectedSources
+                data.sources.forEach(rs => {
+                    const idx = state.selectedSources.findIndex(s => s.id === rs.id);
+                    if (idx === -1) return;
+                    const local = state.selectedSources[idx];
+                    local.rating = (typeof rs.rating !== 'undefined') ? rs.rating : (local.rating || 0);
+                    local.criteria = rs.criteria || local.criteria || {};
+                    local.readCount = (typeof rs.readCount !== 'undefined') ? rs.readCount : (local.readCount || 0);
+                    local.cover = rs.cover || local.cover;
+                    local.authors = rs.authors || local.authors;
+                    local.keywords = rs.keywords || local.keywords;
+                });
+
+                lastFetchedIds = idsKey;
+                return;
+            }
+
+            // Single source: fetch its aggregated ratings (no readCount available via this endpoint)
+            if (ids.length === 1) {
+                const id = ids[0];
+                const s = state.selectedSources.find(x => x.id === id);
+                if (!s) return;
+                if (s.criteria && typeof s.rating !== 'undefined') return;
+
+                const r = await fetch(`/api/sources/${id}/ratings`, { credentials: 'same-origin' });
+                if (!r.ok) return;
+                const j = await r.json();
+                if (!j || !j.success) return;
+                const avg = j.averages || {};
+                s.criteria = {
+                    extension: avg.readability || 0,
+                    completeness: avg.completeness || 0,
+                    detail: avg.detail_level || 0,
+                    veracity: avg.veracity || 0,
+                    difficulty: avg.technical_difficulty || 0
+                };
+                s.rating = (typeof j.overall !== 'undefined') ? j.overall : (s.rating || 0);
+                // readCount unknown here; leave as-is or 0
+                if (typeof s.readCount === 'undefined') s.readCount = s.readCount || 0;
+            }
+        } catch (err) {
+            console.warn('Error fetching compare metadata:', err);
+        }
+    }
+
     // Minimal stub so updateUI() doesn't blow up; we keep server-rendered grid unchanged but update widths
-    function updateComparisonGrid() {
-        // Server-side markup is used for initial rendering; re-apply widths on update
+    async function updateComparisonGrid() {
+        const container = elements.comparisonContainer || document.getElementById('comparisonContainer');
+        if (!container) return;
+
+        if (!state.selectedSources || state.selectedSources.length === 0) {
+            container.innerHTML = `
+                <div class="empty-comparison text-center py-5">
+                    <i class="fas fa-balance-scale fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted mb-3">No hay fuentes para comparar</h4>
+                    <p class="text-muted">Usa el buscador para agregar fuentes a la comparación</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Ensure we have up-to-date metadata (ratings, criteria, read counts) before rendering
+        await ensureSelectedMetadata();
+
+        const cols = state.selectedSources.map((source, index) => {
+            const title = escapeHtml(source.title || 'Sin título');
+            const authors = Array.isArray(source.authors) ? escapeHtml(source.authors.join(', ')) : escapeHtml(source.authors || 'N/A');
+            const type = escapeHtml(source.type || 'N/A');
+            const category = escapeHtml(source.category || 'Desconocida');
+            const rating = (source.rating !== undefined && source.rating !== null) ? Number(source.rating) : 0;
+
+            const starsHtml = (() => {
+                let s = '';
+                for (let i = 1; i <= 5; i++) {
+                    if (i <= Math.floor(rating)) s += '<i class="fas fa-star text-warning"></i>';
+                    else if (i === Math.ceil(rating) && rating % 1 !== 0) s += '<i class="fas fa-star-half-alt text-warning"></i>';
+                    else s += '<i class="far fa-star text-warning"></i>';
+                }
+                return s;
+            })();
+
+            const criteria = source.criteria || {};
+            const criteriaKeys = [
+                { key: 'extension', label: 'Extensión' },
+                { key: 'completeness', label: 'Completitud' },
+                { key: 'detail', label: 'Detalle' },
+                { key: 'veracity', label: 'Veracidad' },
+                { key: 'difficulty', label: 'Dificultad' }
+            ];
+
+            const criteriaHtml = criteriaKeys.map(c => {
+                const value = (criteria && criteria[c.key]) ? Number(criteria[c.key]) : 0;
+                const pct = Math.round((value / 5) * 100);
+                return `
+                    <div class="criterion">
+                        <span class="criterion-name">${c.label}:</span>
+                        <div class="criterion-bar">
+                            <div class="bar-fill" data-width="${pct}"></div>
+                        </div>
+                        <div class="criterion-value">${value}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const readCount = source.readCount || 0;
+            const trendHtml = source.trend === 'increasing' ? '<i class="fas fa-arrow-up text-success"></i> ↑' : (source.trend === 'decreasing' ? '<i class="fas fa-arrow-down text-danger"></i> ↓' : '<i class="fas fa-minus text-warning"></i> →');
+
+            const keywords = Array.isArray(source.keywords) ? source.keywords : (typeof source.keywords === 'string' ? source.keywords.split(',').map(k=>k.trim()) : []);
+            const keywordsHtml = (keywords || []).map(k => `<span class="keyword-tag">${escapeHtml(k)}</span>`).join(' ');
+
+            return `
+                <div class="source-column" data-source-id="${source.id}">
+                    <div class="source-header">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-accent fs-6">#${source.id}</span>
+                            <button class="btn btn-sm btn-outline-danger remove-source" data-index="${index}" title="Eliminar fuente">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <h4 class="source-title mt-2 mb-2"><a href="/post/${source.id}" class="text-brown">${title}</a></h4>
+                        <p class="source-authors mb-3 text-muted"><i class="fas fa-user-edit me-1"></i><a href="/post/${source.id}" class="text-decoration-none">${authors}</a></p>
+                        <div class="source-type-badge mb-3"><span class="badge bg-light text-brown border border-brown"><i class="fas fa-${type === 'Libro' ? 'book' : 'file-alt'} me-1"></i>${type} • ${category}</span></div>
+                    </div>
+                    <div class="source-rating mt-3">
+                        <div class="rating-header">
+                            <h6 class="mb-2 text-brown"><i class="fas fa-star text-warning me-1"></i>Calificación promedio</h6>
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="average-rating"><span class="rating-number">${rating.toFixed(1)}</span><span class="rating-max">/5.0</span></div>
+                                <div class="stars">${starsHtml}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="source-criteria mt-4"><h6 class="mb-3 text-brown"><i class="fas fa-chart-pie me-1"></i>Desglose por criterios</h6><div class="criteria-list">${criteriaHtml}</div></div>
+                    <div class="source-stats mt-4"><h6 class="mb-3 text-brown"><i class="fas fa-chart-line me-1"></i>Estadísticas de lectura</h6><div class="stats-grid"><div class="stat-item"><div class="stat-value">${Number(readCount).toLocaleString()}</div><div class="stat-label">Veces leída</div></div><div class="stat-item"><div class="stat-value">${trendHtml}</div><div class="stat-label">Tendencia</div></div></div></div>
+                    <div class="source-keywords mt-4"><h6 class="mb-2 text-brown"><i class="fas fa-tags me-1"></i>Palabras clave</h6><div class="keyword-tags">${keywordsHtml}</div></div>
+                    <div class="source-actions mt-4 pt-3 border-top"><a href="/post/${source.id}" class="btn btn-sm btn-brown w-100"><i class="fas fa-external-link-alt me-1"></i>Ver fuente completa</a></div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = `<div class="comparison-grid" id="comparisonGrid">${cols.join('')}</div>`;
         applyBarWidths();
     }
 
