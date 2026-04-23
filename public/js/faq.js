@@ -25,40 +25,50 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Búsqueda en FAQs
+    // Búsqueda en FAQs (puro JS, local)
     const faqSearch = document.getElementById('faqSearch');
-    const allAccordionButtons = document.querySelectorAll('.accordion-button');
-    
-    faqSearch.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-        
-        if (searchTerm.length < 2) {
-            // Mostrar todas las preguntas
-            allAccordionButtons.forEach(button => {
-                const accordionItem = button.closest('.accordion-item');
-                accordionItem.style.display = 'block';
-            });
-            return;
-        }
-        
-        // Filtrar preguntas
-        allAccordionButtons.forEach(button => {
-            const questionText = button.textContent.toLowerCase();
-            const answerText = button.nextElementSibling.textContent.toLowerCase();
-            const accordionItem = button.closest('.accordion-item');
-            
-            if (questionText.includes(searchTerm) || answerText.includes(searchTerm)) {
-                accordionItem.style.display = 'block';
-                
-                // Expandir si está colapsado
-                if (button.classList.contains('collapsed')) {
-                    button.click();
+
+    function performFaqSearch(q) {
+        const searchTerm = (q || '').toLowerCase().trim();
+        const items = document.querySelectorAll('.accordion-item');
+
+        items.forEach(item => {
+            const button = item.querySelector('.accordion-button');
+            const answerEl = item.querySelector('.accordion-body');
+            const questionText = (button && button.textContent) ? button.textContent.toLowerCase() : '';
+            const answerText = (answerEl && answerEl.textContent) ? answerEl.textContent.toLowerCase() : '';
+            const matches = searchTerm === '' || questionText.includes(searchTerm) || answerText.includes(searchTerm);
+
+            item.style.display = matches ? '' : 'none';
+
+            // Mostrar / ocultar la colapsable usando la API de Bootstrap para evitar toggles inesperados
+            const collapseEl = item.querySelector('.accordion-collapse');
+            if (collapseEl) {
+                const instance = bootstrap.Collapse.getOrCreateInstance(collapseEl);
+                try {
+                    if (matches) instance.show(); else instance.hide();
+                } catch (e) {
+                    // fallback: toggle via class
+                    if (matches) collapseEl.classList.add('show'); else collapseEl.classList.remove('show');
                 }
-            } else {
-                accordionItem.style.display = 'none';
             }
         });
-    });
+    }
+
+    // Input y botón de búsqueda (hay un botón al lado del input en la plantilla)
+    if (faqSearch) {
+        faqSearch.addEventListener('input', function() {
+            performFaqSearch(this.value);
+        });
+
+        // Buscar el botón dentro del mismo grupo de entrada
+        const btn = faqSearch.closest('.input-group')?.querySelector('button[type="button"]');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                performFaqSearch(faqSearch.value);
+            });
+        }
+    }
     
     // Expansión automática al hacer clic en enlaces de navegación
     const hash = window.location.hash;

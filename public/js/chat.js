@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const requestItems = document.querySelectorAll('.request-item');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
-    const newChatBtn = document.getElementById('newChatBtn');
     const searchInput = document.querySelector('.sidebar-search input');
 
     const createGroupForm = document.getElementById('createGroupForm');
@@ -163,14 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
-        
-        // Botón para nuevo chat
-        if (newChatBtn) {
-            newChatBtn.addEventListener('click', function() {
-                showNotification('Funcionalidad para nuevo chat en desarrollo', 'info');
-            });
-        }
-        
+                
         // Barra de búsqueda
         if (searchInput) {
             searchInput.addEventListener('input', function() {

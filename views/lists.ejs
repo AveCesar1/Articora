@@ -36,7 +36,7 @@
                         </div>
                         <div class="progress mb-3" style="height: 6px;">
                             <div class="progress-bar bg-info" 
-                                 style="width: <%= (data.user.currentLists / data.user.maxLists * 100) %>%"></div>
+                                 style="<%= 'width: ' + (data.user.maxLists ? Math.round(data.user.currentLists / data.user.maxLists * 100) : 0) + '%' %>"></div>
                         </div>
                         
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -102,7 +102,7 @@
                             const catInfo = data.knowledgeCategories.find(c => c.name === category);
                         %>
                         <span class="badge bg-light text-dark me-1 mb-2" 
-                              style="border-left: 3px solid <%= catInfo ? catInfo.color : '#8d6e63' %>">
+                              style="<%= 'border-left: 3px solid ' + (catInfo ? catInfo.color : '#8d6e63') %>">
                             <%= category %>
                             <span class="badge bg-secondary rounded-pill ms-1"><%= count %></span>
                         </span>
@@ -231,7 +231,7 @@
                                             const catInfo = data.knowledgeCategories.find(c => c.name === category);
                                         %>
                                         <span class="badge bg-light text-dark me-1 mb-1" 
-                                              style="font-size: 0.7rem; border-left: 2px solid <%= catInfo ? catInfo.color : '#8d6e63' %>">
+                                              style="<%= 'font-size: 0.7rem; border-left: 2px solid ' + (catInfo ? catInfo.color : '#8d6e63') %>">
                                             <%= category %>
                                         </span>
                                         <% }) %>
@@ -556,7 +556,7 @@
                                         </div>
                                         <div class="progress mb-3" style="height: 4px;">
                                             <div class="progress-bar bg-info" 
-                                                 style="width: <%= (data.user.currentLists / data.user.maxLists * 100) %>%"></div>
+                                                 style="<%= 'width: ' + (data.user.maxLists ? Math.round(data.user.currentLists / data.user.maxLists * 100) : 0) + '%' %>"></div>
                                         </div>
                                         
                                         <div class="d-flex justify-content-between mb-1">
@@ -613,13 +613,13 @@
                 <div class="mb-3">
                     <label class="form-label">Compartir en redes</label>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary flex-fill">
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="shareTwitterBtn">
                             <i class="fab fa-twitter me-2"></i>Twitter
                         </button>
-                        <button class="btn btn-outline-primary flex-fill">
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="shareFacebookBtn">
                             <i class="fab fa-facebook me-2"></i>Facebook
                         </button>
-                        <button class="btn btn-outline-primary flex-fill">
+                        <button type="button" class="btn btn-outline-primary flex-fill" id="shareLinkedinBtn">
                             <i class="fab fa-linkedin me-2"></i>LinkedIn
                         </button>
                     </div>

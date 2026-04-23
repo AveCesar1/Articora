@@ -24,9 +24,7 @@
                             <%= data.user.type === 'validated' ? 'Validado' : 'Registrado' %>
                         </small>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" id="newChatBtn" title="Nuevo chat">
-                        <i class="fas fa-edit"></i>
-                    </button>
+                    <!-- 'Nuevo chat' removed: not implemented -->
                 </div>
                 
                 <!-- Límites -->
@@ -37,7 +35,7 @@
                             Archivos: <span class="fw-bold"><%= data.user.fileUploadsThisWeek %>/<%= data.user.fileUploadLimit %></span>
                         </small>
                         <div class="progress" style="width: 80px; height: 4px;">
-                            <div class="progress-bar bg-info" style="width: <%= (data.user.fileUploadsThisWeek / data.user.fileUploadLimit * 100) %>%"></div>
+                            <div class="progress-bar bg-info" style="<%= 'width: ' + (data.user.fileUploadLimit ? Math.round(data.user.fileUploadsThisWeek / data.user.fileUploadLimit * 100) : 0) + '%' %>"></div>
                         </div>
                     </div>
                     <% if (data.user.canCreateGroups) { %>
@@ -493,11 +491,7 @@
                         <small class="text-muted" id="fileSizeText">0 MB / 5 MB</small>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Mensaje opcional</label>
-                        <textarea class="form-control" rows="3" 
-                                  placeholder="Añade un mensaje descriptivo..."></textarea>
-                    </div>
+                    <!-- Mensaje opcional removed: enviar sólo archivo o sólo mensaje -->
                     
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>

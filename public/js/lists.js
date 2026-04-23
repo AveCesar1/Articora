@@ -400,25 +400,40 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function showShareModal(listId, listTitle) {
+        const shareUrl = `${window.location.origin}/lists/${listId}`;
         const shareLink = document.getElementById('shareLink');
-        if (shareLink) {
-            shareLink.value = `${window.location.origin}/lists/${listId}`;
-        }
+        if (shareLink) shareLink.value = shareUrl;
 
-        const modal = new bootstrap.Modal(document.getElementById('shareListModal'));
+        const modalEl = document.getElementById('shareListModal');
+        if (!modalEl) return;
+        const modal = new bootstrap.Modal(modalEl);
         modal.show();
 
-        // Configurar botón de copiar enlace
+        // Copiar enlace (usa Clipboard API si está disponible)
         const copyBtn = document.getElementById('copyLinkBtn');
         if (copyBtn) {
-            copyBtn.addEventListener('click', function () {
-                if (shareLink) {
+            copyBtn.onclick = function () {
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(shareUrl).then(() => showNotification('Enlace copiado al portapapeles', 'success')).catch(() => {
+                        if (shareLink) { shareLink.select(); document.execCommand('copy'); showNotification('Enlace copiado al portapapeles', 'success'); }
+                    });
+                } else if (shareLink) {
                     shareLink.select();
                     document.execCommand('copy');
                     showNotification('Enlace copiado al portapapeles', 'success');
                 }
-            });
+            };
         }
+
+        // Botones de redes sociales
+        const textEnc = encodeURIComponent(listTitle || 'Lista en Artícora');
+        const twitterBtn = document.getElementById('shareTwitterBtn');
+        const facebookBtn = document.getElementById('shareFacebookBtn');
+        const linkedinBtn = document.getElementById('shareLinkedinBtn');
+
+        if (twitterBtn) twitterBtn.onclick = () => window.open(`https://twitter.com/intent/tweet?text=${textEnc}&url=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener');
+        if (facebookBtn) facebookBtn.onclick = () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener');
+        if (linkedinBtn) linkedinBtn.onclick = () => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener');
     }
 
     async function confirmDeleteList(listId) {
@@ -706,6 +721,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 URL.revokeObjectURL(url);
 
                 showNotification('Lista exportada exitosamente', 'success');
+            });
+        }
+
+        // Botón portada: mostrar portada ampliada
+        const editCoverBtn = document.getElementById('editCoverBtn');
+        if (editCoverBtn) {
+            editCoverBtn.addEventListener('click', function () {
+                const modalEl = document.getElementById('coverModal');
+                if (!modalEl) return;
+                const img = modalEl.querySelector('#coverModalImg');
+                if (img) img.src = data.list.coverImage || '';
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
             });
         }
 

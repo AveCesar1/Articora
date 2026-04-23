@@ -100,7 +100,7 @@
                             </p>
                             <div class="progress mb-3" style="height: 20px;">
                                 <div class="progress-bar" 
-                                     style="width: <%= data.recentStudyTopic.percentage %>%; background-color: <%= data.recentStudyTopic.color %>">
+                                     style="<%= 'width: ' + (data.recentStudyTopic.percentage || 0) + '%; background-color: ' + (data.recentStudyTopic.color || '#8d6e63') %>">
                                     <%= data.recentStudyTopic.percentage %>%
                                 </div>
                             </div>
@@ -207,10 +207,9 @@
                                         <div class="me-3" style="width: 100px;">
                                             <small><%= subcat.name %></small>
                                         </div>
-                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress flex-grow-1" style="height: 8px;">
                                             <div class="progress-bar" 
-                                                 style="width: <%= (subcat.count / data.mostReadTopic.totalReadings * 100) %>%; 
-                                                        background-color: <%= data.mostReadTopic.color %>"></div>
+                                                style="<%= 'width: ' + (data.mostReadTopic.totalReadings ? Math.round(subcat.count / data.mostReadTopic.totalReadings * 100) : 0) + '%; background-color: ' + (data.mostReadTopic.color || '#8d6e63') %>"></div>
                                         </div>
                                         <small class="ms-2"><%= subcat.count %></small>
                                     </div>
