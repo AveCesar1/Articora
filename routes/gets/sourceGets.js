@@ -1,3 +1,4 @@
+const { type } = require('os');
 const IsRegistered = require('../../middlewares/auth');
 const checkRoles = require('../../middlewares/checkrole');
 const { spawn } = require('child_process');
@@ -17,6 +18,9 @@ function htmlUnescape(s) {
         .replace(/&#x2F;/gi, '/')
         .replace(/&sol;/g, '/');
 }
+
+// In-memory cache for related sources (key: sourceId, value: { expires: timestamp, data: [...] })
+const relatedSourcesCache = new Map();
 
 module.exports = function (app) {
 
@@ -318,6 +322,9 @@ module.exports = function (app) {
 
     // API: Return sources as JSON for list modal (supports search, filters and excluding an existing list)
     app.get('/api/listsources', async (req, res) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
         try {
             const query = req.query.q || '';
             const page = parseInt(req.query.page) || 1;
@@ -603,6 +610,20 @@ module.exports = function (app) {
                 console.error('Error computing post stats for', postId, e && e.message);
                 post.stats = { reads: 0, reviews: 0, downloads: 0 };
             }
+            // Determine if current user has this source marked as read or in pending list
+            let isReadByUser = false;
+            let isInReadingList = false;
+            try {
+                const userId = req.session && req.session.userId;
+                if (userId) {
+                    const r = db.prepare('SELECT 1 as found FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ? LIMIT 1').get(userId, postId, 'read');
+                    isReadByUser = !!r;
+                    const p = db.prepare('SELECT 1 as found FROM user_reading_list WHERE user_id = ? AND source_id = ? LIMIT 1').get(userId, postId);
+                    isInReadingList = !!p;
+                }
+            } catch (e) {
+                if (debugging) console.warn('Could not determine reading flags', e && e.message);
+            }
             res.render('post', {
                 title: `${post.title} - Artícora`,
                 currentPage: 'post',
@@ -612,7 +633,9 @@ module.exports = function (app) {
                 comments,
                 relatedSources,
                 citationFormats,
-                currentUserId: req.session && req.session.userId ? req.session.userId : (res.locals.user && res.locals.user.id ? res.locals.user.id : null)
+                currentUserId: req.session && req.session.userId ? req.session.userId : (res.locals.user && res.locals.user.id ? res.locals.user.id : null),
+                isReadByUser,
+                isInReadingList
             });
         } catch (err) {
             console.error('Error fetching post by id:', err);
@@ -628,6 +651,9 @@ module.exports = function (app) {
 
     // API: search validated users by username or full_name (for collaborator invites)
     app.get('/api/users/search', IsRegistered, (req, res) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
         try {
             const q = (req.query.q || '').trim();
             if (!q || q.length < 3) return res.json({ success: true, results: [] });
@@ -644,6 +670,9 @@ module.exports = function (app) {
 
     // API: get aggregated ratings and (optionally) the current user's rating for a source
     app.get('/api/sources/:id/ratings', (req, res) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
         try {
             const db = req.db;
             const sourceId = parseInt(req.params.id, 10);
@@ -667,6 +696,173 @@ module.exports = function (app) {
             return res.json({ success: true, has_ratings: total > 0, total, averages: { readability: avgRead, completeness: avgComp, detail_level: avgDetail, veracity: avgVer, technical_difficulty: avgTech }, overall, userRating });
         } catch (err) {
             console.error('Error in GET /api/sources/:id/ratings', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // API: related sources for a given source id
+    app.get('/api/sources/:id/related', (req, res) => { 
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
+        try {
+            const db = req.db;
+            const sourceId = parseInt(req.params.id, 10);
+            if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            // Return cached if available
+            const cached = relatedSourcesCache.get(sourceId);
+            if (cached && cached.expires > Date.now()) {
+                return res.json({ success: true, results: cached.data });
+            }
+
+            // load source metadata
+            const src = db.prepare(`
+                SELECT s.id, s.title, s.publication_year AS year,
+                s.keywords, s.category_id, s.subcategory_id, st.name AS type
+                FROM sources s
+                LEFT JOIN source_types st ON s.source_type_id = st.id
+                WHERE s.id = ? LIMIT 1
+            `).get(sourceId);
+            if (!src) return res.status(404).json({ success: true, results: [] });
+
+            // current authors
+            const currAuthorsRows = db.prepare('SELECT author_id FROM source_authors WHERE source_id = ?').all(sourceId);
+            const currAuthorIds = currAuthorsRows.map(r => r.author_id);
+            const currAuthorCount = currAuthorIds.length;
+
+            // reads for current
+            const readsCurrentRow = db.prepare('SELECT COUNT(DISTINCT user_id) as c FROM user_readings WHERE source_id = ? AND status = ?').get(sourceId, 'read');
+            const readsCurrent = (readsCurrentRow && readsCurrentRow.c) ? readsCurrentRow.c : 0;
+
+            // term similarity via tfidf_vectors/source_norms
+            let normQ = 0;
+            const nrow = db.prepare('SELECT norm FROM source_norms WHERE source_id = ?').get(sourceId);
+            if (nrow && nrow.norm) normQ = nrow.norm;
+            else {
+                const srow = db.prepare('SELECT SUM(weight*weight) as s FROM tfidf_vectors WHERE source_id = ?').get(sourceId);
+                normQ = (srow && srow.s) ? Math.sqrt(srow.s) : 0;
+            }
+
+            const termSimRows = db.prepare(`
+                SELECT v2.source_id AS other_id, SUM(v1.weight * v2.weight) AS dot, n2.norm AS norm2
+                FROM tfidf_vectors v1
+                JOIN tfidf_vectors v2 ON v1.term = v2.term AND v1.source_id = ? AND v2.source_id != ?
+                JOIN source_norms n2 ON v2.source_id = n2.source_id
+                GROUP BY v2.source_id
+            `).all(sourceId, sourceId);
+
+            const termSimMap = new Map();
+            if (Array.isArray(termSimRows)) {
+                termSimRows.forEach(r => {
+                    const norm2 = r.norm2 || 0;
+                    const dot = r.dot || 0;
+                    let sim = 0;
+                    if (normQ > 0 && norm2 > 0) sim = dot / (normQ * norm2);
+                    if (!isFinite(sim) || sim < 0) sim = 0;
+                    if (sim > 1) sim = 1;
+                    termSimMap.set(r.other_id, sim);
+                });
+            }
+
+            // Author common counts
+            const authorCommonRows = db.prepare(`
+                SELECT sa2.source_id AS other_id, COUNT(*) AS common
+                FROM source_authors sa1
+                JOIN source_authors sa2 ON sa1.author_id = sa2.author_id
+                WHERE sa1.source_id = ? AND sa2.source_id != ?
+                GROUP BY sa2.source_id
+            `).all(sourceId, sourceId);
+            const authorCommonMap = new Map();
+            authorCommonRows.forEach(r => authorCommonMap.set(r.other_id, r.common || 0));
+
+            // author counts per source
+            const authorCountRows = db.prepare('SELECT source_id, COUNT(*) AS cnt FROM source_authors GROUP BY source_id').all();
+            const authorCountMap = new Map();
+            authorCountRows.forEach(r => authorCountMap.set(r.source_id, r.cnt || 0));
+
+            // reads intersection with current
+            const intersectionRows = db.prepare(`
+                SELECT ur2.source_id AS other_id, COUNT(DISTINCT ur2.user_id) AS intersection
+                FROM user_readings ur1
+                JOIN user_readings ur2 ON ur1.user_id = ur2.user_id
+                WHERE ur1.source_id = ? AND ur2.source_id != ? AND ur1.status = 'read' AND ur2.status = 'read'
+                GROUP BY ur2.source_id
+            `).all(sourceId, sourceId);
+            const intersectionMap = new Map();
+            intersectionRows.forEach(r => intersectionMap.set(r.other_id, r.intersection || 0));
+
+            const readsRows = db.prepare('SELECT source_id, COUNT(DISTINCT user_id) AS reads FROM user_readings WHERE status = ? GROUP BY source_id').all('read');
+            const readsMap = new Map();
+            readsRows.forEach(r => readsMap.set(r.source_id, r.reads || 0));
+
+            // Candidate sources: basic metadata
+            const candRows = db.prepare('SELECT id, title, publication_year AS year, cover_image_url AS coverImage, category_id, subcategory_id, overall_rating FROM sources WHERE id != ? AND is_active = 1').all(sourceId);
+            if (!candRows || candRows.length === 0) {
+                relatedSourcesCache.set(sourceId, { expires: Date.now() + 30 * 60 * 1000, data: [] });
+                return res.json({ success: true, results: [] });
+            }
+
+            const candIds = candRows.map(c => c.id);
+            const placeholders = candIds.map(() => '?').join(','); // No one will read this comment. Lausdeo was here. Have a nice day and God be with you 🐱‍👋
+            const authorRows = candIds.length ? db.prepare(`SELECT sa.source_id, a.full_name FROM source_authors sa JOIN authors a ON sa.author_id = a.id WHERE sa.source_id IN (${placeholders}) ORDER BY sa.sort_order`).all(...candIds) : [];
+            const candAuthorsMap = new Map();
+            if (authorRows && authorRows.length) {
+                authorRows.forEach(ar => {
+                    if (!candAuthorsMap.has(ar.source_id)) candAuthorsMap.set(ar.source_id, []);
+                    candAuthorsMap.get(ar.source_id).push(ar.full_name);
+                });
+            }
+
+            const results = [];
+            candRows.forEach(c => {
+                const otherId = c.id;
+                const authorCommon = authorCommonMap.get(otherId) || 0;
+                const otherAuthorCount = authorCountMap.get(otherId) || 0;
+                const denom = Math.max(currAuthorCount, otherAuthorCount) || 1;
+                const authorScore = denom > 0 ? (authorCommon / denom) : 0;
+                const termSim = termSimMap.get(otherId) || 0;
+
+                let categoryBonus = 0;
+                if (c.category_id && src.category_id && c.category_id === src.category_id) categoryBonus += 0.3;
+                if (c.subcategory_id && src.subcategory_id && c.subcategory_id === src.subcategory_id) categoryBonus += 0.1;
+
+                let contentScore = ((authorScore + termSim) / 2) + categoryBonus;
+                if (contentScore > 1) contentScore = 1;
+
+                const intersection = intersectionMap.get(otherId) || 0;
+                const readsOther = readsMap.get(otherId) || 0;
+                const union = (readsCurrent + readsOther - intersection) || 0;
+                const concurrentReads = union > 0 ? (intersection / union) : 0;
+
+                const behaviorScore = concurrentReads; // rating correlation omitted initially
+
+                const finalScore = 0.5 * contentScore + 0.5 * behaviorScore;
+
+                if (finalScore <= 0) return;
+
+                results.push({
+                    id: otherId,
+                    title: c.title,
+                    authors: candAuthorsMap.get(otherId) || [],
+                    year: c.year || null,
+                    type: c.type || 'Libro',
+                    coverImage: c.coverImage || `/portadas/fuente_${otherId}.png`,
+                    category_id: c.category_id || null,
+                    subcategory_id: c.subcategory_id || null,
+                    overall_rating: c.overall_rating || 0,
+                    _score: finalScore
+                });
+            });
+
+            results.sort((a, b) => b._score - a._score);
+            const top = results.slice(0, 10).map(r => { const out = Object.assign({}, r); delete out._score; return out; });
+
+            relatedSourcesCache.set(sourceId, { expires: Date.now() + 30 * 60 * 1000, data: top });
+
+            return res.json({ success: true, results: top });
+        } catch (err) {
+            console.error('Error in GET /api/sources/:id/related', err);
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
@@ -702,6 +898,10 @@ module.exports = function (app) {
 
     // Endpoint de verificación de títulos duplicados
     app.get('/api/check-duplicate-title', async (req, res) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
+
         const { title } = req.query;
         if (!title || title.length < 3) {
             return res.json({ duplicado: false, fuentes: [] });
@@ -775,6 +975,9 @@ module.exports = function (app) {
 
     // Endpoint de verificación de títulos duplicados + autores
     app.get('/api/check-duplicate-title-authors', async (req, res) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
         if (debugging) console.log('Received check-duplicate-title-authors request with query:', req.query);
 
         const { title, authors } = req.query;
@@ -847,6 +1050,9 @@ module.exports = function (app) {
 
     // Endpoint de verificación de duplicados exactos (título + autores + edición)
     app.get('/api/check-exact-duplicate', async (req, res) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.status(403).json({ success: false, message: 'forbidden' });
+        }
         const { title, authors, edition } = req.query;
         if (!title || !authors || !edition) {
             return res.json({ duplicado: false });

@@ -1,0 +1,23 @@
+<!-- Modal: Añadir a lista (compartido entre /post y /search) -->
+<div class="modal fade" id="addToListModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Guardar en una lista</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">Selecciona una lista para guardar esta fuente.</p>
+        <div id="addToListSpinner" class="text-center py-3">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+        <div id="addToListLists" class="list-group" style="display:none; max-height: 300px; overflow:auto;"></div>
+        <div id="addToListEmpty" class="text-muted small" style="display:none;">No tienes listas disponibles. Crea una primero.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="addToListConfirmBtn" disabled>Añadir</button>
+      </div>
+    </div>
+  </div>
+</div>

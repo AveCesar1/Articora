@@ -1,0 +1,61 @@
+/* readingListModal.css - styles for reading list modal */
+.modal .modal-title i {
+  color: #8d6e63;
+}
+.modal-content {
+  border-radius: 6px;
+  border: 1px solid #a1887f;
+  background: #fffef9;
+}
+.modal-header {
+  background: #3e2723;
+  color: #e0d6c2;
+  border-bottom: 1px solid #a1887f;
+}
+.modal-body {
+  padding: 1rem 1.25rem;
+}
+#toReadList .list-group-item,
+#readHistoryList .list-group-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(161, 136, 127, 0.3);
+  background: #fff;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+#toReadList .list-group-item .small {
+  color: #6b4a3d;
+}
+.btn-group .btn {
+  border-radius: 2px;
+}
+.btn-move-to-read {
+  min-width: 120px;
+}
+.btn-move-up,
+.btn-move-down {
+  width: 36px;
+}
+.list-group-item .btn {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+}
+.modal-footer {
+  border-top: 1px solid #a1887f;
+}
+/* small screens */
+@media (max-width: 576px) {
+  #toReadList .list-group-item,
+  #readHistoryList .list-group-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .list-group-item .btn-group {
+    margin-top: 0.5rem;
+    width: 100%;
+    display: flex;
+    gap: 0.4rem;
+  }
+}

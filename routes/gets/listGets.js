@@ -95,16 +95,28 @@ module.exports = function (app) {
                 }
 
                 let coverImage = null;
-                if (list.cover_image) {
+                let coverIsCategory = false;
+                let coverIsPng = false;
+
+                if (list.dominant_category_id) {
+                    const dom = req.db.prepare('SELECT id, name FROM categories WHERE id = ?').get(list.dominant_category_id) || {};
+                    if (dom && dom.name) {
+                        const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[dom.name] : null;
+                        coverImage = `https://placehold.co/300x200/${String(catColor || '#8d6e63').replace('#','')}/f5f1e6?text=${encodeURIComponent(dom.name)}`;
+                        coverIsCategory = true;
+                    }
+                } else if (list.cover_image) {
                     const catMatch = knowledgeCategories.find(c => String(c.name) === String(list.cover_image));
                     if (catMatch) {
                         coverImage = `https://placehold.co/300x200/${String(catMatch.color).replace('#','')}/f5f1e6?text=${encodeURIComponent(catMatch.name)}`;
+                        coverIsCategory = true;
                     } else {
                         const token = String(list.cover_image).trim().toLowerCase();
                         if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
                             coverImage = null; // fallthrough to first source
                         } else {
                             coverImage = normalizeCoverUrl(list.cover_image, null);
+                            if (coverImage && /.png$/i.test(coverImage)) coverIsPng = true;
                         }
                     }
                 }
@@ -147,6 +159,8 @@ module.exports = function (app) {
                     categoriesDistribution: Object.keys(categoriesPercent).length ? categoriesPercent : {},
                     coverType: list.cover_type || 'auto',
                     coverImage,
+                    coverIsCategory: coverIsCategory,
+                    coverIsPng: coverIsPng,
                     collaborators,
                     collaboratorStatus
                 };
@@ -317,16 +331,29 @@ module.exports = function (app) {
             const collaborators = req.db.prepare("SELECT u.id, u.full_name as name, u.profile_picture, lc.status FROM list_collaborators lc JOIN users u ON lc.user_id = u.id WHERE lc.list_id = ?").all(listId).map(r => ({ id: r.id, name: r.name || 'Usuario', avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || 'Usuario')}&background=2E8B57&color=fff`, status: r.status }));
 
                 let computedCoverImage = null;
-                if (listRow.cover_image) {
+                let coverIsCategory = false;
+                let coverIsPng = false;
+
+                // Prefer dominant_category_id (dynamic) if present
+                if (listRow.dominant_category_id) {
+                    const dom = req.db.prepare('SELECT id, name FROM categories WHERE id = ?').get(listRow.dominant_category_id) || {};
+                    if (dom && dom.name) {
+                        const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[dom.name] : null;
+                        computedCoverImage = `https://placehold.co/600x300/${String(catColor || '#8d6e63').replace('#','')}/f5f1e6?text=${encodeURIComponent(dom.name)}`;
+                        coverIsCategory = true;
+                    }
+                } else if (listRow.cover_image) {
                     const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[listRow.cover_image] : null;
                     if (catColor) {
                         computedCoverImage = `https://placehold.co/600x300/${String(catColor).replace('#','')}/f5f1e6?text=${encodeURIComponent(listRow.cover_image)}`;
+                        coverIsCategory = true;
                     } else {
                         const token = String(listRow.cover_image).trim().toLowerCase();
                         if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
                             computedCoverImage = null;
                         } else {
                             computedCoverImage = normalizeCoverUrl(listRow.cover_image, sources && sources[0] ? sources[0].id : null);
+                            if (computedCoverImage && /.png$/i.test(computedCoverImage)) coverIsPng = true;
                         }
                     }
                 }
@@ -345,6 +372,8 @@ module.exports = function (app) {
                 collaborators,
                 sources,
                 coverImage: computedCoverImage || (sources[0] && sources[0].cover) || 'https://placehold.co/400x250/5d4037/f5f1e6?text=Primera+Fuente',
+                coverIsCategory: coverIsCategory,
+                coverIsPng: coverIsPng || (computedCoverImage ? (/\.png$/i.test(computedCoverImage)) : false),
                 createdAt: listRow.created_at,
                 lastModified: listRow.updated_at || listRow.created_at
             };
@@ -545,6 +574,31 @@ module.exports = function (app) {
         } catch (err) {
             console.error('Error en GET /api/compare/sources', err);
             res.status(500).json({ error: 'Error interno' });
+        }
+    });
+
+    // API: get lists owned by user or where user is an accepted collaborator
+    app.get('/api/my-lists', IsRegistered, (req, res) => {
+        try {
+            const db = req.db;
+            const userId = req.user && req.user.id;
+            if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+            const own = db.prepare('SELECT id, title, total_sources, is_collaborative, cover_image, dominant_category_id FROM curatorial_lists WHERE user_id = ? ORDER BY updated_at DESC').all(userId) || [];
+            const coll = db.prepare(`SELECT cl.id, cl.title, cl.total_sources, cl.is_collaborative, cl.cover_image, cl.dominant_category_id
+                FROM curatorial_lists cl JOIN list_collaborators lc ON cl.id = lc.list_id
+                WHERE lc.user_id = ? AND lc.status = 'accepted' ORDER BY cl.updated_at DESC`).all(userId) || [];
+
+            // merge unique by id (own first)
+            const map = new Map();
+            own.forEach(l => map.set(l.id, l));
+            coll.forEach(l => { if (!map.has(l.id)) map.set(l.id, l); });
+
+            const lists = Array.from(map.values()).map(l => ({ id: l.id, title: l.title, totalSources: l.total_sources || 0, isCollaborative: !!l.is_collaborative, coverImageToken: l.cover_image || null, dominantCategoryId: l.dominant_category_id || null }));
+            return res.json({ success: true, lists });
+        } catch (err) {
+            console.error('Error in GET /api/my-lists', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
 

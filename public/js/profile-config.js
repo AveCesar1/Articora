@@ -390,7 +390,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 showRecentStudy: document.getElementById('showRecentStudy')?.checked || false,
                 showMyReferences: document.getElementById('showMyReferences')?.checked || false,
                 showMostRead: document.getElementById('showMostRead')?.checked || false,
-                showGlobalTrends: document.getElementById('showGlobalTrends')?.checked || false,
                 widgetOrder: ['recent_study', 'my_references', 'most_read', 'global_trends']
             };
 
@@ -406,7 +405,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 if (data.success) {
-                    showAlert('success', 'Configuración del dashboard actualizada');
+                    // show Bootstrap toast and redirect to /profile
+                    try {
+                        const container = document.getElementById('toastContainer') || document.body;
+                        const toastId = 'dashboardSavedToast';
+                        const toastHtml = `
+                            <div id="${toastId}" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                                <div class="d-flex">
+                                    <div class="toast-body">Configuración del dashboard actualizada. Redirigiendo...</div>
+                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                                </div>
+                            </div>`;
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = toastHtml;
+                        const toastEl = wrapper.firstElementChild;
+                        container.appendChild(toastEl);
+                        const bsToast = new bootstrap.Toast(toastEl, { delay: 1600 });
+                        bsToast.show();
+                        setTimeout(() => { window.location = '/profile'; }, 1600);
+                    } catch (e) {
+                        alert('Configuración del dashboard actualizada');
+                        window.location = '/profile';
+                    }
                 } else {
                     showAlert('danger', data.message || 'Error al actualizar dashboard');
                 }

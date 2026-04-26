@@ -162,8 +162,36 @@
                 const resp = await fetch(`/api/lists/${listId}/sources`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ source_ids: ids }) });
                 const j = await resp.json();
                 if (j && j.success) {
-                    // reload page to show updated list
-                    window.location.reload();
+                    // Update UI in-place: update counters and cover if provided, then close modal
+                    const sc = document.getElementById('sourceCount');
+                    if (sc && typeof j.totalSources !== 'undefined') sc.textContent = String(j.totalSources);
+
+                    // update cover image if backend returned dominantCategory info
+                    try {
+                        if (j.dominantCategory && j.dominantCategory.coverImageUrl) {
+                            const coverImg = document.getElementById('listCoverImg');
+                            if (coverImg) {
+                                coverImg.src = j.dominantCategory.coverImageUrl;
+                                coverImg.classList.toggle('cover-category', !!j.dominantCategory.coverIsCategory);
+                                coverImg.classList.toggle('cover-png', !!j.dominantCategory.coverIsPng);
+                            }
+                            const coverModalImg = document.getElementById('coverModalImg');
+                            if (coverModalImg) {
+                                coverModalImg.src = j.dominantCategory.coverImageUrl;
+                                coverModalImg.classList.toggle('cover-category', !!j.dominantCategory.coverIsCategory);
+                                coverModalImg.classList.toggle('cover-png', !!j.dominantCategory.coverIsPng);
+                            }
+                        }
+                    } catch (e) { console.error('Error updating cover image', e); }
+
+                    // close modal
+                    try {
+                        const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        bsModal.hide();
+                    } catch (e) { /* ignore */ }
+
+                    // optionally clear selection state
+                    selected = new Set(); renderSelectedList(); setAddButtonState();
                 } else {
                     alert('Error: ' + (j && j.message ? j.message : 'no se pudo añadir'));
                     addBtn.disabled = false; addBtn.textContent = 'Añadir a la lista';
@@ -189,8 +217,23 @@
                         // remove row from DOM if present
                         const row = document.querySelector(`tr[data-id="${sid}"]`);
                         if (row) row.remove();
-                        // update counters
-                        const sc = document.getElementById('sourceCount'); if (sc) sc.textContent = String((Number(sc.textContent)||0) - 1);
+                            // update counters (use server value if provided)
+                            const sc = document.getElementById('sourceCount'); if (sc) sc.textContent = String(typeof j.totalSources !== 'undefined' ? j.totalSources : ((Number(sc.textContent)||0) - 1));
+                            // update cover if provided
+                            if (j.dominantCategory && j.dominantCategory.coverImageUrl) {
+                                const coverImg = document.getElementById('listCoverImg');
+                                if (coverImg) {
+                                    coverImg.src = j.dominantCategory.coverImageUrl;
+                                    coverImg.classList.toggle('cover-category', !!j.dominantCategory.coverIsCategory);
+                                    coverImg.classList.toggle('cover-png', !!j.dominantCategory.coverIsPng);
+                                }
+                                const coverModalImg = document.getElementById('coverModalImg');
+                                if (coverModalImg) {
+                                    coverModalImg.src = j.dominantCategory.coverImageUrl;
+                                    coverModalImg.classList.toggle('cover-category', !!j.dominantCategory.coverIsCategory);
+                                    coverModalImg.classList.toggle('cover-png', !!j.dominantCategory.coverIsPng);
+                                }
+                            }
                     } else {
                         alert('No se pudo eliminar: ' + (j && j.message ? j.message : 'error'));
                         btn.disabled = false;

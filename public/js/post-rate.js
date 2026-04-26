@@ -160,6 +160,8 @@ function initPostRate() {
 
         const commentEl = $id('commentText');
         if (commentEl && commentEl.value && commentEl.value.trim().length > 0) payload.comment = commentEl.value.trim();
+        const readDateEl = $id('ratingReadDate');
+        if (readDateEl && readDateEl.value) payload.read_date = readDateEl.value;
 
         // Show confirmation modal with different message for first-time vs update
         const modalEl = document.getElementById('ratingConfirmModal');

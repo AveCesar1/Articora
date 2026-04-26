@@ -291,3 +291,33 @@
         font-size: 0.9rem;
     }
 }
+
+/* Dashboard settings cards */
+.dashboard-option-card {
+    border: 1px solid rgba(141,110,99,0.15);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #fff 0%, #fbf8f6 100%);
+}
+.dashboard-option-icon {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+}
+
+.dashboard-option-card .form-check-input {
+    width: 2em;
+    height: 1.2em;
+}
+
+.dashboard-option-card strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.dashboard-option-card .text-muted.small {
+    font-size: 0.82rem;
+}

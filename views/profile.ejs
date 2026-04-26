@@ -150,16 +150,26 @@
                 <div class="card-body">
                     <div class="activity-list">
                         <% if (user.recentActivity && user.recentActivity.length > 0) { %>
-                            <% user.recentActivity.forEach(activity => { %>
+                            <% user.recentActivity.slice(0, 4).forEach(activity => { %>
                                 <div class="activity-item">
                                     <div class="activity-icon">
-                                        <i class="<%= activity.icon %>"></i>
+                                        <% if (activity.type === 'reading') { %>
+                                            <i class="fas fa-book-reader"></i>
+                                        <% } else if (activity.type === 'upload') { %>
+                                            <i class="fas fa-upload"></i>
+                                        <% } else if (activity.type === 'review') { %>
+                                            <i class="fas fa-star"></i>
+                                        <% } else { %>
+                                            <i class="far fa-clock"></i>
+                                        <% } %>
                                     </div>
                                     <div class="activity-content">
                                         <h6 class="activity-title"><%= activity.title %></h6>
-                                        <p class="activity-description"><%= activity.description %></p>
+                                        <% if (activity.category) { %>
+                                            <p class="activity-description"><%= activity.category %></p>
+                                        <% } %>
                                         <span class="activity-time">
-                                            <i class="far fa-clock me-1"></i><%= activity.time %>
+                                            <i class="far fa-clock me-1"></i><%= activity.date %>
                                         </span>
                                     </div>
                                 </div>
@@ -185,14 +195,18 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="radar-container">
-                        <canvas id="readingRadarChart" height="300"></canvas>
-                    </div>
-                    <div class="text-center mt-3">
-                        <p class="text-muted small mb-0">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Gráfico de radar basado en lecturas registradas
-                        </p>
+                    <div class="d-flex flex-column align-items-center" 
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;"
+                        >
+                        <div class="radar-container">
+                            <canvas id="readingRadarChart" height="300"></canvas>
+                        </div>
+                        <div class="text-center mt-3">
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Gráfico de radar basado en lecturas registradas
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -258,13 +272,56 @@
     <%- JSON.stringify(user.readingStats) %>
 </script>
 
+<!-- Datos de actividad reciente para el servidor -->
+<script id="recentActivityData" type="application/json">
+    <%- JSON.stringify(user.recentActivity) %>
+</script>
+<%- include('partials/readingListModal.ejs') %>
+
 <!-- Script para pasar datos del servidor al frontend -->
 <script>
+    // Exponer información de permisos y proteger parseo JSON
+    const isOwnProfile = <%= isOwnProfile ? 'true' : 'false' %>;
+    const profileRadarPublic = <%= (user.dashboardSettings && user.dashboardSettings.radarChartPublic) ? 'true' : 'false' %>;
+
     // Leer datos del elemento HTML (evita error de sintaxis)
     const readingStatsElement = document.getElementById('readingStatsData');
-    const readingStats = JSON.parse(readingStatsElement.textContent);
+    let readingStats = [];
+    try {
+        const txt = readingStatsElement && readingStatsElement.textContent ? readingStatsElement.textContent.trim() : '';
+        if (txt) {
+            readingStats = JSON.parse(txt);
+        }
+    } catch (e) {
+        console.error('Error parsing readingStatsData', e && e.message);
+        readingStats = [];
+    }
 
-    // Configuración para la gráfica de radar
+    // Ensure we have an array of length 8
+    if (!Array.isArray(readingStats)) {
+        const tmp = new Array(8).fill(0);
+        if (readingStats && typeof readingStats === 'object') {
+            Object.keys(readingStats).forEach(k => {
+                const idx = parseInt(k, 10) - 1;
+                if (!Number.isNaN(idx) && idx >= 0 && idx < 8) tmp[idx] = readingStats[k] || 0;
+            });
+        }
+        readingStats = tmp;
+    } else {
+        // pad/truncate to 8
+        readingStats = readingStats.slice(0,8).concat(new Array(8).fill(0)).slice(0,8);
+    }
+
+    const recentActivityElement = document.getElementById('recentActivityData');
+    let recentActivity = [];
+    try {
+        const txt2 = recentActivityElement && recentActivityElement.textContent ? recentActivityElement.textContent.trim() : '';
+        if (txt2) recentActivity = JSON.parse(txt2);
+    } catch (e) {
+        console.error('Error parsing recentActivityData', e && e.message);
+        recentActivity = [];
+    }
+
     const radarData = {
         labels: [
             'Ciencias Cognitivas',
@@ -279,14 +336,15 @@
         datasets: [{
             label: 'Lecturas por categoría',
             data: [
-                readingStats.cognitiveSciences,
-                readingStats.socialSciences,
-                readingStats.humanities,
-                readingStats.creativeDisciplines,
-                readingStats.computationalSciences,
-                readingStats.exactSciences,
-                readingStats.naturalSciences,
-                readingStats.appliedSciences
+                readingStats[0], // cognitiveSciences
+                readingStats[1], // socialSciences
+                readingStats[2], // humanities
+                readingStats[3], // creativeDisciplines
+                readingStats[4], // computationalSciences
+                readingStats[5], // exactSciences
+                readingStats[6], // naturalSciences
+                readingStats[7]  // appliedSciences
+                // TODO: the array ID should be categories.id. Not a hardcoded order.
             ],
             backgroundColor: 'rgba(183, 147, 76, 0.2)',
             borderColor: 'rgba(183, 147, 76, 1)',
@@ -300,7 +358,64 @@
         }]
     };
     
-    const radarConfig = {
+    // If viewing another user's profile and they have disabled the radar, show a grey placeholder dataset
+    const radarAllowed = isOwnProfile || profileRadarPublic;
+
+    if (!radarAllowed) {
+        // datos grises de relleno (ya los tienes)
+        radarData.datasets[0].data = new Array(8).fill(1);
+        radarData.datasets[0].backgroundColor = 'rgba(120,120,120,0.12)';
+        radarData.datasets[0].borderColor = 'rgba(120,120,120,0.6)';
+        radarData.datasets[0].pointBackgroundColor = 'rgba(94,94,94,0.1)';
+
+        // Función para agregar overlay centrado con desenfoque
+        function addRadarOverlay(message) {
+            const container = document.querySelector('.radar-container');
+            if (!container) return;
+            // Asegurar posicionamiento relativo para que el overlay se posicione respecto al contenedor
+            container.style.position = 'relative';
+            // Eliminar overlay previo si existe
+            const existingOverlay = container.querySelector('.radar-overlay');
+            if (existingOverlay) existingOverlay.remove();
+
+            const overlay = document.createElement('div');
+            overlay.className = 'radar-overlay';
+            overlay.innerHTML = `<div class="overlay-content">${message}</div>`;
+            // Estilos para centrar y aplicar blur sin fondo blanco sólido
+            overlay.style.position = 'absolute';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.backdropFilter = 'blur(6px)';   // desenfoque de fondo
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.25)'; // toque oscuro sutil, no blanco
+            overlay.style.borderRadius = '8px';           // opcional: acorde al diseño
+            overlay.style.pointerEvents = 'none';         // para no bloquear clics si luego quieres interacción
+            overlay.style.textAlign = 'center';
+            overlay.style.padding = '1rem';
+            overlay.style.zIndex = '10';
+            // Estilo del texto
+            const content = overlay.querySelector('.overlay-content');
+            content.style.color = '#fff';
+            content.style.fontFamily = "'Palatino Linotype', 'Book Antiqua', serif";
+            content.style.fontSize = '1rem';
+            content.style.fontWeight = '500';
+            content.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
+            content.style.backgroundColor = 'transparent';
+            content.style.padding = '0.5rem 1rem';
+            content.style.borderRadius = '2rem';
+            content.style.backdropFilter = 'blur(2px)'; // opcional doble desenfoque
+
+            container.appendChild(overlay);
+        }
+
+        addRadarOverlay('⚠️ El usuario no ha permitido mostrar estas estadísticas.');
+    }
+
+    var radarConfig = {
         type: 'radar',
         data: radarData,
         options: {
@@ -332,7 +447,7 @@
                     },
                     beginAtZero: true,
                     suggestedMin: 0,
-                    suggestedMax: 30
+                    suggestedMax: Math.max(...radarData.datasets[0].data)
                 }
             },
             plugins: {

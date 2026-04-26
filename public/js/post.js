@@ -1,12 +1,12 @@
 // post.js
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Desglose de calificaciones
     const showRatingBreakdownBtn = document.getElementById('showRatingBreakdown');
     const ratingBreakdown = document.getElementById('ratingBreakdown');
-    
+
     if (showRatingBreakdownBtn) {
-        showRatingBreakdownBtn.addEventListener('click', function() {
+        showRatingBreakdownBtn.addEventListener('click', function () {
             if (ratingBreakdown.style.display === 'none') {
                 ratingBreakdown.style.display = 'block';
                 showRatingBreakdownBtn.innerHTML = '<i class="fas fa-chart-bar me-2"></i>Ocultar desglose';
@@ -16,78 +16,216 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
-    // Slider de fuentes relacionadas
-    const relatedSlider = document.getElementById('relatedSlider');
-    const prevSliderBtn = document.querySelector('.prev-slider');
-    const nextSliderBtn = document.querySelector('.next-slider');
-    
-    if (relatedSlider && prevSliderBtn && nextSliderBtn) {
-        const cardWidth = 250; // Ancho de cada tarjeta + gap
-        let scrollPosition = 0;
-        
-        function updateSliderControls() {
-            prevSliderBtn.disabled = scrollPosition <= 0;
-            nextSliderBtn.disabled = scrollPosition >= relatedSlider.scrollWidth - relatedSlider.clientWidth;
+
+    // Slider de fuentes relacionadas - carga dinámica, render y controles
+    (function () {
+        const relatedSlider = document.getElementById('relatedSlider');
+        const prevSliderBtn = document.querySelector('.prev-slider');
+        const nextSliderBtn = document.querySelector('.next-slider');
+        const sliderContainer = document.querySelector('.related-slider-container');
+        const sliderControls = document.querySelector('.slider-controls');
+
+        function safeTextNode(text) {
+            return document.createTextNode(text || '');
         }
-        
-        prevSliderBtn.addEventListener('click', function() {
-            scrollPosition -= cardWidth;
-            if (scrollPosition < 0) scrollPosition = 0;
-            relatedSlider.scrollTo({
-                left: scrollPosition,
-                behavior: 'smooth'
+
+        function renderRelated(items) {
+            if (!relatedSlider) return;
+            relatedSlider.innerHTML = '';
+            if (!items || items.length === 0) {
+                relatedSlider.innerHTML = '<p class="text-muted text-center">No se encontraron fuentes relacionadas.</p>';
+                return;
+            }
+
+            items.forEach(src => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'related-source-card';
+
+                const card = document.createElement('div');
+                card.className = 'card h-100';
+
+                if (src.coverImage) {
+                    const img = document.createElement('img');
+                    img.className = 'card-img-top';
+                    img.src = src.coverImage;
+                    img.alt = src.title || '';
+                    img.onerror = function () { this.onerror = null; this.src = `/portadas/fuente_${src.id}.png`; };
+                    card.appendChild(img);
+                }
+
+                const body = document.createElement('div');
+                body.className = 'card-body';
+
+                const h6 = document.createElement('h6');
+                h6.className = 'card-title';
+                h6.appendChild(safeTextNode(src.title || ''));
+
+                const p = document.createElement('p');
+                p.className = 'card-text small text-muted';
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-user-edit me-1';
+                p.appendChild(icon);
+                p.appendChild(safeTextNode((src.authors && src.authors.length) ? src.authors.join(', ') : ''));
+
+                const footRow = document.createElement('div');
+                footRow.className = 'd-flex justify-content-between align-items-center';
+                
+                spanType = document.createElement('span');
+                spanType.className = 'badge bg-info text-dark ms-1';
+                footRow.appendChild(spanType);
+                const typeIcon = document.createElement('i');
+                typeIcon.className = 'me-1 ';
+                switch (src.type) {
+                    case 'Libro':
+                        typeIcon.className += 'fas fa-book';
+                        spanType.classList.add('bg-primary'); // Blue
+                        typeIcon.classList.add('text-white'); // White
+                        typeIcon.appendChild(safeTextNode(' Libro'));
+                        break;
+                    case 'Artículo':
+                        typeIcon.className += 'fas fa-newspaper';
+                        spanType.classList.add('bg-success'); // Green
+                        typeIcon.classList.add('text-white'); // White
+                        typeIcon.appendChild(safeTextNode(' Artículo'));
+                        break;
+                    case 'Video':
+                        typeIcon.className += 'fas fa-video';
+                        spanType.classList.add('bg-danger'); // Red
+                        typeIcon.classList.add('text-white'); // White
+                        typeIcon.appendChild(safeTextNode(' Video'));
+                        break;
+                    default:
+                        typeIcon.className += 'fas fa-file';
+                        spanType.classList.add('bg-secondary'); // Gray
+                        typeIcon.classList.add('text-white'); // White
+                        typeIcon.appendChild(safeTextNode(' Otro'));
+                }
+                typeIcon.style.paddingRight = '0rem';
+                typeIcon.style.marginRight = '0px';
+                spanType.insertBefore(typeIcon, spanType.firstChild);
+
+                const ratingDiv = document.createElement('div');
+                ratingDiv.className = 'rating';
+                if (typeof src.overall_rating !== 'undefined' && src.overall_rating !== null) {
+                    const star = document.createElement('i');
+                    star.className = 'fas fa-star text-warning';
+                    ratingDiv.appendChild(star);
+                    const spanVal = document.createElement('span');
+                    spanVal.appendChild(safeTextNode(String(src.overall_rating)));
+                    ratingDiv.appendChild(spanVal);
+                }
+
+                const typeYearDiv = document.createElement('div');
+                typeYearDiv.className = 'd-flex flex-column';
+                const yearBadge = document.createElement('span');
+                yearBadge.className = 'badge bg-secondary';
+                yearBadge.appendChild(safeTextNode(src.year || ''));
+                yearBadge.style.marginTop = '0.1rem';
+                yearBadge.style.marginLeft = '0.2rem';
+                typeYearDiv.appendChild(spanType);
+                typeYearDiv.appendChild(yearBadge);
+                typeYearDiv.style.alignItems = 'flex-start';
+                typeYearDiv.style.width = '100px';
+                typeYearDiv.style.paddingLeft = '0.5rem';
+
+                footRow.appendChild(typeYearDiv);
+                footRow.appendChild(ratingDiv);
+
+                body.appendChild(h6);
+                body.appendChild(p);
+                body.appendChild(footRow);
+
+                const cardFooter = document.createElement('div');
+                cardFooter.className = 'card-footer bg-transparent';
+                const a = document.createElement('a');
+                a.href = `/post/${src.id}`;
+                a.className = 'btn btn-sm btn-outline-primary w-100';
+                a.appendChild(safeTextNode('Ver detalles'));
+                cardFooter.appendChild(a);
+
+                card.appendChild(body);
+                card.appendChild(cardFooter);
+                wrapper.appendChild(card);
+                relatedSlider.appendChild(wrapper);
             });
-            updateSliderControls();
-        });
-        
-        nextSliderBtn.addEventListener('click', function() {
-            scrollPosition += cardWidth;
-            const maxScroll = relatedSlider.scrollWidth - relatedSlider.clientWidth;
-            if (scrollPosition > maxScroll) scrollPosition = maxScroll;
-            relatedSlider.scrollTo({
-                left: scrollPosition,
-                behavior: 'smooth'
-            });
-            updateSliderControls();
-        });
-        
-        // Actualizar controles al hacer scroll manual
-        relatedSlider.addEventListener('scroll', function() {
-            scrollPosition = relatedSlider.scrollLeft;
-            updateSliderControls();
-        });
-        
-        // Inicializar controles
-        updateSliderControls();
-    }
-    
+
+            // init controls with dynamic widths
+            const firstCard = relatedSlider.querySelector('.related-source-card');
+            const gap = 15; // matches CSS gap
+            const scrollInc = firstCard ? (firstCard.offsetWidth + gap) : 250;
+
+            function updateControls() {
+                if (!prevSliderBtn || !nextSliderBtn) return;
+                prevSliderBtn.disabled = relatedSlider.scrollLeft <= 0;
+                nextSliderBtn.disabled = relatedSlider.scrollLeft >= relatedSlider.scrollWidth - relatedSlider.clientWidth - 1;
+            }
+
+            if (prevSliderBtn && nextSliderBtn) {
+                prevSliderBtn.onclick = function () { relatedSlider.scrollBy({ left: -scrollInc, behavior: 'smooth' }); };
+                nextSliderBtn.onclick = function () { relatedSlider.scrollBy({ left: scrollInc, behavior: 'smooth' }); };
+                relatedSlider.addEventListener('scroll', updateControls);
+                // initial
+                setTimeout(updateControls, 50);
+            }
+        }
+
+        async function loadRelated() {
+            if (!relatedSlider) return;
+            const container = document.querySelector('.container[data-source-id]');
+            const sourceId = container ? container.dataset.sourceId : null;
+            if (!sourceId) {
+                relatedSlider.innerHTML = '<p class="text-muted text-center">Fuente no identificada.</p>';
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/sources/${sourceId}/related`);
+                if (!resp.ok) throw new Error('Network response not ok');
+                const data = await resp.json();
+                const items = (data && Array.isArray(data.results)) ? data.results : [];
+                renderRelated(items.slice(0, 10));
+            } catch (err) {
+                console.error('Error loading related sources', err);
+                relatedSlider.innerHTML = '<p class="text-muted text-center">No se pudieron cargar las fuentes relacionadas.</p>';
+            }
+        }
+
+        // show/hide controls when hovering the slider area (we toggle class 'visible')
+        if (sliderContainer && sliderControls) {
+            sliderContainer.addEventListener('mouseenter', function () { sliderControls.classList.add('visible'); });
+            sliderContainer.addEventListener('mouseleave', function () { sliderControls.classList.remove('visible'); });
+        }
+
+        // Start loading
+        loadRelated();
+    })();
+
     // Sistema de estrellas para calificación de comentarios
     const ratingStars = document.querySelectorAll('.rating-star');
     const ratingValue = document.getElementById('ratingValue');
-    
+
     if (ratingStars.length > 0) {
         ratingStars.forEach(star => {
-            star.addEventListener('mouseover', function() {
+            star.addEventListener('mouseover', function () {
                 const value = this.getAttribute('data-value');
                 highlightStars(value);
             });
-            
-            star.addEventListener('click', function() {
+
+            star.addEventListener('click', function () {
                 const value = this.getAttribute('data-value');
                 ratingValue.value = value;
             });
         });
-        
+
         // Restaurar al salir del contenedor
         const ratingInput = document.querySelector('.rating-input');
         if (ratingInput) {
-            ratingInput.addEventListener('mouseleave', function() {
+            ratingInput.addEventListener('mouseleave', function () {
                 const currentValue = ratingValue.value;
                 highlightStars(currentValue);
             });
         }
-        
+
         function highlightStars(value) {
             ratingStars.forEach(star => {
                 const starValue = star.getAttribute('data-value');
@@ -100,16 +238,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-        
+
         // Inicializar con valor por defecto
         highlightStars(ratingValue.value);
     }
-    
+
     // Exportar citas
     const citationFormat = document.getElementById('citationFormat');
     const citationText = document.getElementById('citationText');
     const copyCitationBtn = document.getElementById('copyCitationBtn');
-    
+
     // Datos de ejemplo (en una aplicación real, esto vendría del servidor)
     const citationFormats = {
         apa: `Russell, S., & Norvig, P. (2020). Inteligencia Artificial: Un Enfoque Moderno (4ta ed.). Pearson.`,
@@ -126,19 +264,19 @@ document.addEventListener('DOMContentLoaded', function() {
     publisher={Pearson}
 }`
     };
-    
+
     if (citationFormat && citationText) {
-        citationFormat.addEventListener('change', function() {
+        citationFormat.addEventListener('change', function () {
             const format = this.value;
             citationText.value = citationFormats[format] || '';
         });
     }
-    
+
     if (copyCitationBtn) {
-        copyCitationBtn.addEventListener('click', function() {
+        copyCitationBtn.addEventListener('click', function () {
             citationText.select();
             citationText.setSelectionRange(0, 99999); // Para móviles
-            
+
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
@@ -146,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.innerHTML = '<i class="fas fa-check me-2"></i>¡Copiado!';
                     this.classList.remove('btn-primary');
                     this.classList.add('btn-success');
-                    
+
                     setTimeout(() => {
                         this.innerHTML = originalText;
                         this.classList.remove('btn-success');
@@ -158,14 +296,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Botones de acción
     const shareBtn = document.getElementById('shareBtn');
     const saveBtn = document.getElementById('saveBtn');
     const reportBtn = document.getElementById('reportBtn');
-    
+
     if (shareBtn) {
-        shareBtn.addEventListener('click', function() {
+        shareBtn.addEventListener('click', function () {
             if (navigator.share) {
                 navigator.share({
                     title: document.title,
@@ -180,19 +318,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     if (saveBtn) {
-        saveBtn.addEventListener('click', function() {
+        saveBtn.addEventListener('click', function () {
             this.innerHTML = '<i class="fas fa-check me-2"></i>Guardado';
             this.classList.remove('btn-outline-primary');
             this.classList.add('btn-success');
-            
+
             setTimeout(() => {
                 this.innerHTML = '<i class="fas fa-bookmark me-2"></i>Guardar';
                 this.classList.remove('btn-success');
                 this.classList.add('btn-outline-primary');
             }, 2000);
         });
-    }    
+    }
     // Note: comment form handling is implemented in post-rate.js
 });

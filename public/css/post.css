@@ -89,11 +89,40 @@
 }
 
 .slider-controls {
-    display: none;
+    display: flex;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    align-items: center;
 }
 
-.related-slider-container:hover .slider-controls {
-    display: block;
+.slider-controls.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.card-img-top {
+    max-height: 100px;
+    max-width: 400px; 
+    /* 
+        Proportional: uses a same aspect ratio of a LaTeX page in 
+        portrait orientation on a Letter-sized paper (8.5:11) 
+    */
+    object-fit: cover;
+    object-position: 50% 15%; 
+    /* 
+        50% centers the image horizontally, 
+        15% shifts the image 15% down from the top
+    */
+}
+
+/* On small screens keep controls visible for accessibility */
+@media (max-width: 768px) {
+    .slider-controls {
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 
 /* Comentarios */

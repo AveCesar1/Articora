@@ -40,10 +40,18 @@ module.exports = function (app) {
                     const entries = Object.entries(dist).sort((a,b) => b[1] - a[1]);
                     if (entries.length > 0) {
                         const total = entries.reduce((s, e) => s + e[1], 0);
-                        recentStudyTopic.category = entries[0][0];
+                        // keys in stored distribution may be category_id (numeric) or category name
+                        const topKey = entries[0][0];
+                        let categoryName = topKey;
+                        // if key looks like an id, fetch name
+                        if (/^\d+$/.test(String(topKey))) {
+                            const catRow = db.prepare('SELECT name FROM categories WHERE id = ?').get(parseInt(topKey, 10)) || {};
+                            categoryName = catRow.name || String(topKey);
+                        }
+                        recentStudyTopic.category = categoryName;
                         recentStudyTopic.percentage = total ? Math.round((entries[0][1] / total) * 100) : 0;
                         recentStudyTopic.recentReadings = entries[0][1] || 0;
-                        recentStudyTopic.color = (req.app.locals.categoryColorMap && req.app.locals.categoryColorMap[entries[0][0]]) || '#6c757d';
+                        recentStudyTopic.color = (req.app.locals.categoryColorMap && req.app.locals.categoryColorMap[categoryName]) || '#6c757d';
                     }
                 }
             } catch (e) {
@@ -100,14 +108,7 @@ module.exports = function (app) {
                 LIMIT 10
             `).all() || [];
 
-            // Recent readings (last 7 days by day)
-            const recentRows = db.prepare(`SELECT DATE(added_at) as day, COUNT(*) as cnt FROM user_readings WHERE user_id = ? AND status = 'read' AND added_at >= datetime('now','-7 days') GROUP BY DATE(added_at) ORDER BY day DESC LIMIT 5`).all(userId) || [];
-            const recentReadings = recentRows.map(r => {
-                const d = new Date(r.day + 'T00:00:00');
-                const today = new Date();
-                const diffDays = Math.floor((+today - +d) / (1000 * 60 * 60 * 24));
-                return { category: 'General', count: r.cnt, date: diffDays === 0 ? 'Hoy' : diffDays === 1 ? 'Ayer' : `${diffDays} días` };
-            });
+
 
             // Reading history - last 30 days (simple series)
             const daysRows = db.prepare(`SELECT DATE(added_at) as day, COUNT(*) as cnt FROM user_readings WHERE user_id = ? AND status = 'read' AND added_at >= datetime('now','-29 days') GROUP BY DATE(added_at) ORDER BY day ASC`).all(userId) || [];
@@ -121,6 +122,52 @@ module.exports = function (app) {
                 last30Days.push(dayMap.get(key) || 0);
             }
 
+            // Get recent activity (last readings, uploads, reviews)
+            const recentReadings = db.prepare(`
+                SELECT s.title, c.name as category, ur.added_at
+                FROM user_readings ur
+                JOIN sources s ON ur.source_id = s.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE ur.user_id = ? AND ur.status = 'read'
+                ORDER BY ur.added_at DESC
+                LIMIT 5
+            `).all(userId) || [];
+
+             const recentUploads = db.prepare(`
+                SELECT title, created_at
+                FROM sources
+                WHERE uploaded_by = ?
+                ORDER BY created_at DESC
+                LIMIT 5
+            `).all(userId) || [];
+
+            const recentReviews = db.prepare(`
+                SELECT s.title, r.created_at
+                FROM ratings r
+                JOIN sources s ON r.source_id = s.id
+                WHERE r.user_id = ?
+                ORDER BY r.created_at DESC
+                LIMIT 5
+            `).all(userId) || [];
+            
+            const recentActivity = []
+                .concat(recentReadings.map(r => ({ type: 'reading', title: r.title, category: r.category || 'General', date: r.added_at })))
+                .concat(recentUploads.map(u => ({ type: 'upload', title: u.title, date: u.created_at })))
+                .concat(recentReviews.map(rev => ({ type: 'review', title: rev.title, date: rev.created_at })))
+                .sort((a,b) => new Date(b.date) - new Date(a.date))
+                .slice(0,5);
+
+            // Load user dashboard settings (if any)
+            const uds = db.prepare('SELECT * FROM user_dashboard_settings WHERE user_id = ?').get(userId) || {};
+            const dashboardSettings = {
+                radarChartPublic: !!uds.radar_chart_public,
+                showRecentStudy: typeof uds.show_recent_study !== 'undefined' ? !!uds.show_recent_study : true,
+                showMyReferences: typeof uds.show_my_references !== 'undefined' ? !!uds.show_my_references : true,
+                showMostRead: typeof uds.show_most_read !== 'undefined' ? !!uds.show_most_read : true,
+                showGlobalTrends: typeof uds.show_global_trends !== 'undefined' ? !!uds.show_global_trends : true,
+                widgetOrder: (uds.widget_order ? (function(){ try { return JSON.parse(uds.widget_order); } catch(e){ return ['recent_study','my_references','most_read','global_trends']; } })() : ['recent_study','my_references','most_read','global_trends'])
+            };
+
             const dashboardData = {
                 userStats: { totalReadings, uploadedSources, completedReadings, activeDays },
                 recentStudyTopic,
@@ -128,14 +175,19 @@ module.exports = function (app) {
                 mostReadTopic,
                 globalTrends: globalTrends.map(g => ({ id: g.id, title: g.title, authors: g.authors ? String(g.authors).split(',') : [], category: g.category || 'General', reads: g.reads || 0, trend: 'stable' })),
                 recentReadings,
-                readingHistory: { last30Days, categories: [], categoryDistribution: [] }
+                recentActivity,
+                readingHistory: { last30Days, categories: [], categoryDistribution: [] },
+                dashboardSettings
             };
+
+            const username = req.session.username || 'usuario';
 
             res.render('dashboard', {
                 title: 'Dashboard - Artícora',
                 currentPage: 'dashboard',
                 cssFile: 'dashboard.css',
-                data: dashboardData
+                data: dashboardData,
+                user: { id: userId, username: username }
             });
         } catch (err) {
             console.error('Error rendering dashboard:', err);
@@ -180,7 +232,47 @@ module.exports = function (app) {
                 if (readingStatsRow.category_distribution) {
                     readingStats = JSON.parse(readingStatsRow.category_distribution);
                 }
-            } catch (e) { }
+                readingStats = Object.assign({ 'Empty': 0 }, readingStats);
+            } catch (e) { 
+                console.error('Error parsing readingStats for user', userId, e && e.message);
+                readingStats = {'Empty': 1}; // fallback to avoid breaking frontend
+            }
+
+            // Get recent activity (last readings, uploads, reviews)
+            const recentReadings = db.prepare(`
+                SELECT s.title, c.name as category, ur.added_at
+                FROM user_readings ur
+                JOIN sources s ON ur.source_id = s.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE ur.user_id = ? AND ur.status = 'read'
+                ORDER BY ur.added_at DESC
+                LIMIT 5
+            `).all(userId) || [];
+
+             const recentUploads = db.prepare(`
+                SELECT title, created_at
+                FROM sources
+                WHERE uploaded_by = ?
+                ORDER BY created_at DESC
+                LIMIT 5
+            `).all(userId) || [];
+
+            const recentReviews = db.prepare(`
+                SELECT s.title, r.created_at
+                FROM ratings r
+                JOIN sources s ON r.source_id = s.id
+                WHERE r.user_id = ?
+                ORDER BY r.created_at DESC
+                LIMIT 5
+            `).all(userId) || [];
+            
+            const recentActivity = []
+                .concat(recentReadings.map(r => ({ type: 'reading', title: r.title, category: r.category || 'General', date: r.added_at })))
+                .concat(recentUploads.map(u => ({ type: 'upload', title: u.title, date: u.created_at })))
+                .concat(recentReviews.map(rev => ({ type: 'review', title: rev.title, date: rev.created_at })))
+                .sort((a,b) => new Date(b.date) - new Date(a.date))
+                .slice(0,5);
+            
 
             const userData = {
                 id: userId,
@@ -195,10 +287,26 @@ module.exports = function (app) {
                 profile_picture: userRow.profile_picture,
                 stats: { sourcesAdded, reviewsWritten, readingLists, collaborations },
                 readingStats: readingStats,
-                recentActivity: [],
+                recentActivity: recentActivity,
                 interests: interests,
                 lists: db.prepare('SELECT id, title, description, total_sources, total_views FROM curatorial_lists WHERE user_id = ? ORDER BY created_at DESC').all(userId)
             };
+
+            // Load dashboard settings for profile-config prefill
+            try {
+                const uds = db.prepare('SELECT * FROM user_dashboard_settings WHERE user_id = ?').get(userId) || {};
+                const dashboardSettings = {
+                    radarChartPublic: !!uds.radar_chart_public,
+                    showRecentStudy: typeof uds.show_recent_study !== 'undefined' ? !!uds.show_recent_study : true,
+                    showMyReferences: typeof uds.show_my_references !== 'undefined' ? !!uds.show_my_references : true,
+                    showMostRead: typeof uds.show_most_read !== 'undefined' ? !!uds.show_most_read : true,
+                    widgetOrder: uds.widget_order ? (function(){ try { return JSON.parse(uds.widget_order); } catch(e){ return ['recent_study','my_references','most_read','global_trends']; } })() : ['recent_study','my_references','most_read','global_trends']
+                };
+                userData.dashboardSettings = dashboardSettings;
+            } catch (e) {
+                console.error('Could not load user_dashboard_settings for profile-config', e && e.message);
+                userData.dashboardSettings = { radarChartPublic: false, showRecentStudy: true, showMyReferences: true, showMostRead: true, widgetOrder: ['recent_study','my_references','most_read','global_trends'] };
+            }
 
             res.render('profile', {
                 title: 'Perfil - Artícora',
@@ -241,6 +349,21 @@ module.exports = function (app) {
             profile_picture: userRow.profile_picture || null,
             interests: interests
         };
+
+        // Load dashboard settings so profile-config can prefill correctly
+        try {
+            const uds = db.prepare('SELECT * FROM user_dashboard_settings WHERE user_id = ?').get(userId) || {};
+            userData.dashboardSettings = {
+                radarChartPublic: !!uds.radar_chart_public,
+                showRecentStudy: typeof uds.show_recent_study !== 'undefined' ? !!uds.show_recent_study : true,
+                showMyReferences: typeof uds.show_my_references !== 'undefined' ? !!uds.show_my_references : true,
+                showMostRead: typeof uds.show_most_read !== 'undefined' ? !!uds.show_most_read : true,
+                widgetOrder: uds.widget_order ? (function(){ try { return JSON.parse(uds.widget_order); } catch(e){ return ['recent_study','my_references','most_read','global_trends']; } })() : ['recent_study','my_references','most_read','global_trends']
+            };
+        } catch (e) {
+            console.error('Could not load user_dashboard_settings for profile-config (prefill)', e && e.message);
+            userData.dashboardSettings = { radarChartPublic: false, showRecentStudy: true, showMyReferences: true, showMostRead: true, widgetOrder: ['recent_study','my_references','most_read','global_trends'] };
+        }
 
         res.render('profile-config', {
             title: 'Configuración del Perfil - Artícora',
@@ -296,6 +419,7 @@ module.exports = function (app) {
             AND status = 'pending'
         `).get(currentUserId, profileId, profileId, currentUserId);
 
+            // Build a fuller userData similar to /profile (but for another user)
             const userData = {
                 id: userRow.id,
                 username: userRow.username,
@@ -306,15 +430,86 @@ module.exports = function (app) {
                 joinDate: userRow.created_at ? new Date(userRow.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
                 bio: userRow.bio || '',
                 availableForMessages: !!userRow.available_for_messages,
-                profilePicture: userRow.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(userRow.full_name || userRow.username)}&background=2c1810&color=e0d6c2`,
+                profile_picture: userRow.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(userRow.full_name || userRow.username)}&background=2c1810&color=e0d6c2`,
                 stats: { sourcesAdded, reviewsWritten, readingLists, collaborations },
                 interests: interests,
                 canSendRequest: userRow.available_for_messages && !contactExists && !pendingRequest,
                 hasPendingRequest: !!pendingRequest,
                 lists: db.prepare('SELECT id, title, description, total_sources, total_views FROM curatorial_lists WHERE user_id = ? ORDER BY created_at DESC').all(profileId),
-                pendingRequestSentByMe: pendingRequest && pendingRequest.sender_id === currentUserId,
-                recentActivity: []
+                pendingRequestSentByMe: pendingRequest && pendingRequest.sender_id === currentUserId
             };
+
+            // Recent activity for the public profile
+            try {
+                const recentReadings = db.prepare(`
+                    SELECT s.title, c.name as category, ur.added_at
+                    FROM user_readings ur
+                    JOIN sources s ON ur.source_id = s.id
+                    LEFT JOIN categories c ON s.category_id = c.id
+                    WHERE ur.user_id = ? AND ur.status = 'read'
+                    ORDER BY ur.added_at DESC
+                    LIMIT 5
+                `).all(profileId) || [];
+
+                const recentUploads = db.prepare(`
+                    SELECT title, created_at
+                    FROM sources
+                    WHERE uploaded_by = ?
+                    ORDER BY created_at DESC
+                    LIMIT 5
+                `).all(profileId) || [];
+
+                const recentReviews = db.prepare(`
+                    SELECT s.title, r.created_at
+                    FROM ratings r
+                    JOIN sources s ON r.source_id = s.id
+                    WHERE r.user_id = ?
+                    ORDER BY r.created_at DESC
+                    LIMIT 5
+                `).all(profileId) || [];
+
+                userData.recentActivity = [].concat(
+                    recentReadings.map(r => ({ type: 'reading', title: r.title, category: r.category || 'General', date: r.added_at })),
+                    recentUploads.map(u => ({ type: 'upload', title: u.title, date: u.created_at })),
+                    recentReviews.map(rev => ({ type: 'review', title: rev.title, date: rev.created_at }))
+                ).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,5);
+            } catch (e) {
+                console.error('Could not load recentActivity for profile view', e && e.message);
+                userData.recentActivity = [];
+            }
+
+            // Reading stats: transform category_distribution into an ordered array [1..8]
+            try {
+                const readingStatsRow = db.prepare('SELECT * FROM reading_stats WHERE user_id = ?').get(profileId) || {};
+                let dist = {};
+                if (readingStatsRow && readingStatsRow.category_distribution) {
+                    try { dist = JSON.parse(readingStatsRow.category_distribution); } catch(e) { dist = {}; }
+                }
+                const readingStatsArr = new Array(8).fill(0);
+                Object.keys(dist).forEach(k => {
+                    const idx = parseInt(k, 10) - 1;
+                    if (!Number.isNaN(idx) && idx >= 0 && idx < 8) readingStatsArr[idx] = dist[k] || 0;
+                });
+                userData.readingStats = readingStatsArr;
+            } catch (e) {
+                console.error('Could not compute readingStats for profile view', e && e.message);
+                userData.readingStats = new Array(8).fill(0);
+            }
+
+            // Load dashboard settings for the profile being viewed
+            try {
+                const uds = db.prepare('SELECT * FROM user_dashboard_settings WHERE user_id = ?').get(profileId) || {};
+                userData.dashboardSettings = {
+                    radarChartPublic: !!uds.radar_chart_public,
+                    showRecentStudy: typeof uds.show_recent_study !== 'undefined' ? !!uds.show_recent_study : true,
+                    showMyReferences: typeof uds.show_my_references !== 'undefined' ? !!uds.show_my_references : true,
+                    showMostRead: typeof uds.show_most_read !== 'undefined' ? !!uds.show_most_read : true,
+                    widgetOrder: uds.widget_order ? (function(){ try { return JSON.parse(uds.widget_order); } catch(e){ return ['recent_study','my_references','most_read','global_trends']; } })() : ['recent_study','my_references','most_read','global_trends']
+                };
+            } catch (e) {
+                console.error('Could not load user_dashboard_settings for public profile', e && e.message);
+                userData.dashboardSettings = { radarChartPublic: false, showRecentStudy: true, showMyReferences: true, showMostRead: true, widgetOrder: ['recent_study','my_references','most_read','global_trends'] };
+            }
 
             res.render('profile', {
                 title: `Perfil de ${userData.fullName} - Artícora`,

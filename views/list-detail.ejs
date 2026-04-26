@@ -25,8 +25,9 @@
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-body text-center">
                                 <div class="mb-3">
-                                    <img src="<%= data.list.coverImage %>" alt="Portada de <%= data.list.title %>"
-                                        class="img-fluid rounded" style="max-height: 200px;">
+                                    <img id="listCoverImg" src="<%= data.list.coverImage %>" alt="Portada de <%= data.list.title %>"
+                                        class="img-fluid rounded list-cover-img <%= data.list.coverIsPng ? 'cover-png' : (data.list.coverIsCategory ? 'cover-category' : '') %>"
+                                        style="max-height: 200px;">
                                 </div>
 
                                 <div class="d-flex gap-2 mb-3 sidebar-actions">
@@ -736,7 +737,7 @@
             <div class="modal-content">
                 <div class="modal-body p-0 text-center">
                     <img id="coverModalImg" src="<%= data.list.coverImage %>" alt="Portada de <%= data.list.title %>"
-                        class="img-fluid w-100" />
+                        class="img-fluid w-100 list-cover-img <%= data.list.coverIsPng ? 'cover-png' : (data.list.coverIsCategory ? 'cover-category' : '') %>" />
                     <div class="p-3">
                         <h5 class="mb-0">
                             <%= data.list.title %>

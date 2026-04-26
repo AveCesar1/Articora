@@ -14,7 +14,7 @@
                         <i class="fas fa-tachometer-alt me-3"></i>Mi Dashboard
                     </h1>
                     <p class="text-muted mb-0">
-                        <i class="fas fa-user me-1"></i> Bienvenido/a, <strong>Usuario</strong> 
+                        <i class="fas fa-user me-1"></i> Bienvenido/a, <strong><%= user.username %></strong> 
                         | Última actualización: <span id="lastUpdate"><%= new Date().toLocaleTimeString('es-ES') %></span>
                     </p>
                 </div>
@@ -76,13 +76,14 @@
     </div>
 
     <!-- Sección 1: Tema de Estudio Reciente -->
+    <% if (!data.dashboardSettings || data.dashboardSettings.showRecentStudy) { %>
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-clock me-2"></i>Tema de Estudio Reciente
-                        <span class="badge bg-secondary ms-2">15% más reciente</span>
+                        <span class="badge bg-secondary ms-2">% reciente</span>
                     </h5>
                 </div>
                 <div class="card-body">
@@ -114,10 +115,12 @@
             </div>
         </div>
     </div>
+    <% } %>
 
     <div class="row">
         <!-- Columna izquierda: Mis Referencias y Tema Más Leído -->
         <div class="col-lg-8">
+            <% if (!data.dashboardSettings || data.dashboardSettings.showMyReferences) { %>
             <!-- Sección 2: Mis Referencias -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -174,7 +177,9 @@
                     </div>
                 </div>
             </div>
+            <% } %>
 
+            <% if (!data.dashboardSettings || data.dashboardSettings.showMostRead) { %>
             <!-- Sección 3: Mi Tema Más Leído -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header">
@@ -218,6 +223,18 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+            <% } %>
+
+            <!-- Sección adicional: Acceso a lista de lectura -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bookmark me-2"></i>Mi Lista de Lectura</h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="text-muted small mb-3">Accede a tus pendientes y al historial de lecturas.</p>
+                    <button class="btn btn-primary" id="openReadingListBtnDashboard"><i class="fas fa-bookmark me-2"></i> Abrir mi lista de lectura</button>
                 </div>
             </div>
         </div>
@@ -283,7 +300,7 @@
                 </div>
             </div>
 
-            <!-- Lecturas Recientes -->
+            <!-- Actividad Reciente -->
             <div class="card shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -291,6 +308,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    <!--
                     <% data.recentReadings.forEach(reading => { %>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
@@ -306,6 +324,42 @@
                         </div>
                     </div>
                     <% }) %>
+                    -->
+
+                    <div class="activity-list">
+                        <% if (data.recentActivity && data.recentActivity.length > 0) { %>
+                            <% data.recentActivity.slice(0, 2).forEach(activity => { %>
+                                <div class="activity-item">
+                                    <div class="activity-icon">
+                                        <% if (activity.type === 'reading') { %>
+                                            <i class="fas fa-book-reader"></i>
+                                        <% } else if (activity.type === 'upload') { %>
+                                            <i class="fas fa-upload"></i>
+                                        <% } else if (activity.type === 'review') { %>
+                                            <i class="fas fa-star"></i>
+                                        <% } else { %>
+                                            <i class="far fa-clock"></i>
+                                        <% } %>
+                                    </div>
+                                    <div class="activity-content">
+                                        <h6 class="activity-title"><%= activity.title %></h6>
+                                        <% if (activity.category) { %>
+                                            <p class="activity-description"><%= activity.category %></p>
+                                        <% } %>
+                                        <span class="activity-time">
+                                            <i class="far fa-clock me-1"></i><%= activity.date %>
+                                        </span>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        <% } else { %>
+                            <div class="text-center text-muted py-5">
+                                <i class="far fa-clock fa-2x mb-3"></i>
+                                <h6 class="mb-1">No hay actividad reciente</h6>
+                                <p class="mb-0">Tus acciones aparecerán aquí cuando interactúes en la plataforma.</p>
+                            </div>
+                        <% } %>
+                    </div>
                 </div>
             </div>
         </div>
@@ -322,5 +376,30 @@
         </div>
     </div>
 </div>
+
+<!-- Datos de actividad reciente para el servidor -->
+<script id="recentActivityData" type="application/json">
+    <%- JSON.stringify(data.recentActivity) %>
+</script>
+
+<!-- Now let's debug the recent activity data -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const recentActivityData = document.getElementById('recentActivityData');
+        if (recentActivityData) {
+            try {
+                const recentActivity = JSON.parse(recentActivityData.textContent);
+                console.log('Recent Activity Data:', recentActivity);
+            } catch (error) {
+                console.error('Error parsing recent activity data:', error);
+            }
+        } else {
+            console.warn('No recent activity data found in the page.');
+        }
+    });
+</script>
+
+<%- include('partials/readingListModal') %>
+<script src="/js/readingList.js"></script>
 
 <%- include('partials/footer', { jsFile: 'dashboard.js' }) %>

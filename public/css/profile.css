@@ -168,9 +168,15 @@
 /* Contenedor de la gráfica de radar */
 .radar-container {
     height: 300px;
+    min-height: 300px;
     width: 100%;
     position: relative;
     margin: 0 auto;
+}
+
+.radar-container canvas {
+    display: block;
+    width: 100%;
 }
 
 /* Actividad reciente */

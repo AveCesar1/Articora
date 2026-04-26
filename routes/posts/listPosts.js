@@ -4,6 +4,36 @@ const soloValidado = checkRoles(['validado', 'admin']);
 const { sanitizeText } = require('../../middlewares/sanitize');
 
 module.exports = function(app) {
+
+	// Helper: compute dominant category for a list and persist it
+	function computeAndSetDominantCategory(db, listId, appRef) {
+		try {
+			const dom = db.prepare(`
+				SELECT s.category_id as cid, coalesce(c.name, '') as name, COUNT(*) as cnt
+				FROM list_sources ls
+				JOIN sources s ON ls.source_id = s.id
+				LEFT JOIN categories c ON s.category_id = c.id
+				WHERE ls.list_id = ?
+				GROUP BY s.category_id
+				ORDER BY cnt DESC
+				LIMIT 1
+			`).get(listId);
+			const domId = dom && dom.cid ? dom.cid : null;
+			if (domId) {
+				db.prepare('UPDATE curatorial_lists SET dominant_category_id = ?, updated_at = datetime(\'now\') WHERE id = ?').run(domId, listId);
+			} else {
+				db.prepare('UPDATE curatorial_lists SET dominant_category_id = NULL, updated_at = datetime(\'now\') WHERE id = ?').run(listId);
+			}
+
+			if (domId) {
+				const colorMap = appRef && appRef.locals && appRef.locals.categoryColorMap ? appRef.locals.categoryColorMap : {};
+				const color = (dom && dom.name && colorMap[dom.name]) ? colorMap[dom.name] : null;
+				const coverImageUrl = dom && dom.name ? `https://placehold.co/600x300/${String(color || '8d6e63').replace('#','')}/f5f1e6?text=${encodeURIComponent(dom.name)}` : null;
+				return { dominantCategoryId: domId, dominantCategoryName: dom.name || null, coverImageUrl, coverIsCategory: !!dom.name };
+			}
+			return { dominantCategoryId: null, dominantCategoryName: null, coverImageUrl: null, coverIsCategory: false };
+		} catch (e) { console.error('computeAndSetDominantCategory error', e); return { dominantCategoryId: null }; }
+	}
 	// Create a new curatorial list
 	app.post('/api/lists', IsRegistered, (req, res) => {
 		try {
@@ -114,7 +144,10 @@ module.exports = function(app) {
 
 			const newTotal = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
 
-			return res.json({ success: true, added, totalSources: newTotal });
+			// Recompute dominant category and return info for frontend updates
+			const domInfo = computeAndSetDominantCategory(db, listId, req.app);
+
+			return res.json({ success: true, added, totalSources: newTotal, dominantCategory: domInfo });
 		} catch (err) {
 			console.error('Error in POST /api/lists/:id/sources', err);
 			return res.status(500).json({ success: false, message: 'internal_error' });
@@ -152,7 +185,9 @@ module.exports = function(app) {
 				db.prepare('UPDATE curatorial_lists SET total_sources = COALESCE(total_sources,0) - 1, updated_at = datetime(\'now\') WHERE id = ? AND total_sources > 0').run(listId);
 			} catch (e) { console.error(e); }
 			const newTotal = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
-			return res.json({ success: true, removed: 1, totalSources: newTotal });
+
+			const domInfo = computeAndSetDominantCategory(db, listId, req.app);
+			return res.json({ success: true, removed: 1, totalSources: newTotal, dominantCategory: domInfo });
 		} catch (err) {
 			console.error('Error in POST /api/remove-from-list/:id', err);
 			return res.status(500).json({ success: false, message: 'internal_error' });

@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS authors (
     affiliation TEXT
 );
 
--- SOURCES table (authors moved to separate tables)
+-- SOURCES table
 CREATE TABLE IF NOT EXISTS sources (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -239,13 +239,15 @@ CREATE TABLE IF NOT EXISTS curatorial_lists (
     title VARCHAR(50) NOT NULL,
     description TEXT,
     cover_image TEXT,
+    dominant_category_id INTEGER,
     is_public BOOLEAN DEFAULT 1,
     is_collaborative BOOLEAN DEFAULT 0,
     total_sources INTEGER DEFAULT 0,
     total_views INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (dominant_category_id) REFERENCES categories(id)
 );
 
 CREATE TABLE IF NOT EXISTS list_sources (
@@ -357,6 +359,17 @@ CREATE TABLE IF NOT EXISTS reading_stats (
     category_distribution TEXT,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Lista de lecturas pendientes ("para leer después") con orden
+CREATE TABLE IF NOT EXISTS user_reading_list (
+    user_id INTEGER NOT NULL,
+    source_id INTEGER NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    position INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, source_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
 );
 
 -- ============================================

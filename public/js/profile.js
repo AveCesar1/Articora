@@ -35,14 +35,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicializar la gráfica de radar
     const radarCanvas = document.getElementById('readingRadarChart');
-    
-    if (radarCanvas && typeof radarConfig !== 'undefined') {
-        const radarChart = new Chart(radarCanvas, radarConfig);
-        
-        // Ajustar la gráfica cuando cambia el tamaño de la ventana
-        window.addEventListener('resize', function() {
-            radarChart.resize();
-        });
+    if (radarCanvas) {
+        const cfg = (typeof radarConfig !== 'undefined') ? radarConfig : (window && window.radarConfig ? window.radarConfig : null);
+        if (cfg) {
+            try {
+                const radarChart = new Chart(radarCanvas, cfg);
+                window.addEventListener('resize', function() { radarChart.resize(); });
+            } catch (e) {
+                console.error('Could not initialize radar chart', e && e.message);
+            }
+        }
     }
     
     // Efectos de hover en tarjetas de listas
@@ -119,5 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cargar datos adicionales de forma dinámica (simulado)
     console.log('Perfil cargado correctamente');
-    console.log('Estadísticas de lectura:', readingStats);
+    // console.log('Estadísticas de lectura:', readingStats);
+    console.log('Actividad reciente:', recentActivity);
 });

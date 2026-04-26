@@ -23,6 +23,14 @@
     height: 100%;
 }
 
+/* Control object-position for list cover variations */
+.list-cover-img.cover-png {
+    object-position: top !important;
+}
+.list-cover-img.cover-category {
+    object-position: center !important;
+}
+
 .card:hover .list-cover img {
     transform: scale(1.05);
 }

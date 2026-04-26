@@ -600,102 +600,88 @@
                     </div>
                 </div>
 
-                <!-- Pestaña 5: Configuración del Dashboard -->
+                <!-- Pestaña 5: Configuración del Dashboard (simplificada) -->
                 <div class="tab-pane fade" id="dashboard-settings">
                     <div class="card shadow-sm">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="fas fa-chart-line me-2"></i>Configuración del Dashboard
+                                <i class="fas fa-chart-line me-2"></i>Elementos del Dashboard
                             </h5>
+                            <small class="text-muted">Selecciona qué módulos quieres que aparezcan en tu dashboard</small>
                         </div>
                         <div class="card-body">
                             <form id="dashboardSettingsForm">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-4">
-                                            <h6 class="mb-3">Elementos del dashboard</h6>
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="checkbox" id="showReadingStatsDashboard" checked>
-                                                <label class="form-check-label" for="showReadingStatsDashboard">
-                                                    Mostrar estadísticas de lectura
-                                                </label>
-                                            </div>
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="checkbox" id="showRecentActivityDashboard" checked>
-                                                <label class="form-check-label" for="showRecentActivityDashboard">
-                                                    Mostrar actividad reciente
-                                                </label>
-                                            </div>
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="checkbox" id="showTrendingSources" checked>
-                                                <label class="form-check-label" for="showTrendingSources">
-                                                    Mostrar fuentes en tendencia
-                                                </label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="showPersonalRecommendations" checked>
-                                                <label class="form-check-label" for="showPersonalRecommendations">
-                                                    Mostrar recomendaciones personalizadas
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-4">
-                                            <h6 class="mb-3">Preferencias de visualización</h6>
-                                            <div class="mb-3">
-                                                <label for="defaultSort" class="form-label">Orden por defecto</label>
-                                                <select class="form-select" id="defaultSort">
-                                                    <option value="recent">Más recientes primero</option>
-                                                    <option value="rating">Mejor calificados primero</option>
-                                                    <option value="relevance">Más relevantes para mí</option>
-                                                    <option value="popular">Más populares primero</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="resultsPerPage" class="form-label">Resultados por página</label>
-                                                <select class="form-select" id="resultsPerPage">
-                                                    <option value="10">10 resultados</option>
-                                                    <option value="20" selected>20 resultados</option>
-                                                    <option value="30">30 resultados</option>
-                                                    <option value="50">50 resultados</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <h6 class="mb-3">Categorías preferidas</h6>
-                                    <p class="text-muted mb-3">Selecciona las categorías que quieres ver con más frecuencia:</p>
-                                    <div class="row">
-                                        <% const categories = [
-                                            { id: 'cognitive', name: 'Ciencias Cognitivas', color: 'primary' },
-                                            { id: 'social', name: 'Ciencias Sociales', color: 'success' },
-                                            { id: 'humanities', name: 'Ciencias Humanistas', color: 'info' },
-                                            { id: 'creative', name: 'Disciplinas Creativas', color: 'warning' },
-                                            { id: 'computational', name: 'Ciencias Computacionales', color: 'danger' },
-                                            { id: 'exact', name: 'Ciencias Exactas', color: 'dark' },
-                                            { id: 'natural', name: 'Ciencias Naturales', color: 'secondary' },
-                                            { id: 'applied', name: 'Ciencias Aplicadas', color: 'purple' }
-                                        ]; %>
-                                        <% categories.forEach(category => { %>
-                                            <div class="col-md-3 mb-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" 
-                                                           id="cat_<%= category.id %>" 
-                                                           <%= category.id === 'computational' || category.id === 'applied' ? 'checked' : '' %>>
-                                                    <label class="form-check-label" for="cat_<%= category.id %>">
-                                                        <span class="badge bg-<%= category.color %> me-1">●</span>
-                                                        <%= category.name %>
-                                                    </label>
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <div class="dashboard-option-card p-3 d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <div class="dashboard-option-icon bg-light rounded-circle me-3">
+                                                    <i class="fas fa-radar fa-lg text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>Hacer público el gráfico radar</strong>
+                                                    <div class="text-muted small">Permite que tu radar de lecturas sea visible públicamente</div>
                                                 </div>
                                             </div>
-                                        <% }) %>
+                                            <div>
+                                                <input class="form-check-input" type="checkbox" id="radarChartPublic" <%= user.dashboardSettings && user.dashboardSettings.radarChartPublic ? 'checked' : '' %>>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <div class="dashboard-option-card p-3 d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <div class="dashboard-option-icon bg-light rounded-circle me-3">
+                                                    <i class="fas fa-clock fa-lg text-success"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>Mostrar tema de estudio reciente</strong>
+                                                    <div class="text-muted small">Resumen de tu categoría más activa</div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <input class="form-check-input" type="checkbox" id="showRecentStudy" <%= user.dashboardSettings && user.dashboardSettings.showRecentStudy ? 'checked' : '' %>>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <div class="dashboard-option-card p-3 d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <div class="dashboard-option-icon bg-light rounded-circle me-3">
+                                                    <i class="fas fa-bookmark fa-lg text-warning"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>Mostrar mis referencias (subidas)</strong>
+                                                    <div class="text-muted small">Acceso rápido a tus últimas fuentes subidas</div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <input class="form-check-input" type="checkbox" id="showMyReferences" <%= user.dashboardSettings && user.dashboardSettings.showMyReferences ? 'checked' : '' %>>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <div class="dashboard-option-card p-3 d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <div class="dashboard-option-icon bg-light rounded-circle me-3">
+                                                    <i class="fas fa-star fa-lg text-danger"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>Mostrar temas más leídos</strong>
+                                                    <div class="text-muted small">Tu historial y tendencias personales</div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <input class="form-check-input" type="checkbox" id="showMostRead" <%= user.dashboardSettings && user.dashboardSettings.showMostRead ? 'checked' : '' %>>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="d-flex justify-content-between">
+                                <div class="d-flex justify-content-between mt-4">
                                     <a href="/profile" class="btn btn-outline-secondary">
                                         <i class="fas fa-times me-2"></i> Cancelar
                                     </a>
@@ -809,6 +795,10 @@
         </div>
     </div>
 </div>
+
+
+<!-- Toast container for feedback toasts -->
+<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;"></div>
 
 <%- include('partials/footer', { jsFile: 'profile-config.js' }) %>
 

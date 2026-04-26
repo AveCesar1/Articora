@@ -459,6 +459,7 @@ module.exports = function (app) {
             // Persist admin flag in session; provide both snake_case and camelCase for compatibility
             req.session.is_admin = (typeof user.is_admin !== 'undefined') ? user.is_admin : 0;
             req.session.isAdmin = !!req.session.is_admin;
+            req.session.username = user.username;
 
             // Debugging for session variables
             if (debugging) console.log('Session after login:', {

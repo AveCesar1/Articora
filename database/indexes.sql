@@ -33,6 +33,8 @@ CREATE INDEX IF NOT EXISTS idx_reports_status_reported_at ON reports(status, rep
 CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
 
+-- 7) User reading lists: lookups by user and position for display and reordering
+CREATE INDEX IF NOT EXISTS idx_user_reading_list_user_pos ON user_reading_list(user_id, position);
 
 -- End of minimal index set
 
@@ -44,3 +46,8 @@ CREATE INDEX IF NOT EXISTS idx_reports_source_id ON reports(source_id);
 CREATE INDEX IF NOT EXISTS idx_ratings_user_id ON ratings(user_id);
 -- Functional index for case-insensitive title lookups (used by duplicate heuristics)
 CREATE INDEX IF NOT EXISTS idx_sources_title_lower ON sources(LOWER(title));
+
+-- Indexes to speed up list and reading lookups
+CREATE INDEX IF NOT EXISTS idx_list_sources_list ON list_sources(list_id);
+CREATE INDEX IF NOT EXISTS idx_list_sources_source ON list_sources(source_id);
+CREATE INDEX IF NOT EXISTS idx_user_readings_user_status_date ON user_readings(user_id, status, added_at DESC);

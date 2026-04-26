@@ -12,6 +12,54 @@ const execPromise = util.promisify(exec);
 const debugging = global.debugging;
 
 module.exports = function (app) {
+  // Helper: update reading_stats for a user
+  function updateReadingStats(db, userId) {
+    try {
+      const totalReadRow = db.prepare('SELECT COUNT(1) as cnt FROM user_readings WHERE user_id = ? AND status = ?').get(userId, 'read');
+      const totalRead = totalReadRow && totalReadRow.cnt ? totalReadRow.cnt : 0;
+      const totalToReadRow = db.prepare('SELECT COUNT(1) as cnt FROM user_reading_list WHERE user_id = ?').get(userId);
+      const totalToRead = totalToReadRow && totalToReadRow.cnt ? totalToReadRow.cnt : 0;
+
+      const catRows = db.prepare('SELECT s.category_id as category_id, COUNT(1) as cnt FROM user_readings u JOIN sources s ON u.source_id = s.id WHERE u.user_id = ? AND u.status = ? GROUP BY s.category_id').all(userId, 'read');
+      const distribution = {};
+      for (const r of catRows) {
+        distribution[r.category_id || 'unknown'] = r.cnt;
+      }
+      const distText = Object.keys(distribution).length ? JSON.stringify(distribution) : null;
+
+      const exists = db.prepare('SELECT user_id FROM reading_stats WHERE user_id = ?').get(userId);
+      if (exists) {
+        db.prepare('UPDATE reading_stats SET total_read = ?, total_to_read = ?, category_distribution = ?, last_updated = datetime(\'now\') WHERE user_id = ?').run(totalRead, totalToRead, distText, userId);
+      } else {
+        db.prepare('INSERT INTO reading_stats (user_id, total_read, total_to_read, category_distribution, last_updated) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, totalRead, totalToRead, distText);
+      }
+    } catch (e) {
+      if (debugging) console.warn('updateReadingStats error', e && e.message);
+    }
+  }
+
+  // Helper: parse a user-supplied date string (YYYY-MM or YYYY-MM-DD) and ensure not future
+  function normalizeReadDate(input) {
+    try {
+      if (!input) return null;
+      const m = String(input).trim();
+      const full = m.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+      if (!full) return null;
+      const y = parseInt(full[1], 10);
+      const mo = parseInt(full[2], 10);
+      const da = full[3] ? parseInt(full[3], 10) : 1;
+      const d = new Date(Date.UTC(y, mo - 1, da));
+      const today = new Date();
+      // compare yyyy-mm-dd (local)
+      const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const cand = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      if (cand > t) return null; // future date not allowed
+      // return YYYY-MM-DD
+      return cand.toISOString().slice(0, 10);
+    } catch (e) {
+      return null;
+    }
+  }
   // Endpoint to receive upload metadata (JSON). Expects authenticated & validated user.
   app.post('/upload', soloValidado, async (req, res) => {
     try {
@@ -323,6 +371,35 @@ module.exports = function (app) {
 
       const userRating = db.prepare('SELECT id, readability, completeness, detail_level, veracity, technical_difficulty, comment, academic_context, version, created_at FROM ratings WHERE id = ?').get(ratingId);
 
+      // RQF174: when a user rates a source, register it as read (with optional read_date)
+      try {
+        // body may include an optional read_date (YYYY-MM or YYYY-MM-DD). Default: today
+        const suppliedDate = req.body && req.body.read_date ? req.body.read_date : null;
+        const normalized = normalizeReadDate(suppliedDate) || new Date().toISOString().slice(0, 10);
+
+        // insert or update user_readings with status 'read'
+        try {
+          const existingRead = db.prepare('SELECT id FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ? LIMIT 1').get(userId, sourceId, 'read');
+          if (existingRead && existingRead.id) {
+            db.prepare('UPDATE user_readings SET read_date = ?, added_at = datetime(\'now\') WHERE id = ?').run(normalized, existingRead.id);
+          } else {
+            db.prepare('INSERT INTO user_readings (user_id, source_id, status, read_date, added_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, sourceId, 'read', normalized);
+          }
+        } catch (e) {
+          if (debugging) console.warn('Could not insert/update user_readings', e && e.message);
+        }
+
+        // remove from pending list if present
+        try {
+          db.prepare('DELETE FROM user_reading_list WHERE user_id = ? AND source_id = ?').run(userId, sourceId);
+        } catch (e) { /* ignore if table missing */ }
+
+        // update reading_stats
+        try { updateReadingStats(db, userId); } catch (e) { /* ignore */ }
+      } catch (e) {
+        if (debugging) console.warn('automatic read registration failed', e && e.message);
+      }
+
       return res.json({ success: true, ratingId, averages: { readability: avgRead, completeness: avgComp, detail_level: avgDetail, veracity: avgVer, technical_difficulty: avgTech }, overall, total, userRating });
     } catch (err) {
       console.error('Error in POST /api/sources/:id/rate', err);
@@ -578,6 +655,197 @@ module.exports = function (app) {
       return res.json({ success: true, history: rows });
     } catch (err) {
       console.error('Error in GET /api/user/ratings/history', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // -----------------------------
+  // Reading list and reads API
+  // -----------------------------
+
+  // Get pending reading list and read history for current user
+  app.get('/api/user/reading-list', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+      const toRead = db.prepare('SELECT l.source_id, l.position, s.title, s.publication_year AS year, s.journal_publisher AS publisher FROM user_reading_list l JOIN sources s ON l.source_id = s.id WHERE l.user_id = ? ORDER BY l.position ASC').all(userId);
+      const reads = db.prepare('SELECT ur.id, ur.source_id, ur.read_date, ur.added_at, s.title FROM user_readings ur LEFT JOIN sources s ON ur.source_id = s.id WHERE ur.user_id = ? AND ur.status = ? ORDER BY ur.read_date DESC').all(userId, 'read');
+
+      const u = db.prepare('SELECT is_validated FROM users WHERE id = ? LIMIT 1').get(userId) || {};
+      const max = u.is_validated ? 10 : 3;
+      const used = toRead ? toRead.length : 0;
+
+      return res.json({ success: true, to_read: toRead, reads, limits: { max, used } });
+    } catch (err) {
+      console.error('Error in GET /api/user/reading-list', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Add a source to pending reading list
+  app.post('/api/user/reading-list', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+      const sourceId = parseInt(req.body && (req.body.sourceId || req.body.source_id), 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      const source = db.prepare('SELECT id FROM sources WHERE id = ? LIMIT 1').get(sourceId);
+      if (!source) return res.status(404).json({ success: false, message: 'source_not_found' });
+
+      const already = db.prepare('SELECT 1 FROM user_reading_list WHERE user_id = ? AND source_id = ?').get(userId, sourceId);
+      if (already) return res.json({ success: true, message: 'already_in_list' });
+
+      const u = db.prepare('SELECT is_validated FROM users WHERE id = ? LIMIT 1').get(userId) || {};
+      const limit = u.is_validated ? 10 : 3;
+      const cntRow = db.prepare('SELECT COUNT(1) as cnt FROM user_reading_list WHERE user_id = ?').get(userId);
+      const cnt = cntRow && cntRow.cnt ? cntRow.cnt : 0;
+      if (cnt >= limit) return res.status(400).json({ success: false, message: 'limit_reached', limit });
+
+      const maxPosRow = db.prepare('SELECT COALESCE(MAX(position), 0) as maxpos FROM user_reading_list WHERE user_id = ?').get(userId);
+      const pos = (maxPosRow && maxPosRow.maxpos ? maxPosRow.maxpos : 0) + 1;
+
+      db.prepare('INSERT INTO user_reading_list (user_id, source_id, position, added_at) VALUES (?, ?, ?, datetime(\'now\'))').run(userId, sourceId, pos);
+      try { updateReadingStats(db, userId); } catch (e) { }
+
+      return res.json({ success: true, sourceId, position: pos });
+    } catch (err) {
+      console.error('Error in POST /api/user/reading-list', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Reorder pending list: expects { order: [sourceId, ...] }
+  app.put('/api/user/reading-list/reorder', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+      const order = Array.isArray(req.body && req.body.order) ? req.body.order : null;
+      if (!order) return res.status(400).json({ success: false, message: 'invalid_order' });
+
+      // validate that all provided ids belong to the user's list
+      const existing = db.prepare('SELECT source_id FROM user_reading_list WHERE user_id = ?').all(userId).map(r => r.source_id);
+      const setExisting = new Set(existing);
+      for (const s of order) if (!setExisting.has(s)) return res.status(400).json({ success: false, message: 'invalid_source_in_order' });
+
+      // update positions
+      const update = db.prepare('UPDATE user_reading_list SET position = ? WHERE user_id = ? AND source_id = ?');
+      for (let i = 0; i < order.length; i++) {
+        update.run(i + 1, userId, order[i]);
+      }
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Error in PUT /api/user/reading-list/reorder', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Remove from pending list
+  app.delete('/api/user/reading-list/:sourceId', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+      const sourceId = parseInt(req.params.sourceId, 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      db.prepare('DELETE FROM user_reading_list WHERE user_id = ? AND source_id = ?').run(userId, sourceId);
+
+      // resequence positions
+      const rows = db.prepare('SELECT source_id FROM user_reading_list WHERE user_id = ? ORDER BY position ASC').all(userId);
+      const update = db.prepare('UPDATE user_reading_list SET position = ? WHERE user_id = ? AND source_id = ?');
+      for (let i = 0; i < rows.length; i++) update.run(i + 1, userId, rows[i].source_id);
+
+      try { updateReadingStats(db, userId); } catch (e) { }
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Error in DELETE /api/user/reading-list/:sourceId', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Add a read record (manual) — body: { sourceId, read_date (optional YYYY-MM or YYYY-MM-DD) }
+  app.post('/api/user/reads', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+
+      const sourceId = parseInt(req.body && (req.body.sourceId || req.body.source_id), 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      const source = db.prepare('SELECT id FROM sources WHERE id = ? LIMIT 1').get(sourceId);
+      if (!source) return res.status(404).json({ success: false, message: 'source_not_found' });
+
+      const supplied = req.body && req.body.read_date ? req.body.read_date : null;
+      const normalized = normalizeReadDate(supplied) || new Date().toISOString().slice(0, 10);
+
+      const existingRead = db.prepare('SELECT id FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ? LIMIT 1').get(userId, sourceId, 'read');
+      if (existingRead && existingRead.id) {
+        db.prepare('UPDATE user_readings SET read_date = ?, added_at = datetime(\'now\') WHERE id = ?').run(normalized, existingRead.id);
+      } else {
+        db.prepare('INSERT INTO user_readings (user_id, source_id, status, read_date, added_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, sourceId, 'read', normalized);
+      }
+
+      // remove from pending list if present
+      try { db.prepare('DELETE FROM user_reading_list WHERE user_id = ? AND source_id = ?').run(userId, sourceId); } catch (e) { }
+
+      try { updateReadingStats(db, userId); } catch (e) { }
+
+      return res.json({ success: true, sourceId, read_date: normalized });
+    } catch (err) {
+      console.error('Error in POST /api/user/reads', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Update read date
+  app.put('/api/user/reads/:sourceId', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+      const sourceId = parseInt(req.params.sourceId, 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      const supplied = req.body && req.body.read_date ? req.body.read_date : null;
+      const normalized = normalizeReadDate(supplied);
+      if (!normalized) return res.status(400).json({ success: false, message: 'invalid_date' });
+
+      const existingRead = db.prepare('SELECT id FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ? LIMIT 1').get(userId, sourceId, 'read');
+      if (!existingRead || !existingRead.id) return res.status(404).json({ success: false, message: 'read_not_found' });
+
+      db.prepare('UPDATE user_readings SET read_date = ? WHERE id = ?').run(normalized, existingRead.id);
+      try { updateReadingStats(db, userId); } catch (e) { }
+
+      return res.json({ success: true, sourceId, read_date: normalized });
+    } catch (err) {
+      console.error('Error in PUT /api/user/reads/:sourceId', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
+  // Delete a read record
+  app.delete('/api/user/reads/:sourceId', async (req, res) => {
+    try {
+      const db = req.db;
+      const userId = req.session && req.session.userId;
+      if (!userId) return res.status(401).json({ success: false, message: 'auth_required' });
+      const sourceId = parseInt(req.params.sourceId, 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
+
+      db.prepare('DELETE FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ?').run(userId, sourceId, 'read');
+      try { updateReadingStats(db, userId); } catch (e) { }
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Error in DELETE /api/user/reads/:sourceId', err);
       return res.status(500).json({ success: false, message: 'internal_error' });
     }
   });
