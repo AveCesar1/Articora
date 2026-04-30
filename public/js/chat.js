@@ -1,4 +1,4 @@
-// chat.js (loader) — carga los fragmentos en public/js/chat/ y los concatena para ejecutar
+// chat.js
 (function() {
   const fragments = [
     '/js/chat/chat-setup.js',
@@ -10,16 +10,21 @@
     '/js/chat/chat-run.js'
   ];
 
+  async function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
   (async function loadAndRun() {
     try {
-      let code = '';
-      for (const f of fragments) {
-        const res = await fetch(f, { cache: 'no-cache' });
-        if (!res.ok) throw new Error('Failed to load ' + f + ' (' + res.status + ')');
-        code += await res.text() + '\n';
+      for (const fragment of fragments) {
+        await loadScript(fragment);
       }
-      // Ejecutar el código concatenado en el scope global
-      new Function(code)();
     } catch (err) {
       console.error('Error loading chat modules:', err);
     }
