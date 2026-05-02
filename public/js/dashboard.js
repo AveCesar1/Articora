@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
             container.classList.remove('updating');
             
             // Mostrar notificación de éxito
-            showNotification('Dashboard actualizado correctamente', 'success');
+            showNotification('Tablero actualizado correctamente', 'success');
             
             // Simular recálculo de estadísticas
             simulateStatsUpdate();
@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateLastUpdateText();
     
     // Mostrar mensaje informativo sobre actualizaciones
-    console.log('Dashboard cargado. Las estadísticas se actualizan automáticamente después de cada lectura.');
+    console.log('Tablero cargado. Las estadísticas se actualizan automáticamente después de cada lectura.');
     
     // Simular actualización periódica (cada 30 segundos) para demostración
     setInterval(() => {

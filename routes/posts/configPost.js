@@ -176,11 +176,6 @@ module.exports = function (app) {
                 profileVisibility,
                 availableForMessages,
                 allowGroupInvites,
-                filterMessages,
-                showReadingStats,
-                showRecentActivity,
-                showListsPublic,
-                showEmail,
                 showInstitution,
                 showJoinDate
             } = req.body;
@@ -189,30 +184,26 @@ module.exports = function (app) {
                 return res.status(401).json({ success: false, message: 'Usuario no autenticado' });
             }
 
-            // Actualizar configuración de privacidad
+            // Actualizar configuración de privacidad básica en users
             db.prepare(`
                 UPDATE users 
                 SET available_for_messages = ?
                 WHERE id = ?
             `).run(availableForMessages ? 1 : 0, userId);
 
-            // Si existe tabla de configuración de privacidad, actualizar
+            // Si existe tabla de configuración de privacidad, actualizar solo los campos relevantes
             try {
                 db.prepare(`
                     INSERT OR REPLACE INTO user_privacy_settings (
                         user_id, profile_visibility, available_for_messages,
-                        allow_group_invites, filter_messages, show_reading_stats,
-                        show_recent_activity, show_lists_public, show_email,
-                        show_institution, show_join_date
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        allow_group_invites, show_institution, show_join_date
+                    ) VALUES (?, ?, ?, ?, ?, ?)
                 `).run(
-                    userId, profileVisibility, availableForMessages ? 1 : 0,
-                    allowGroupInvites ? 1 : 0, filterMessages ? 1 : 0, showReadingStats ? 1 : 0,
-                    showRecentActivity ? 1 : 0, showListsPublic ? 1 : 0, showEmail ? 1 : 0,
-                    showInstitution ? 1 : 0, showJoinDate ? 1 : 0
+                    userId, profileVisibility || 'public', availableForMessages ? 1 : 0,
+                    allowGroupInvites ? 1 : 0, showInstitution ? 1 : 0, showJoinDate ? 1 : 0
                 );
             } catch (e) {
-                // La tabla de privacidad podría no existir, pero guardamos en users
+                // La tabla de privacidad podría no existir; no crítico
             }
 
             return res.json({ 

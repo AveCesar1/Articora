@@ -272,7 +272,48 @@ module.exports = function (app) {
             systemReports = [];
         }
 
-        const stats = { totalPending: manualReports.length + systemReports.length, pendingManual: manualReports.length, pendingSystem: systemReports.length, highPriority: manualReports.filter(r => r.priority === 'alta').length, resolvedToday: 3, avgResolutionTime: "2.5 días" };
+        // Compute real resolvedToday and avgResolutionTime across reports and system alerts
+        let resolvedToday = 0;
+        let avgResolutionTime = '—';
+        try {
+            const resolvedManualToday = db.prepare("SELECT COUNT(*) as c FROM reports WHERE resolved_at IS NOT NULL AND DATE(resolved_at) = DATE('now')").get().c || 0;
+            const resolvedSystemToday = db.prepare("SELECT COUNT(*) as c FROM system_alerts WHERE resolved_at IS NOT NULL AND DATE(resolved_at) = DATE('now')").get().c || 0;
+            resolvedToday = (resolvedManualToday || 0) + (resolvedSystemToday || 0);
+
+            const manualAgg = db.prepare("SELECT COUNT(*) as cnt, SUM(strftime('%s', resolved_at) - strftime('%s', reported_at)) as total_seconds FROM reports WHERE resolved_at IS NOT NULL AND reported_at IS NOT NULL").get() || { cnt: 0, total_seconds: 0 };
+            const systemAgg = db.prepare("SELECT COUNT(*) as cnt, SUM(strftime('%s', resolved_at) - strftime('%s', created_at)) as total_seconds FROM system_alerts WHERE resolved_at IS NOT NULL AND created_at IS NOT NULL").get() || { cnt: 0, total_seconds: 0 };
+
+            const totalCount = (manualAgg.cnt || 0) + (systemAgg.cnt || 0);
+            const totalSeconds = (manualAgg.total_seconds || 0) + (systemAgg.total_seconds || 0);
+            if (totalCount > 0 && totalSeconds > 0) {
+                const avgSeconds = totalSeconds / totalCount;
+                if (avgSeconds >= 86400) {
+                    const days = avgSeconds / 86400;
+                    avgResolutionTime = `${days.toFixed(1)} días`;
+                } else if (avgSeconds >= 3600) {
+                    const hours = avgSeconds / 3600;
+                    avgResolutionTime = `${hours.toFixed(1)} horas`;
+                } else {
+                    const mins = Math.max(1, Math.round(avgSeconds / 60));
+                    avgResolutionTime = `${mins} minutos`;
+                }
+            } else {
+                avgResolutionTime = 'N/A';
+            }
+        } catch (e) {
+            console.error('Error computing moderation stats:', e && e.message);
+            resolvedToday = 0;
+            avgResolutionTime = 'N/A';
+        }
+
+        const stats = {
+            totalPending: manualReports.length + systemReports.length,
+            pendingManual: manualReports.length,
+            pendingSystem: systemReports.length,
+            highPriority: manualReports.filter(r => r.priority === 'alta').length,
+            resolvedToday,
+            avgResolutionTime
+        };
 
         res.render('admin', { 
             title: 'Panel de Administración - Artícora', 

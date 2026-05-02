@@ -314,7 +314,8 @@ module.exports = function (app) {
                 cssFile: 'profile.css',
                 jsFile: 'profile.js',
                 user: userData,
-                isOwnProfile: true
+                isOwnProfile: true,
+                canViewFullProfile: true
             });
         } catch (err) {
             console.error('Error al obtener perfil de usuario:', err);
@@ -350,6 +351,20 @@ module.exports = function (app) {
             interests: interests
         };
 
+        // Load privacy settings (if table exists). Provide defaults.
+        try {
+            const ups = db.prepare('SELECT profile_visibility, allow_group_invites, show_institution, show_join_date FROM user_privacy_settings WHERE user_id = ?').get(userId) || {};
+            userData.profileVisibility = ups.profile_visibility || 'public';
+            userData.allowGroupInvites = typeof ups.allow_group_invites !== 'undefined' ? !!ups.allow_group_invites : true;
+            userData.showInstitution = typeof ups.show_institution !== 'undefined' ? !!ups.show_institution : true;
+            userData.showJoinDate = typeof ups.show_join_date !== 'undefined' ? !!ups.show_join_date : true;
+        } catch (e) {
+            userData.profileVisibility = 'public';
+            userData.allowGroupInvites = true;
+            userData.showInstitution = true;
+            userData.showJoinDate = true;
+        }
+
         // Load dashboard settings so profile-config can prefill correctly
         try {
             const uds = db.prepare('SELECT * FROM user_dashboard_settings WHERE user_id = ?').get(userId) || {};
@@ -376,7 +391,7 @@ module.exports = function (app) {
 
     // Perfil de otro usuario 
     // ⚠️⚠️ (Animal: esto va al final pq sino detecta 'profile' como un ID) ⚠️⚠️
-    app.get('/profile/:id', IsRegistered, (req, res) => {
+    app.get('/profile/:id', (req, res) => {
         const currentUserId = req.session.userId;
         const profileId = parseInt(req.params.id, 10);
 
@@ -392,13 +407,19 @@ module.exports = function (app) {
             const db = req.db;
 
             const userRow = db.prepare(`
-            SELECT id, username, email, profile_picture, bio, institution, 
-                   academic_level, available_for_messages, is_validated, 
-                   created_at, first_name, last_name, full_name
-            FROM users WHERE id = ? AND account_active = 1
-        `).get(profileId);
+                SELECT id, username, email, profile_picture, bio, institution, 
+                    academic_level, available_for_messages, is_validated, 
+                    created_at, first_name, last_name, full_name
+                FROM users WHERE id = ? AND account_active = 1
+            `).get(profileId);
 
-            if (!userRow) return res.status(404).send('Usuario no encontrado');
+            if (!userRow) return res.status(404).render('404', { 
+                errorTitle: 'Usuario no encontrado',
+                errorMessage: 'El usuario que buscas no existe o fue eliminado.',
+                title: 'Usuario no encontrado - Artícora',
+                currentPage: 'post',
+                cssFile: '404.css' 
+            });
 
             const sourcesAdded = db.prepare('SELECT COUNT(*) as c FROM sources WHERE uploaded_by = ?').get(profileId).c || 0;
             const reviewsWritten = db.prepare('SELECT COUNT(*) as c FROM ratings WHERE user_id = ?').get(profileId).c || 0;
@@ -419,24 +440,54 @@ module.exports = function (app) {
             AND status = 'pending'
         `).get(currentUserId, profileId, profileId, currentUserId);
 
+            // Load privacy settings for the profile being viewed
+            let ups = {};
+            try {
+                ups = db.prepare('SELECT profile_visibility, allow_group_invites, show_institution, show_join_date FROM user_privacy_settings WHERE user_id = ?').get(profileId) || {};
+            } catch (e) { ups = {}; }
+
+            const profileVisibility = ups.profile_visibility || 'public';
+            const showInstitution = typeof ups.show_institution !== 'undefined' ? !!ups.show_institution : true;
+            const showJoinDate = typeof ups.show_join_date !== 'undefined' ? !!ups.show_join_date : true;
+
+            // Decide visibility
+            let canViewFullProfile = true;
+            if (profileVisibility === 'private') {
+                return res.status(404).render('404', { 
+                    errorTitle: 'Usuario no encontrado',
+                    errorMessage: 'El usuario que buscas no existe o fue eliminado.',
+                    title: 'Usuario no encontrado - Artícora',
+                    currentPage: 'post',
+                    cssFile: '404.css' 
+                });
+            } else if (profileVisibility === 'contacts') {
+                canViewFullProfile = (currentUserId === profileId) || !!contactExists;
+            } else if (profileVisibility === 'registered') {
+                canViewFullProfile = !!currentUserId; // IsRegistered middleware ensures true
+            } else {
+                canViewFullProfile = true;
+            }
+
             // Build a fuller userData similar to /profile (but for another user)
             const userData = {
                 id: userRow.id,
                 username: userRow.username,
-                fullName: userRow.full_name || userRow.username,
-                academicStatus: userRow.is_validated ? 'Validado' : 'No validado',
-                academicDegree: userRow.academic_level || '',
-                institution: userRow.institution || '',
-                joinDate: userRow.created_at ? new Date(userRow.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-                bio: userRow.bio || '',
+                fullName: canViewFullProfile ? (userRow.full_name || userRow.username) : 'Perfil privado',
+                academicStatus: canViewFullProfile ? (userRow.is_validated ? 'Validado' : 'No validado') : '',
+                academicDegree: canViewFullProfile ? (userRow.academic_level || '') : 'Atributo privado',
+                institution: (canViewFullProfile && showInstitution) ? userRow.institution || 'Error' : 'Atributo privado',
+                joinDate: (canViewFullProfile && showJoinDate && userRow.created_at) ? new Date(userRow.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Atributo privado',
+                bio: canViewFullProfile ? (userRow.bio || '') : '',
                 availableForMessages: !!userRow.available_for_messages,
                 profile_picture: userRow.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(userRow.full_name || userRow.username)}&background=2c1810&color=e0d6c2`,
-                stats: { sourcesAdded, reviewsWritten, readingLists, collaborations },
-                interests: interests,
+                stats: canViewFullProfile ? { sourcesAdded, reviewsWritten, readingLists, collaborations } : { sourcesAdded: 0, reviewsWritten: 0, readingLists: 0, collaborations: 0 },
+                interests: canViewFullProfile ? interests : [],
                 canSendRequest: userRow.available_for_messages && !contactExists && !pendingRequest,
                 hasPendingRequest: !!pendingRequest,
-                lists: db.prepare('SELECT id, title, description, total_sources, total_views FROM curatorial_lists WHERE user_id = ? ORDER BY created_at DESC').all(profileId),
-                pendingRequestSentByMe: pendingRequest && pendingRequest.sender_id === currentUserId
+                lists: canViewFullProfile ? db.prepare('SELECT id, title, description, total_sources, total_views FROM curatorial_lists WHERE user_id = ? ORDER BY created_at DESC').all(profileId) : [],
+                pendingRequestSentByMe: pendingRequest && pendingRequest.sender_id === currentUserId,
+                profileVisibility: profileVisibility,
+                canViewFullProfile: canViewFullProfile
             };
 
             // Recent activity for the public profile

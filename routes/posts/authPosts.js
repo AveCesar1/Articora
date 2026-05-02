@@ -539,6 +539,138 @@ module.exports = function (app) {
         }
     });
 
+    // --- Forgot password flow ---
+    // Step 1: request reset (identifier = username or email)
+    app.post('/forgot-password', async (req, res) => {
+        try {
+            let identifier = (req.body && req.body.identifier) ? sanitizeText(req.body.identifier).toLowerCase() : '';
+            if (!identifier) return res.status(400).json({ success: false, message: 'missing_identifier' });
+
+            const db = req.db;
+            let user = null;
+            const isEmail = identifier.includes('@');
+            if (isEmail) {
+                const enc = encryptEmail(identifier, req.app);
+                user = db.prepare('SELECT id, email, username FROM users WHERE email = ? LIMIT 1').get(enc) || null;
+            } else {
+                user = db.prepare('SELECT id, email, username FROM users WHERE username = ? LIMIT 1').get(identifier) || null;
+            }
+
+            // Always respond with success to avoid account enumeration. If user exists, send email with code.
+            if (user) {
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                if (debugging) console.log(`Códig de verificación para el usuario ${user.id}: ${code}`)
+                const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+                req.session.passwordReset = {
+                    userId: user.id,
+                    code,
+                    expiresAt,
+                    attempts: 0,
+                    verified: false
+                };
+
+                // Try to send email with transporter
+                try {
+                    const transporter = req.app && req.app.locals && req.app.locals.transporter;
+                    const plainEmail = user.email ? decryptEmail(user.email, req.app) : null;
+                    if (transporter && plainEmail) {
+                        const html = await ejs.renderFile(path.join(__dirname, '..', '..', 'views', 'emails', 'forgot_password.ejs'), {
+                            username: user.username || '',
+                            recoveryCode: code
+                        });
+                        await transporter.sendMail({
+                            from: '"Artícora" <articora.noreply@gmail.com>',
+                            to: plainEmail,
+                            subject: 'Código para restablecer contraseña – Artícora',
+                            text: `Tu código de recuperación es: ${code}. Es válido por 15 minutos.`,
+                            html
+                        });
+                    } else {
+                        console.warn('forgot-password: transporter or plainEmail not available; skipping email send');
+                    }
+                } catch (mailErr) {
+                    console.error('Error sending forgot-password email:', mailErr);
+                }
+            }
+
+            return res.json({ success: true, message: 'Si existe una cuenta asociada se ha enviado un código.' });
+        } catch (err) {
+            console.error('Error in POST /forgot-password', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Step 2: verify code submitted by user (stored in session)
+    app.post('/forgot-password/verify', (req, res) => {
+        try {
+            const code = sanitizeText(req.body && req.body.code ? req.body.code : '');
+            if (!req.session.passwordReset) return res.status(400).json({ success: false, message: 'no_pending_reset' });
+            const pending = req.session.passwordReset;
+            if (Date.now() > pending.expiresAt) {
+                delete req.session.passwordReset;
+                return res.status(400).json({ success: false, message: 'expired' });
+            }
+            if (pending.attempts >= 5) {
+                delete req.session.passwordReset;
+                return res.status(400).json({ success: false, message: 'too_many_attempts' });
+            }
+            if (pending.code !== code) {
+                req.session.passwordReset.attempts = (req.session.passwordReset.attempts || 0) + 1;
+                return res.status(400).json({ success: false, message: 'invalid_code' });
+            }
+            req.session.passwordReset.verified = true;
+            return res.json({ success: true, message: 'verified' });
+        } catch (err) {
+            console.error('Error in POST /forgot-password/verify', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Step 3: set new password (requires verified session state)
+    app.post('/forgot-password/reset', async (req, res) => {
+        try {
+            const newPassword = req.body && req.body.newPassword ? String(req.body.newPassword) : '';
+            if (!req.session.passwordReset || !req.session.passwordReset.verified) return res.status(400).json({ success: false, message: 'not_verified' });
+            if (!newPassword || newPassword.length < 8) return res.status(400).json({ success: false, message: 'invalid_password' });
+
+            const userId = req.session.passwordReset.userId;
+            if (!userId) return res.status(400).json({ success: false, message: 'invalid_state' });
+
+            // Hash and update password
+            const salt = await bcrypt.genSalt(12);
+            const hashed = await bcrypt.hash(newPassword, salt);
+            req.db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashed, userId);
+
+            // NOTE: re-encrypting client-encrypted private keys server-side is not possible
+            // unless a server-wrapped backup of the private key exists (not present by default).
+            // We therefore DO NOT attempt to change the encrypted_private_key fields here.
+
+            // Clear session state
+            delete req.session.passwordReset;
+
+            // Optionally send confirmation email (best-effort)
+            try {
+                const userRow = req.db.prepare('SELECT email, username FROM users WHERE id = ?').get(userId);
+                if (userRow && userRow.email) {
+                    const plainEmail = decryptEmail(userRow.email, req.app);
+                    const transporter = req.app && req.app.locals && req.app.locals.transporter;
+                    if (transporter && plainEmail) {
+                        // Render HTML email using template
+                        const html = await ejs.renderFile(path.join(__dirname, '..', '..', 'views', 'emails', 'password_reset_confirmation.ejs'), { username: userRow.username || '', appUrl: req.app && req.app.locals && req.app.locals.appUrl });
+                        await transporter.sendMail({ from: '"Artícora" <articora.noreply@gmail.com>', to: plainEmail, subject: 'Contraseña restablecida – Artícora', text: 'Su contraseña ha sido restablecida.', html });
+                    }
+                }
+            } catch (mailErr) {
+                console.warn('forgot-password: could not send confirmation email', mailErr);
+            }
+
+            return res.json({ success: true, message: 'password_reset' , warning: 'private_key_may_be_inaccessible'});
+        } catch (err) {
+            console.error('Error in POST /forgot-password/reset', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
     // SISTEMA DE SUBIDA DE DOCUMENTOS DE VERIFICACIÓN
     // En tres partes:
     // 1. Configurar Multer para validación

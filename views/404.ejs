@@ -18,13 +18,25 @@
             <h1 class="display-1 fw-bold text-muted mb-3">404</h1>
             <h2 class="mb-4">
                 <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-                Página no encontrada
+                <%= typeof errorTitle !== 'undefined' ? errorTitle : 'Página no encontrada' %>
             </h2>
-            
+
             <p class="lead text-muted mb-5">
-                Lo sentimos, la página que estás buscando no existe o ha sido movida.
-                Puede que la URL haya cambiado o la página haya sido eliminada.
+                <%= typeof errorMessage !== 'undefined' ? errorMessage : 'Lo sentimos, la página que estás buscando no existe o ha sido movida. Puede que la URL haya cambiado o la página haya sido eliminada.' %>
             </p>
+
+            <% if (typeof errorType !== 'undefined') { %>
+                <div class="alert alert-info">
+                    <strong>Detalle:</strong>
+                    <% if (errorType === 'source') { %>
+                        Esta entrada corresponde a una fuente no encontrada. Intenta buscarla en el <a href="/search">buscador</a> por título, autor o DOI.
+                    <% } else if (errorType === 'user') { %>
+                        Usuario no encontrado. Verifica el enlace o busca el perfil en la sección de usuarios.
+                    <% } else { %>
+                        Información adicional: <%= errorMessage || '' %>
+                    <% } %>
+                </div>
+            <% } %>
 
             <!-- Sugerencias -->
             <div class="row justify-content-center mb-5">

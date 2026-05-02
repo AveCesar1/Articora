@@ -332,5 +332,28 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 2000);
         });
     }
+    // Delete button for owners
+    const deleteBtn = document.getElementById('deleteBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async function () {
+            const ok = confirm('¿Eliminar esta publicación? Esta acción marcará la fuente como eliminada.');
+            if (!ok) return;
+            try {
+                const sourceId = this.dataset.sourceId;
+                const resp = await fetch(`/api/sources/${encodeURIComponent(sourceId)}/delete`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.success) throw new Error(data && data.message ? data.message : 'error');
+                alert('Publicación eliminada. Serás redirigido.');
+                window.location.href = '/search';
+            } catch (err) {
+                console.error('Error deleting source', err);
+                alert('No se pudo eliminar la publicación: ' + (err.message || 'error'));
+            }
+        });
+    }
     // Note: comment form handling is implemented in post-rate.js
 });

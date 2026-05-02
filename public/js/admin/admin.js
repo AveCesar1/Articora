@@ -16,9 +16,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     };
 
     window.elements = {
-        filterReports: document.getElementById('filterReports'),
         refreshData: document.getElementById('refreshData'),
-        bulkActions: document.getElementById('bulkActions'),
         exportManualReports: document.getElementById('exportManualReports'),
         exportSystemReports: document.getElementById('exportSystemReports'),
         runSystemChecks: document.getElementById('runSystemChecks'),
@@ -130,9 +128,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Attach event listeners (use wrappers that call module methods)
     function setupEventListeners() {
         const el = window.elements;
-        if (el.filterReports) el.filterReports.addEventListener('click', () => { if (window.adminTools && window.adminTools.showFilterModal) window.adminTools.showFilterModal(); else window.showToast('Filtros no disponibles', 'warning'); });
         if (el.refreshData) el.refreshData.addEventListener('click', () => { if (window.adminTools && window.adminTools.refreshData) window.adminTools.refreshData(); else window.showToast('Actualizando datos...', 'info'); });
-        if (el.bulkActions) el.bulkActions.addEventListener('click', () => { if (window.adminTools && window.adminTools.showBulkActionsModal) window.adminTools.showBulkActionsModal(); else window.showToast('Acciones masivas no disponibles', 'warning'); });
         if (el.exportManualReports) el.exportManualReports.addEventListener('click', () => { if (window.adminManual && window.adminManual.exportManualReports) window.adminManual.exportManualReports(); });
         if (el.exportSystemReports) el.exportSystemReports.addEventListener('click', () => { if (window.adminAuto && window.adminAuto.exportSystemReports) window.adminAuto.exportSystemReports(); });
         if (el.runSystemChecks) el.runSystemChecks.addEventListener('click', () => { if (window.adminAuto && window.adminAuto.runSystemChecks) window.adminAuto.runSystemChecks(); });

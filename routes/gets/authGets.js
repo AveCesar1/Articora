@@ -1,8 +1,6 @@
 const IsRegistered = require('../../middlewares/auth');
 
 module.exports = function (app) {
-    // Rutas públicas GET extraídas desde server.js
-
     app.get('/', (req, res) => {
         res.render('landing', { 
             title: 'Artícora - Plataforma de Investigación Colaborativa',
@@ -58,6 +56,16 @@ module.exports = function (app) {
             cssFile: 'verify-email.css',
             jsFile: 'verify-email.js',
             email: email
+        });
+    });
+
+    // Página para recuperar contraseña (formulario de varios pasos)
+    app.get('/forgot-password', (req, res) => {
+        res.render('forgot-password', {
+            title: 'Recuperar contraseña - Artícora',
+            currentPage: 'forgot-password',
+            cssFile: 'forgot-password.css',
+            jsFile: 'forgot-password.js'
         });
     });
 };

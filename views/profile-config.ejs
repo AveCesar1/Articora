@@ -43,7 +43,7 @@
                         </a>
                         <a href="#dashboard-settings" class="list-group-item list-group-item-action config-menu-item" 
                            data-bs-toggle="tab">
-                            <i class="fas fa-chart-line me-2"></i> Dashboard
+                            <i class="fas fa-chart-line me-2"></i> Tablero
                         </a>
                         <a href="#notification-settings" class="list-group-item list-group-item-action config-menu-item" 
                            data-bs-toggle="tab">
@@ -496,93 +496,83 @@
                         <div class="card-body">
                             <form id="privacySettingsForm">
                                 <div class="privacy-section mb-5">
-                                    <h6 class="mb-3">Visibilidad del perfil</h6>
-                                    <div class="form-check mb-3">
-                                        <input class="form-check-input" type="radio" name="profileVisibility" 
-                                               id="visibilityPublic" value="public" checked>
-                                        <label class="form-check-label" for="visibilityPublic">
-                                            <strong>Público</strong> - Cualquier usuario puede ver tu perfil completo
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-3">
-                                        <input class="form-check-input" type="radio" name="profileVisibility" 
-                                               id="visibilityRegistered" value="registered">
-                                        <label class="form-check-label" for="visibilityRegistered">
-                                            <strong>Solo usuarios registrados</strong> - Solo usuarios con cuenta pueden ver tu perfil
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="profileVisibility" 
-                                               id="visibilityContacts" value="contacts">
-                                        <label class="form-check-label" for="visibilityContacts">
-                                            <strong>Solo mis contactos</strong> - Solo usuarios que tengas como contactos pueden ver tu perfil
-                                        </label>
-                                    </div>
-                                </div>
+                                                    <h6 class="mb-3">Visibilidad del perfil</h6>
+                                                    <div class="btn-group d-flex" role="group" aria-label="Profile visibility">
+                                                        <label class="btn btn-outline-primary active flex-fill text-start">
+                                                            <input type="radio" name="profileVisibility" id="visibilityPublic" value="public" autocomplete="off" <%= user.profileVisibility === 'public' ? 'checked' : '' %> hidden>
+                                                            <i class="fas fa-globe me-2"></i><strong>Público</strong>
+                                                            <div class="small text-muted">Visible para cualquiera</div>
+                                                        </label>
+                                                        <label class="btn btn-outline-primary flex-fill text-start">
+                                                            <input type="radio" name="profileVisibility" id="visibilityRegistered" value="registered" autocomplete="off" <%= user.profileVisibility === 'registered' ? 'checked' : '' %> hidden>
+                                                            <i class="fas fa-user-check me-2"></i><strong>Registrados</strong>
+                                                            <div class="small text-muted">Solo usuarios con cuenta</div>
+                                                        </label>
+                                                        <label class="btn btn-outline-primary flex-fill text-start">
+                                                            <input type="radio" name="profileVisibility" id="visibilityContacts" value="contacts" autocomplete="off" <%= user.profileVisibility === 'contacts' ? 'checked' : '' %> hidden>
+                                                            <i class="fas fa-users me-2"></i><strong>Contactos</strong>
+                                                            <div class="small text-muted">Solo tus contactos</div>
+                                                        </label>
+                                                        <label class="btn btn-outline-danger flex-fill text-start">
+                                                            <input type="radio" name="profileVisibility" id="visibilityPrivate" value="private" autocomplete="off" <%= user.profileVisibility === 'private' ? 'checked' : '' %> hidden>
+                                                            <i class="fas fa-lock me-2"></i><strong>Privado</strong>
+                                                            <div class="small text-muted">Nadie puede ver tu perfil</div>
+                                                        </label>
+                                                    </div>
+                                                </div>
 
                                 <div class="privacy-section mb-5">
                                     <h6 class="mb-3">Control de mensajes</h6>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="availableForMessages" 
-                                               <%= user.availableForMessages ? 'checked' : '' %>>
-                                        <label class="form-check-label" for="availableForMessages">
-                                            Disponible para recibir mensajes de otros usuarios
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <label class="btn btn-outline-success d-flex align-items-start p-3">
+                                            <input type="checkbox" id="availableForMessages" autocomplete="off" <%= user.availableForMessages ? 'checked' : '' %> hidden>
+                                            <div class="me-3">
+                                                <i class="fas fa-envelope-open-text fa-2x"></i>
+                                            </div>
+                                            <div class="text-start">
+                                                <strong>Disponible para mensajes</strong>
+                                                <div class="small text-muted">Permite que otros te envíen solicitudes</div>
+                                            </div>
                                         </label>
-                                    </div>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="allowGroupInvites" checked>
-                                        <label class="form-check-label" for="allowGroupInvites">
-                                            Permitir invitaciones a grupos de chat
-                                        </label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="filterMessages" checked>
-                                        <label class="form-check-label" for="filterMessages">
-                                            Filtrar mensajes de usuarios no verificados
+
+                                        <label class="btn btn-outline-primary d-flex align-items-start p-3">
+                                            <input type="checkbox" id="allowGroupInvites" autocomplete="off" <%= user.allowGroupInvites ? 'checked' : '' %> hidden>
+                                            <div class="me-3">
+                                                <i class="fas fa-users-cog fa-2x"></i>
+                                            </div>
+                                            <div class="text-start">
+                                                <strong>Permitir invitaciones a grupos</strong>
+                                                <div class="small text-muted">Controla si pueden invitarte a grupos</div>
+                                            </div>
                                         </label>
                                     </div>
                                 </div>
 
-                                <div class="privacy-section mb-5">
-                                    <h6 class="mb-3">Visibilidad de actividad</h6>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="showReadingStats" checked>
-                                        <label class="form-check-label" for="showReadingStats">
-                                            Mostrar mi gráfico de radar de lecturas
-                                        </label>
-                                    </div>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="showRecentActivity" checked>
-                                        <label class="form-check-label" for="showRecentActivity">
-                                            Mostrar mi actividad reciente
-                                        </label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="showListsPublic" checked>
-                                        <label class="form-check-label" for="showListsPublic">
-                                            Hacer públicas mis listas curatoriales
-                                        </label>
-                                    </div>
-                                </div>
+                                <!-- Visibilidad de actividad eliminada (gestionada desde Dashboard) -->
 
                                 <div class="privacy-section mb-5">
                                     <h6 class="mb-3">Datos personales</h6>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="showEmail" checked>
-                                        <label class="form-check-label" for="showEmail">
-                                            Mostrar mi correo electrónico en el perfil
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <label class="btn btn-outline-secondary d-flex align-items-start p-3">
+                                            <input type="checkbox" id="showInstitution" autocomplete="off" <%= user.showInstitution ? 'checked' : '' %> hidden>
+                                            <div class="me-3">
+                                                <i class="fas fa-building fa-2x"></i>
+                                            </div>
+                                            <div class="text-start">
+                                                <strong>Mostrar institución</strong>
+                                                <div class="small text-muted">Controla si tu institución aparece en el perfil</div>
+                                            </div>
                                         </label>
-                                    </div>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="showInstitution" checked>
-                                        <label class="form-check-label" for="showInstitution">
-                                            Mostrar mi institución académica
-                                        </label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="showJoinDate" checked>
-                                        <label class="form-check-label" for="showJoinDate">
-                                            Mostrar fecha de ingreso a la plataforma
+
+                                        <label class="btn btn-outline-secondary d-flex align-items-start p-3">
+                                            <input type="checkbox" id="showJoinDate" autocomplete="off" <%= user.showJoinDate ? 'checked' : '' %> hidden>
+                                            <div class="me-3">
+                                                <i class="fas fa-calendar-alt fa-2x"></i>
+                                            </div>
+                                            <div class="text-start">
+                                                <strong>Mostrar fecha de ingreso</strong>
+                                                <div class="small text-muted">Permite ver cuándo te uniste</div>
+                                            </div>
                                         </label>
                                     </div>
                                 </div>
@@ -605,9 +595,9 @@
                     <div class="card shadow-sm">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="fas fa-chart-line me-2"></i>Elementos del Dashboard
+                                <i class="fas fa-chart-line me-2"></i>Elementos del Tablero
                             </h5>
-                            <small class="text-muted">Selecciona qué módulos quieres que aparezcan en tu dashboard</small>
+                            <small class="text-muted">Selecciona qué módulos quieres que aparezcan en tu tablero</small>
                         </div>
                         <div class="card-body">
                             <form id="dashboardSettingsForm">
@@ -804,3 +794,36 @@
 
 <!-- Verification-specific script -->
 <script src="/js/profile-config-auth.js"></script>
+
+<script>
+// Sync visual "active" state for button-label toggles and radios
+document.addEventListener('DOMContentLoaded', function(){
+    // Radios: profileVisibility
+    const visibilityInputs = Array.from(document.querySelectorAll('input[name="profileVisibility"]'));
+    visibilityInputs.forEach(inp => {
+        const label = inp.closest('label');
+        if (!label) return;
+        if (inp.checked) label.classList.add('active'); else label.classList.remove('active');
+        inp.addEventListener('change', () => {
+            visibilityInputs.forEach(i => {
+                const l = i.closest('label'); if (!l) return;
+                if (i.checked) l.classList.add('active'); else l.classList.remove('active');
+            });
+        });
+    });
+
+    // Checkboxes inside labels
+    const checkboxInputs = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+    checkboxInputs.forEach(cb => {
+        const label = cb.closest('label');
+        if (!label) return;
+        if (cb.checked) label.classList.add('active'); else label.classList.remove('active');
+        label.addEventListener('click', function(e){
+            // Delay to allow input.checked to update
+            setTimeout(() => {
+                if (cb.checked) label.classList.add('active'); else label.classList.remove('active');
+            }, 10);
+        });
+    });
+});
+</script>

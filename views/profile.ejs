@@ -8,6 +8,23 @@
 %>
 
 <div class="container py-5">
+    <% if (typeof canViewFullProfile !== 'undefined' && !canViewFullProfile) { %>
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow text-center py-5">
+                    <div class="card-body">
+                        <img src="<%= user.profile_picture ? user.profile_picture : ('https://placehold.co/200x200/2c1810/e0d6c2?text=' + encodeURIComponent((user.fullName || '').charAt(0))) %>" alt="Avatar" class="profile-avatar mb-4">
+                        <h3 class="mb-2">Perfil privado</h3>
+                        <p class="text-muted mb-3">Este usuario ha configurado su perfil como privado. No tienes permiso para ver su información.</p>
+                        <div class="d-flex justify-content-center">
+                            <a href="/search" class="btn btn-outline-primary me-2">Buscar usuarios</a>
+                            <a href="/dashboard" class="btn btn-secondary">Ir a mi dashboard</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% } else { %>
     <!-- Tarjeta principal del perfil -->
     <div class="card profile-header-card shadow-lg mb-5">
         <div class="card-body">
@@ -263,6 +280,8 @@
         </div>
     </div>
 </div>
+
+    <% } %>
 
 <!-- Script para Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

@@ -20,7 +20,13 @@ module.exports = function(app) {
         try {
             // Verificar existencia y disponibilidad del receptor
             const receiver = req.db.prepare('SELECT id, available_for_messages FROM users WHERE id = ? AND account_active = 1').get(receiverId);
-            if (!receiver) return res.status(404).json({ error: 'Usuario no encontrado' });
+            if (!receiver) return res.status(404).render('404', { 
+                errorTitle: 'Usuario no encontrado',
+                errorMessage: 'El perfil que buscas no existe o fue eliminado.',
+                title: 'Usuario no encontrado - Artícora',
+                currentPage: 'post',
+                cssFile: '404.css' 
+            });
             if (!receiver.available_for_messages) return res.status(400).json({ error: 'El usuario no está disponible para mensajes' });
 
             // Verificar si ya son contactos
@@ -95,7 +101,13 @@ module.exports = function(app) {
             const request = req.db.prepare(`
                 SELECT * FROM contact_requests WHERE id = ? AND receiver_id = ? AND status = 'pending'
             `).get(requestId, userId);
-            if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
+            if (!request) return res.status(404).render('404', { 
+                errorTitle: 'Solicitud no encontrada',
+                errorMessage: 'La solicitud que buscas no existe o fue eliminada.',
+                title: 'Solicitud no encontrada - Artícora',
+                currentPage: 'post',
+                cssFile: '404.css' 
+            });
 
             // Transacción
             const update = req.db.prepare(`
@@ -160,7 +172,13 @@ module.exports = function(app) {
             const request = req.db.prepare(`
                 SELECT * FROM contact_requests WHERE id = ? AND receiver_id = ? AND status = 'pending'
             `).get(requestId, userId);
-            if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
+            if (!request) return res.status(404).render('404', { 
+                errorTitle: 'Solicitud no encontrada',
+                errorMessage: 'La solicitud que buscas no existe o fue eliminada.',
+                title: 'Solicitud no encontrada - Artícora',
+                currentPage: 'post',
+                cssFile: '404.css' 
+            });
 
             req.db.prepare(`
                 UPDATE contact_requests SET status = 'rejected', responded_at = CURRENT_TIMESTAMP WHERE id = ?
@@ -306,6 +324,35 @@ module.exports = function(app) {
             return res.status(400).json({ error: 'Alguno de los usuarios no existe o está inactivo' });
         }
 
+        // Respect allow_group_invites on invitees: remove any user that disallows invites
+        try {
+            const invitees = participants.filter(p => p !== userId);
+            if (invitees.length > 0) {
+                const ph = invitees.map(() => '?').join(',');
+                const rows = req.db.prepare(`SELECT user_id, allow_group_invites FROM user_privacy_settings WHERE user_id IN (${ph})`).all(...invitees) || [];
+                const allowMap = new Map(rows.map(r => [r.user_id, !!r.allow_group_invites]));
+                const omitted = [];
+                for (const pid of invitees) {
+                    const allowed = (typeof allowMap.get(pid) === 'undefined') ? true : allowMap.get(pid);
+                    if (!allowed) {
+                        // remove from participants
+                        participants = participants.filter(x => x !== pid);
+                        omitted.push(pid);
+                    }
+                }
+                if (omitted.length > 0) {
+                    // if after omission only the creator remains, inform client and abort
+                    if (participants.length <= 1) {
+                        return res.status(400).json({ error: 'Ninguno de los usuarios invitados permite ser añadido a grupos.' });
+                    }
+                    // otherwise continue but include omitted list in response
+                    req.omittedInvitees = omitted;
+                }
+            }
+        } catch (e) {
+            console.error('Error checking allow_group_invites:', e && e.message);
+        }
+
         // Crear el chat
         const chatStmt = req.db.prepare(`
             INSERT INTO chats (chat_type, group_name, created_by, last_message_at)
@@ -326,7 +373,8 @@ module.exports = function(app) {
 
         res.status(201).json({
             message: 'Grupo creado exitosamente',
-            groupId: chatId
+            groupId: chatId,
+            omittedInvitees: req.omittedInvitees || []
         });
     });
 

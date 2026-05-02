@@ -6,7 +6,6 @@ const noAdmin = checkRoles(['validado', 'no_validado']);
 const { sanitizeText } = require('../../middlewares/sanitize');
 
 module.exports = function (app) {
-
     // Helper: normalize cover URLs coming from DB
     function normalizeCoverUrl(raw, sourceId) {
         if (!raw) {
@@ -243,6 +242,155 @@ module.exports = function (app) {
     });
 
     // Detalle de lista
+    // Public route: serve public lists to anonymous users. If the list is not public,
+    // delegate to the authentication-protected route by calling next(). This route
+    // must be defined BEFORE the protected one so it can short-circuit for public lists.
+    app.get('/lists/:id', (req, res, next) => {
+        try {
+            const listId = parseInt(req.params.id, 10);
+            if (!listId) return next();
+
+            const db = req.db;
+            const listRow = db.prepare('SELECT cl.*, u.full_name as creatorName FROM curatorial_lists cl JOIN users u ON cl.user_id = u.id WHERE cl.id = ?').get(listId);
+            if (!listRow) return next();
+
+            // If list is not public, let the original protected route handle authentication/authorization
+            if (!listRow.is_public) return next();
+
+            // Build the same view model as the protected route, but allow req.user to be undefined
+            const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
+
+            const sourcesRows = db.prepare(`
+                SELECT s.id, s.title, s.publication_year as year, s.cover_image_url as cover, s.overall_rating as rating, s.is_active, s.uploaded_by, c.name as category, ls.added_at as addedDate, ls.sort_order as sort_order
+                FROM list_sources ls
+                JOIN sources s ON ls.source_id = s.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE ls.list_id = ?
+                ORDER BY COALESCE(ls.sort_order, ls.added_at) ASC
+            `).all(listId);
+
+            const sources = sourcesRows.map(s => {
+                const isDeleted = !s.is_active;
+                const cover = !isDeleted ? (normalizeCoverUrl(s.cover, s.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada') : 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada';
+                const uploader = (s.uploaded_by) ? db.prepare('SELECT full_name FROM users WHERE id = ?').get(s.uploaded_by) : null;
+                const author = uploader ? (uploader.full_name || 'Usuario') : 'N/A';
+
+                return {
+                    id: s.id,
+                    title: s.title,
+                    author,
+                    year: s.year,
+                    category: s.category || 'Desconocida',
+                    rating: s.rating || 0,
+                    addedDate: s.addedDate,
+                    cover,
+                    isDeleted,
+                    order: s.sort_order
+                };
+            });
+
+            const cats = db.prepare(`
+                SELECT coalesce(c.name,'Desconocida') as name, COUNT(*) as cnt
+                FROM list_sources ls
+                JOIN sources s ON ls.source_id = s.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE ls.list_id = ?
+                GROUP BY c.name
+            `).all(listId);
+            const categoriesDistribution = {};
+            cats.forEach(r => { categoriesDistribution[r.name] = Math.round((r.cnt / (totalSources || 1)) * 100); });
+
+            const collaborators = db.prepare("SELECT u.id, u.full_name as name, u.profile_picture, lc.status FROM list_collaborators lc JOIN users u ON lc.user_id = u.id WHERE lc.list_id = ?").all(listId).map(r => ({ id: r.id, name: r.name || 'Usuario', avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || 'Usuario')}&background=2E8B57&color=fff`, status: r.status }));
+
+            // Compute cover image (same logic as protected route)
+            let computedCoverImage = null;
+            let coverIsCategory = false;
+            let coverIsPng = false;
+            if (listRow.dominant_category_id) {
+                const dom = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(listRow.dominant_category_id) || {};
+                if (dom && dom.name) {
+                    const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[dom.name] : null;
+                    computedCoverImage = `https://placehold.co/600x300/${String(catColor || '#8d6e63').replace('#','')}/f5f1e6?text=${encodeURIComponent(dom.name)}`;
+                    coverIsCategory = true;
+                }
+            } else if (listRow.cover_image) {
+                const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[listRow.cover_image] : null;
+                if (catColor) {
+                    computedCoverImage = `https://placehold.co/600x300/${String(catColor).replace('#','')}/f5f1e6?text=${encodeURIComponent(listRow.cover_image)}`;
+                    coverIsCategory = true;
+                } else {
+                    const token = String(listRow.cover_image).trim().toLowerCase();
+                    if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
+                        computedCoverImage = null;
+                    } else {
+                        computedCoverImage = normalizeCoverUrl(listRow.cover_image, sources && sources[0] ? sources[0].id : null);
+                        if (computedCoverImage && /.png$/i.test(computedCoverImage)) coverIsPng = true;
+                    }
+                }
+            }
+
+            const list = {
+                id: listRow.id,
+                title: listRow.title,
+                description: listRow.description,
+                creatorName: listRow.creatorName || 'Usuario',
+                isCollaborative: !!listRow.is_collaborative,
+                isPublic: !!listRow.is_public,
+                totalSources,
+                totalVisits: listRow.total_views || 0,
+                monthlyVisits: Array(12).fill(0),
+                categoriesDistribution,
+                collaborators,
+                sources,
+                coverImage: computedCoverImage || (sources[0] && sources[0].cover) || 'https://placehold.co/400x250/5d4037/f5f1e6?text=Primera+Fuente',
+                coverIsCategory: coverIsCategory,
+                coverIsPng: coverIsPng || (computedCoverImage ? (/\.png$/i.test(computedCoverImage)) : false),
+                createdAt: listRow.created_at,
+                lastModified: listRow.updated_at || listRow.created_at
+            };
+
+            // Build viewer info safely (support anonymous viewers and JWT-based res.locals.user)
+            let user = {
+                id: null,
+                isOwner: false,
+                isCollaborator: false,
+                canEdit: false,
+                maxSourcesPerList: 15,
+                canCreateCollaborative: false
+            };
+            try {
+                const viewerId = (req.user && req.user.id) || (res.locals && res.locals.user && res.locals.user.id) || null;
+                if (viewerId) {
+                    const userRow = db.prepare('SELECT id, username, full_name, profile_picture, is_validated FROM users WHERE id = ?').get(viewerId) || {};
+                    const isOwner = viewerId === listRow.user_id;
+                    const isCollaborator = collaborators.find(c => c.id === viewerId) ? true : false;
+                    user = {
+                        id: viewerId,
+                        isOwner: isOwner,
+                        isCollaborator: isCollaborator,
+                        canEdit: isOwner || isCollaborator,
+                        maxSourcesPerList: (userRow && userRow.is_validated) ? 50 : 15,
+                        canCreateCollaborative: !!(userRow && userRow.is_validated)
+                    };
+                }
+            } catch (e) {
+                // keep anonymous fallback
+            }
+
+            const data = {
+                user,
+                list,
+                knowledgeCategories: (req.app && req.app.locals && req.app.locals.categoryColorMap) ? Object.keys(req.app.locals.categoryColorMap).map(name => ({ name, color: req.app.locals.categoryColorMap[name] })) : []
+            };
+
+            return res.render('list-detail', { title: `${list.title} - Artícora`, currentPage: 'lists', cssFile: 'lists.css', data });
+        } catch (err) {
+            console.error('Error in public GET /lists/:id', err);
+            return next();
+        }
+    });
+
+    // Protected route for lists (kept for authenticated-only access to non-public lists)
     app.get('/lists/:id', IsRegistered, noAdmin, (req, res) => {
         try {
             const listId = parseInt(req.params.id, 10);
@@ -598,6 +746,136 @@ module.exports = function (app) {
             return res.json({ success: true, lists });
         } catch (err) {
             console.error('Error in GET /api/my-lists', err);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // API: get a single list as JSON (includes sources, collaborators, categories distribution)
+    app.get('/api/lists/:id', (req, res) => {
+        try {
+            const listId = parseInt(req.params.id, 10);
+            if (Number.isNaN(listId)) return res.status(400).json({ success: false, message: 'invalid_list_id' });
+
+            const db = req.db;
+            const listRow = db.prepare('SELECT cl.*, u.full_name as creatorName FROM curatorial_lists cl JOIN users u ON cl.user_id = u.id WHERE cl.id = ?').get(listId);
+            if (!listRow) return res.status(404).json({ success: false, message: 'list_not_found' });
+
+            // Viewer detection (support session-based req.user or JWT in res.locals.user)
+            const viewerId = (req.user && req.user.id) || (res.locals && res.locals.user && res.locals.user.id) || null;
+
+            // If list is not public, enforce permission checks
+            if (!listRow.is_public) {
+                if (!viewerId) return res.status(403).json({ success: false, message: 'forbidden' });
+                if (viewerId !== listRow.user_id) {
+                    const coll = db.prepare("SELECT 1 FROM list_collaborators WHERE list_id = ? AND user_id = ? AND status = 'accepted'").get(listId, viewerId);
+                    if (!coll) return res.status(403).json({ success: false, message: 'forbidden' });
+                }
+            }
+
+            const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
+
+            const sourcesRows = db.prepare(`
+                SELECT s.id, s.title, s.publication_year as year, s.cover_image_url as cover, s.overall_rating as rating, s.is_active, s.uploaded_by, c.name as category, ls.added_at as addedDate, ls.sort_order as sort_order
+                FROM list_sources ls
+                JOIN sources s ON ls.source_id = s.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE ls.list_id = ?
+                ORDER BY COALESCE(ls.sort_order, ls.added_at) ASC
+            `).all(listId);
+
+            const sources = sourcesRows.map(s => {
+                const isDeleted = !s.is_active;
+                const cover = !isDeleted ? (normalizeCoverUrl(s.cover, s.id) || 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada') : 'https://placehold.co/150x200/cccccc/999999?text=Sin+portada';
+                const uploader = (s.uploaded_by) ? db.prepare('SELECT full_name FROM users WHERE id = ?').get(s.uploaded_by) : null;
+                const author = uploader ? (uploader.full_name || 'Usuario') : 'N/A';
+                return {
+                    id: s.id,
+                    title: s.title,
+                    author,
+                    year: s.year,
+                    category: s.category || 'Desconocida',
+                    rating: s.rating || 0,
+                    addedDate: s.addedDate,
+                    cover,
+                    isDeleted,
+                    order: s.sort_order
+                };
+            });
+
+            const cats = db.prepare(`
+                SELECT coalesce(c.name,'Desconocida') as name, COUNT(*) as cnt
+                FROM list_sources ls
+                JOIN sources s ON ls.source_id = s.id
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE ls.list_id = ?
+                GROUP BY c.name
+            `).all(listId);
+            const categoriesDistribution = {};
+            cats.forEach(r => { categoriesDistribution[r.name] = Math.round((r.cnt / (totalSources || 1)) * 100); });
+
+            const collaborators = db.prepare("SELECT u.id, u.full_name as name, u.profile_picture, lc.status FROM list_collaborators lc JOIN users u ON lc.user_id = u.id WHERE lc.list_id = ?").all(listId).map(r => ({ id: r.id, name: r.name || 'Usuario', avatar: r.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name||'Usuario')}&background=2E8B57&color=fff`, status: r.status }));
+
+            // Compute cover image
+            let computedCoverImage = null;
+            let coverIsCategory = false;
+            let coverIsPng = false;
+            if (listRow.dominant_category_id) {
+                const dom = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(listRow.dominant_category_id) || {};
+                if (dom && dom.name) {
+                    const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[dom.name] : null;
+                    computedCoverImage = `https://placehold.co/600x300/${String(catColor || '#8d6e63').replace('#','')}/f5f1e6?text=${encodeURIComponent(dom.name)}`;
+                    coverIsCategory = true;
+                }
+            } else if (listRow.cover_image) {
+                const catColor = req.app && req.app.locals && req.app.locals.categoryColorMap ? req.app.locals.categoryColorMap[listRow.cover_image] : null;
+                if (catColor) {
+                    computedCoverImage = `https://placehold.co/600x300/${String(catColor).replace('#','')}/f5f1e6?text=${encodeURIComponent(listRow.cover_image)}`;
+                    coverIsCategory = true;
+                } else {
+                    const token = String(listRow.cover_image).trim().toLowerCase();
+                    if (token === 'primera portada' || token === 'primera_portada' || token === 'auto' || token === 'first') {
+                        computedCoverImage = null;
+                    } else {
+                        computedCoverImage = normalizeCoverUrl(listRow.cover_image, sources && sources[0] ? sources[0].id : null);
+                        if (computedCoverImage && /.png$/i.test(computedCoverImage)) coverIsPng = true;
+                    }
+                }
+            }
+
+            const list = {
+                id: listRow.id,
+                title: listRow.title,
+                description: listRow.description,
+                creatorName: listRow.creatorName || 'Usuario',
+                isCollaborative: !!listRow.is_collaborative,
+                isPublic: !!listRow.is_public,
+                totalSources,
+                totalVisits: listRow.total_views || 0,
+                monthlyVisits: Array(12).fill(0),
+                categoriesDistribution,
+                collaborators,
+                sources,
+                coverImage: computedCoverImage || (sources[0] && sources[0].cover) || 'https://placehold.co/400x250/5d4037/f5f1e6?text=Primera+Fuente',
+                coverIsCategory: coverIsCategory,
+                coverIsPng: coverIsPng || (computedCoverImage ? (/\.png$/i.test(computedCoverImage)) : false),
+                createdAt: listRow.created_at,
+                lastModified: listRow.updated_at || listRow.created_at
+            };
+
+            // Build viewer info
+            let user = { id: null, isOwner: false, isCollaborator: false, canEdit: false, maxSourcesPerList: 15, canCreateCollaborative: false };
+            if (viewerId) {
+                const urow = db.prepare('SELECT id, is_validated FROM users WHERE id = ?').get(viewerId) || {};
+                const isOwner = viewerId === listRow.user_id;
+                const isCollaborator = collaborators.find(c => c.id === viewerId) ? true : false;
+                user = { id: viewerId, isOwner, isCollaborator, canEdit: isOwner || isCollaborator, maxSourcesPerList: (urow && urow.is_validated) ? 50 : 15, canCreateCollaborative: !!(urow && urow.is_validated) };
+            }
+
+            const knowledgeCategories = (req.app && req.app.locals && req.app.locals.categoryColorMap) ? Object.keys(req.app.locals.categoryColorMap).map(name => ({ name, color: req.app.locals.categoryColorMap[name] })) : [];
+
+            return res.json({ success: true, user, list, knowledgeCategories });
+        } catch (err) {
+            console.error('Error in GET /api/lists/:id', err);
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });

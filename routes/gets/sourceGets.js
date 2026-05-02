@@ -659,7 +659,7 @@ module.exports = function (app) {
             if (!q || q.length < 3) return res.json({ success: true, results: [] });
             const db = req.db;
             const like = `%${q}%`;
-            const rows = db.prepare("SELECT id, username, full_name FROM users WHERE is_validated = 1 AND (username LIKE ? OR full_name LIKE ?) ORDER BY username LIMIT 20").all(like, like);
+            const rows = db.prepare("SELECT id, username, full_name FROM users WHERE is_validated = 1 AND id != ? AND (username LIKE ? OR full_name LIKE ?) ORDER BY username LIMIT 20").all(req.user.id, like, like);
             const results = rows.map(r => ({ id: r.id, username: r.username, full_name: r.full_name, name: r.full_name || r.username }));
             return res.json({ success: true, results });
         } catch (err) {

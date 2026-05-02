@@ -453,6 +453,66 @@ module.exports = function (app) {
     }
   });
 
+  // Allow uploader (owner) or admin to permanently delete a source and cascade related rows
+  app.post('/api/sources/:id/delete', IsRegistered, (req, res) => {
+    try {
+      const db = req.db;
+      const sourceId = parseInt(req.params.id, 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+      const row = db.prepare('SELECT uploaded_by FROM sources WHERE id = ?').get(sourceId);
+      if (!row) return res.status(404).json({ success: false, message: 'not_found' });
+
+      const userId = req.user && req.user.id;
+      const isAdmin = req.user && req.user.isAdmin;
+      if (!userId) return res.status(403).json({ success: false, message: 'not_authenticated' });
+
+      if (row.uploaded_by !== userId && !isAdmin) {
+        return res.status(403).json({ success: false, message: 'forbidden' });
+      }
+
+      // Perform a transactional delete so all dependent rows are removed and aggregates updated
+      try {
+        const tx = db.transaction(() => {
+          // capture affected lists so we can recompute totals after deletion
+          let affectedLists = [];
+          try {
+            const rows = db.prepare('SELECT DISTINCT list_id FROM list_sources WHERE source_id = ?').all(sourceId) || [];
+            affectedLists = rows.map(r => r.list_id);
+          } catch (e) { affectedLists = []; }
+
+          // Delete the source; cascading foreign keys should remove related rows (ratings, urls, authors, etc.)
+          db.prepare('DELETE FROM sources WHERE id = ?').run(sourceId);
+
+          // Recompute total_sources for any curatorial lists that contained this source
+          for (const lid of affectedLists) {
+            try {
+              const cntRow = db.prepare('SELECT COUNT(1) as cnt FROM list_sources WHERE list_id = ?').get(lid);
+              const cnt = cntRow && cntRow.cnt ? cntRow.cnt : 0;
+              db.prepare('UPDATE curatorial_lists SET total_sources = ? WHERE id = ?').run(cnt, lid);
+            } catch (e) { /* ignore per-list update errors */ }
+          }
+
+          // Insert system alert for audit
+          try {
+            db.prepare('INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))')
+              .run('source_deleted', 'low', `Fuente #${sourceId} eliminada por usuario ${userId}`, JSON.stringify({ sourceId, userId }));
+          } catch (e) { /* ignore */ }
+        });
+
+        tx();
+      } catch (delErr) {
+        console.error('Error deleting source transaction', delErr);
+        return res.status(500).json({ success: false, message: 'delete_failed' });
+      }
+
+      return res.json({ success: true, message: 'deleted' });
+    } catch (err) {
+      console.error('Error in POST /api/sources/:id/delete', err);
+      return res.status(500).json({ success: false, message: 'internal_error' });
+    }
+  });
+
   // Update only academic_context for a rating (ownership or admin required)
   app.put('/api/ratings/:id/grade', async (req, res) => {
     try {

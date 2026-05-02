@@ -189,6 +189,40 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    const otpContainer = document.querySelector('.otp-input-container');
+    if (otpContainer) {
+        otpContainer.addEventListener('paste', function(e) {
+            e.preventDefault();
+            
+            // Obtener el texto del portapapeles
+            const pasteData = e.clipboardData.getData('text').trim();
+            if (!pasteData) return;
+
+            // Limpieza:
+            const cleanCode = pasteData.replace(/\D/g, ''); 
+
+            // Si el texto pegado tiene al menos 6 caracteres válidos
+            if (cleanCode.length >= 6) {
+                // Tomar solo los primeros 6 por seguridad
+                const codeChars = cleanCode.substring(0, 6).split('');
+
+                // Llenar cada uno de los 6 inputs con su carácter correspondiente
+                recoveryDigits.forEach((input, index) => {
+                    input.value = codeChars[index] || '';
+                });
+
+                // CTUALIZAR EL CAMPO OCULTO para el envío final del formulario
+                const fullCode = Array.from(recoveryDigits).map(d => d.value).join('');
+                recoveryCodeInput.value = fullCode;
+
+                // Mover el foco al último input para mejor experiencia
+                if (recoveryDigits.length > 0) {
+                    recoveryDigits[recoveryDigits.length - 1].focus();
+                }
+            }
+        });
+    }
     
     // Mostrar/ocultar contraseñas
     toggleNewPasswordBtn.addEventListener('click', function() {
@@ -233,13 +267,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Simular envío de código
-        showAlert('info', `Se ha enviado un código de recuperación al correo asociado con "${userIdentifier}".`);
-        
-        // Avanzar al paso 2 después de un breve retraso
-        setTimeout(() => {
-            goToStep(2);
-        }, 1500);
+        // Enviar petición al servidor para generar código
+        (async function() {
+            try {
+                const resp = await fetch('/forgot-password', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ identifier: userIdentifier })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data && data.message ? data.message : 'error');
+                showAlert('info', 'Si existe una cuenta asociada, se ha enviado un código al correo.');
+                setTimeout(() => { goToStep(2); }, 800);
+            } catch (err) {
+                console.error('forgot-password identify error', err);
+                showAlert('danger', err.message || 'Error al solicitar código');
+            }
+        })();
     });
     
     // Paso 2: Verificación de código
@@ -258,18 +303,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Simular verificación
-        showAlert('info', 'Verificando código de recuperación...');
-        
-        setTimeout(() => {
-            // Simulación de éxito
-            showAlert('success', 'Código verificado correctamente.');
-            
-            // Avanzar al paso 3
-            setTimeout(() => {
-                goToStep(3);
-            }, 1000);
-        }, 1500);
+        // Enviar código al servidor para verificar
+        (async function() {
+            try {
+                const resp = await fetch('/forgot-password/verify', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ code: recoveryCode })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data && data.message ? data.message : 'invalid_code');
+                showAlert('success', 'Código verificado correctamente.');
+                setTimeout(() => { goToStep(3); }, 700);
+            } catch (err) {
+                console.error('forgot-password verify error', err);
+                showAlert('danger', err.message || 'Código inválido');
+            }
+        })();
     });
     
     // Paso 3: Nueva contraseña
@@ -290,17 +341,41 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Simular actualización de contraseña
-        showAlert('info', 'Estableciendo nueva contraseña...');
-        
-        setTimeout(() => {
-            showAlert('success', '¡Contraseña actualizada exitosamente!');
-            
-            // Redirigir al login después de 2 segundos
-            setTimeout(() => {
-                window.location.href = '/login?passwordChanged=true';
-            }, 2000);
-        }, 1500);
+        // Enviar nueva contraseña al servidor (si existe clave privada desencriptada en localStorage, re-encriptarla primero)
+        (async function() {
+            try {
+                const body = { newPassword };
+
+                const localPriv = localStorage.getItem('articora_private_key');
+                if (localPriv) {
+                    try {
+                        const enc = await encryptPrivateKeyWithPassword(localPriv, newPassword);
+                        body.encryptedPrivateKey = enc.encryptedPrivateKey;
+                        body.privateKeyIv = enc.iv;
+                        body.privateKeySalt = enc.salt;
+                        body.privateKeyTag = enc.tag;
+                    } catch (encErr) {
+                        console.error('Error re-encrypting local private key:', encErr);
+                        showAlert('danger', 'No se pudo re-encriptar la clave privada local. Copia tu clave privada antes de continuar.');
+                        return;
+                    }
+                }
+
+                const resp = await fetch('/forgot-password/reset', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data && data.message ? data.message : 'error');
+                showAlert('success', 'Contraseña actualizada exitosamente. Redirigiendo al inicio de sesión...');
+                setTimeout(() => { window.location.href = '/login?passwordChanged=true'; }, 1000);
+            } catch (err) {
+                console.error('forgot-password reset error', err);
+                showAlert('danger', err.message || 'No se pudo restablecer la contraseña');
+            }
+        })();
     });
     
     // Reenviar código de recuperación
@@ -315,17 +390,28 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             recoveryCodeInput.value = '';
         }
-        
-        showAlert('success', 'Se ha enviado un nuevo código a tu correo electrónico.');
-        
-        // Deshabilitar temporalmente el botón
-        this.disabled = true;
-        this.innerHTML = '<i class="fas fa-clock me-1"></i> Código enviado';
-        
-        setTimeout(() => {
-            this.disabled = false;
-            this.innerHTML = '<i class="fas fa-redo me-1"></i> Reenviar código';
-        }, 30000);
+        // Llamar de nuevo al endpoint para solicitar reenvío
+        (async () => {
+            try {
+                const resp = await fetch('/forgot-password', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ identifier: document.getElementById('userIdentifier').value.trim() })
+                });
+                await resp.json();
+                showAlert('success', 'Se ha enviado un nuevo código a tu correo electrónico.');
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-clock me-1"></i> Código enviado';
+                setTimeout(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-redo me-1"></i> Reenviar código';
+                }, 30000);
+            } catch (err) {
+                console.error('resend recovery error', err);
+                showAlert('danger', 'No se pudo reenviar el código. Intenta más tarde.');
+            }
+        })();
     });
     
     // Navegación hacia atrás

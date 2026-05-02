@@ -352,9 +352,15 @@
                             </div>
                         <% } %>
 
-                        <button type="button" class="btn btn-outline-primary flex-fill" id="reportBtn">
-                            <i class="fas fa-flag me-2"></i>Reportar
-                        </button>
+                        <% if (typeof currentUserId !== 'undefined' && currentUserId && post.uploadedById && Number(currentUserId) === Number(post.uploadedById)) { %>
+                            <button type="button" class="btn btn-outline-danger flex-fill" id="deleteBtn" data-source-id="<%= post.id %>">
+                                <i class="fas fa-trash me-2"></i>Eliminar
+                            </button>
+                        <% } else { %>
+                            <button type="button" class="btn btn-outline-primary flex-fill" id="reportBtn">
+                                <i class="fas fa-flag me-2"></i>Reportar
+                            </button>
+                        <% } %>
                     </div>
                 </div>
             </div>

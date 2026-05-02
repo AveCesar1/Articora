@@ -747,6 +747,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setupAddSourcesModal() {
+        // If the specialized list-modals.js already initialized handlers, skip duplicate setup
+        if (window._articoraListModalsInitialized) return;
+
         const modal = document.getElementById('addSourcesModal');
         if (!modal) return;
 

@@ -162,11 +162,10 @@
                 const resp = await fetch(`/api/lists/${listId}/sources`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ source_ids: ids }) });
                 const j = await resp.json();
                 if (j && j.success) {
-                    // Update UI in-place: update counters and cover if provided, then close modal
+                    // Update UI in-place: update counters and cover if provided
                     const sc = document.getElementById('sourceCount');
                     if (sc && typeof j.totalSources !== 'undefined') sc.textContent = String(j.totalSources);
 
-                    // update cover image if backend returned dominantCategory info
                     try {
                         if (j.dominantCategory && j.dominantCategory.coverImageUrl) {
                             const coverImg = document.getElementById('listCoverImg');
@@ -192,12 +191,97 @@
 
                     // optionally clear selection state
                     selected = new Set(); renderSelectedList(); setAddButtonState();
+
+                    // Try to fetch updated list data (so we can refresh the DOM without full reload)
+                    try {
+                        const resp2 = await fetch(`/api/lists/${listId}`);
+                        const j2 = await resp2.json();
+                        if (j2 && j2.success && j2.list) {
+                            // update local model and refresh UI
+                            pageData.list = pageData.list || {};
+                            pageData.list = j2.list;
+                            // update counters again from authoritative response
+                            if (typeof j2.list.totalSources !== 'undefined') {
+                                const sc2 = document.getElementById('sourceCount'); if (sc2) sc2.textContent = String(j2.list.totalSources);
+                            }
+                            updateSourcesDisplay(j2.list);
+                        }
+                    } catch (e) {
+                        console.error('Could not refresh list after add', e);
+                    }
                 } else {
                     alert('Error: ' + (j && j.message ? j.message : 'no se pudo añadir'));
                     addBtn.disabled = false; addBtn.textContent = 'Añadir a la lista';
                 }
             } catch (e) { console.error(e); alert('Error de red'); addBtn.disabled = false; addBtn.textContent = 'Añadir a la lista'; }
         });
+    }
+
+    // Update the sources display area after changes (used for both edit table and public grid)
+    function updateSourcesDisplay(list) {
+        try {
+            if (!list) return;
+
+            // Update edit-mode table if present
+            const tbody = document.getElementById('sourcesList');
+            if (tbody) {
+                let rows = '';
+                if (list.sources && list.sources.length > 0) {
+                    list.sources.forEach((source, index) => {
+                        rows += `
+                            <tr class="sortable-item" data-id="${source.id}" data-order="${source.order || index+1}">
+                                <td class="text-muted"><i class="fas fa-grip-vertical grip-handle"></i> <span class="item-number">${index+1}</span></td>
+                                <td><img src="${source.cover}" alt="${escapeHtml(source.title)}" class="img-thumbnail" style="width:60px;height:80px;object-fit:cover;"></td>
+                                <td>
+                                    <div class="fw-bold">${escapeHtml(source.title)}</div>
+                                    <div class="small text-muted">${escapeHtml(source.author || 'Usuario')} ${source.year ? ' • ('+escapeHtml(String(source.year))+')' : ''}</div>
+                                </td>
+                                <td><span class="badge bg-light text-dark">${escapeHtml(source.category || 'Desconocida')}</span></td>
+                                <td>${!source.isDeleted ? `<div class="rating-display"><i class="fas fa-star text-warning"></i> <span class="ms-1">${escapeHtml(String(source.rating||0))}</span></div>` : '<span class="text-muted">N/A</span>'}</td>
+                                <td><small class="text-muted">${source.addedDate ? new Date(source.addedDate).toLocaleDateString('es-ES') : ''}</small></td>
+                                <td><div class="btn-group btn-group-sm"><a href="/source/${source.id}" class="btn btn-outline-primary" title="Ver fuente"><i class="fas fa-eye"></i></a><button class="btn btn-outline-danger remove-source-btn" data-id="${source.id}" title="Eliminar de la lista"><i class="fas fa-times"></i></button></div></td>
+                            </tr>`;
+                    });
+                } else {
+                    rows = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-inbox fa-2x mb-3"></i><p class="mb-0">No hay fuentes en esta lista</p></td></tr>';
+                }
+                tbody.innerHTML = rows;
+                // Reattach handlers
+                attachRemoveSourceHandlers();
+                updateItemNumbers();
+            }
+
+            // Update public grid if present
+            const publicGrid = document.getElementById('publicSourcesGrid');
+            if (publicGrid) {
+                if (!list.sources || list.sources.length === 0) {
+                    publicGrid.innerHTML = '<div class="text-center py-4"><i class="fas fa-inbox fa-3x text-muted mb-3"></i><h5 class="text-muted">Esta lista está vacía</h5><p class="text-muted">El creador aún no ha añadido fuentes a esta lista.</p></div>';
+                } else {
+                    let html = '<div class="row">';
+                    list.sources.forEach(source => {
+                        html += `
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100 border-0 shadow-sm hover-lift">
+                                    <div class="row g-0">
+                                        <div class="col-4">
+                                            <img src="${source.cover}" alt="${escapeHtml(source.title)}" class="img-fluid h-100 object-fit-cover rounded-start">
+                                        </div>
+                                        <div class="col-8">
+                                            <div class="card-body">
+                                                <h6 class="card-title mb-1" title="${escapeHtml(source.title)}">${escapeHtml(source.title.length>50?source.title.substring(0,50)+'...':source.title)}</h6>
+                                                <p class="card-text small text-muted mb-2">${escapeHtml(source.author)} ${source.year ? ' ('+escapeHtml(String(source.year))+')' : ''}</p>
+                                                ${source.isDeleted ? '<div class="alert alert-warning py-1 mb-2"><i class="fas fa-exclamation-triangle me-1"></i><small>Este título se ha eliminado de la plataforma</small></div>' : `<div class="d-flex justify-content-between align-items-center"><span class="badge bg-light text-dark">${escapeHtml(source.category)}</span><div class="rating-display small"><i class="fas fa-star text-warning"></i><span>${escapeHtml(String(source.rating||0))}</span></div></div>`}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    html += '</div>';
+                    publicGrid.innerHTML = html;
+                }
+            }
+        } catch (e) { console.error('updateSourcesDisplay error', e); }
     }
 
     // Attach handlers to existing remove buttons in the list (remove single source)
@@ -403,5 +487,8 @@
             }
         } catch (e) { console.error('Error handling list:updated', e); }
     });
+
+    // expose a flag so other scripts (e.g., lists.js) know modal handlers are present
+    try { window._articoraListModalsInitialized = true; } catch (e) { /* ignore */ }
 
 })();

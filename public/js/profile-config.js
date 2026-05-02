@@ -347,11 +347,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 profileVisibility: document.querySelector('input[name="profileVisibility"]:checked').value,
                 availableForMessages: document.getElementById('availableForMessages').checked,
                 allowGroupInvites: document.getElementById('allowGroupInvites').checked,
-                filterMessages: document.getElementById('filterMessages').checked,
-                showReadingStats: document.getElementById('showReadingStats').checked,
-                showRecentActivity: document.getElementById('showRecentActivity').checked,
-                showListsPublic: document.getElementById('showListsPublic').checked,
-                showEmail: document.getElementById('showEmail').checked,
                 showInstitution: document.getElementById('showInstitution').checked,
                 showJoinDate: document.getElementById('showJoinDate').checked
             };
@@ -368,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 if (data.success) {
-                    showAlert('success', 'Configuración de privacidad actualizada');
+                    showAlert('success', 'Configuración de privacidad actualizada', { redirectUrl: '/profile', delay: 1000 });
                 } else {
                     showAlert('danger', data.message || 'Error al actualizar privacidad');
                 }
@@ -405,28 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 if (data.success) {
-                    // show Bootstrap toast and redirect to /profile
-                    try {
-                        const container = document.getElementById('toastContainer') || document.body;
-                        const toastId = 'dashboardSavedToast';
-                        const toastHtml = `
-                            <div id="${toastId}" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                                <div class="d-flex">
-                                    <div class="toast-body">Configuración del dashboard actualizada. Redirigiendo...</div>
-                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                                </div>
-                            </div>`;
-                        const wrapper = document.createElement('div');
-                        wrapper.innerHTML = toastHtml;
-                        const toastEl = wrapper.firstElementChild;
-                        container.appendChild(toastEl);
-                        const bsToast = new bootstrap.Toast(toastEl, { delay: 1600 });
-                        bsToast.show();
-                        setTimeout(() => { window.location = '/profile'; }, 1600);
-                    } catch (e) {
-                        alert('Configuración del dashboard actualizada');
-                        window.location = '/profile';
-                    }
+                    showAlert('success', 'Configuración del dashboard actualizada. Redirigiendo...', { redirectUrl: '/profile', delay: 1000 });
                 } else {
                     showAlert('danger', data.message || 'Error al actualizar dashboard');
                 }
@@ -478,25 +452,51 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Función auxiliar para mostrar alertas
-    function showAlert(type, message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.setAttribute('role', 'alert');
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
+    // Función auxiliar para mostrar toasts consistentes (usa Bootstrap toasts)
+    function showAlert(type, message, opts) {
+        opts = opts || {};
+        const delay = typeof opts.delay === 'number' ? opts.delay : 1000;
+        const redirectUrl = opts.redirectUrl || opts.redirect || null;
 
-        // Insertar al inicio del contenedor principal
-        const container = document.querySelector('.container.py-5');
-        if (container) {
-            container.insertBefore(alertDiv, container.firstChild);
-            
-            // Auto-desaparecer en 5 segundos
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 5000);
+        const container = document.getElementById('toastContainer') || document.body;
+        const id = `appToast${Date.now()}`;
+
+        let bgClass = 'bg-success';
+        let textClass = 'text-white';
+        if (type === 'danger') { bgClass = 'bg-danger'; textClass = 'text-white'; }
+        else if (type === 'warning') { bgClass = 'bg-warning'; textClass = 'text-dark'; }
+        else if (type === 'info') { bgClass = 'bg-info'; textClass = 'text-dark'; }
+
+        const toastHtml = `
+            <div id="${id}" class="toast align-items-center ${textClass} ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close ${textClass === 'text-white' ? 'btn-close-white' : ''} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>`;
+
+        try {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = toastHtml;
+            const toastEl = wrapper.firstElementChild;
+            container.appendChild(toastEl);
+
+            // Scroll to top for visibility
+            try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+
+            const bsToast = new bootstrap.Toast(toastEl, { delay: delay });
+            bsToast.show();
+
+            // Remove element after hidden
+            toastEl.addEventListener('hidden.bs.toast', function() { try { toastEl.remove(); } catch (e) {} });
+
+            if (redirectUrl) {
+                setTimeout(function() { window.location = redirectUrl; }, delay);
+            }
+        } catch (e) {
+            // Fallback to alert
+            try { alert(message); } catch (err) {}
+            if (redirectUrl) setTimeout(function() { window.location = redirectUrl; }, delay);
         }
     }
 

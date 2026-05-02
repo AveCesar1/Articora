@@ -589,3 +589,17 @@
     border-radius: 10px;
     border: 1px solid rgba(141, 110, 99, 0.2);
 }
+
+/* Fix oversized covers in public list cards when displayed in read-only view */
+.card.h-100 .img-fluid.h-100.object-fit-cover {
+    width: 100%;
+    height: 140px; /* visual height for cards */
+    max-height: 200px;
+    object-fit: cover;
+}
+
+@media (max-width: 768px) {
+    .card.h-100 .img-fluid.h-100.object-fit-cover {
+        height: 120px;
+    }
+}
