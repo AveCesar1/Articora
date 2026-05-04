@@ -3,7 +3,7 @@ const express = require('express');
 const cedulaRoute = require('./routes/cedula.route');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PRIV_PORT || 3300;
 
 app.use(express.json());
 

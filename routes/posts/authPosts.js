@@ -9,6 +9,7 @@ const { sanitizeText } = require('../../middlewares/sanitize');
 const autenticacion = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
 const { encryptEmail, decryptEmail } = require('../../lib/crypto_utils');
+const { consultarCedula } = require('../../services/sepService');
 
 // Usa esto como condicional para activar los debuggings.
 const debugging = global.debugging;
@@ -813,6 +814,123 @@ module.exports = function (app) {
             }
         }
     );
+
+    // 2b. Ruta de verificación automática por cédula (consulta al servidor privado SEP)
+    app.post('/verificacion/cedula', autenticacion, async (req, res) => {
+        try {
+            const cedulaRaw = String(req.body.cedula || req.body.numero || '').trim();
+
+            if (!/^[0-9]{5,8}$/.test(cedulaRaw)) {
+                return res.status(400).json({ error: 'Número de cédula inválido. Debe ser numérico entre 5 y 8 dígitos.' });
+            }
+
+            // Obtener usuario de la BD
+            const userRow = req.db.prepare('SELECT id, first_name, last_name, full_name FROM users WHERE id = ?').get(req.user.id);
+            if (!userRow) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+            const userFull = (userRow.full_name && String(userRow.full_name).trim()) || ((userRow.first_name || '') + ' ' + (userRow.last_name || '')).trim();
+            const normalize = s => String(s || '').toUpperCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim();
+            const userFullNorm = normalize(userFull);
+
+            console.log(`[verificacion/cedula] Usuario ${req.user.id} solicitó verificación de cédula ${cedulaRaw}. Usuario nombre: ${userFullNorm}`);
+
+            // Consultar servicio SEP
+            let apiData;
+            try {
+                apiData = await consultarCedula(cedulaRaw);
+            } catch (err) {
+                console.error('[verificacion/cedula] error al consultar SEP:', err && err.message);
+                if (err.message === 'RECAPTCHA_REQUIRED') {
+                    return res.status(503).json({ error: 'RECAPTCHA_REQUIRED', message: 'La API de la SEP requiere verificación. Intenta más tarde.' });
+                }
+                if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+                    return res.status(504).json({ error: 'TIMEOUT', message: 'El servidor de la SEP tardó demasiado. Intenta más tarde.' });
+                }
+                return res.status(502).json({ error: 'SEP_UNAVAILABLE', message: 'No fue posible conectar con el servicio de la SEP.' });
+            }
+
+            if (!apiData) {
+                console.log('[verificacion/cedula] SEP no devolvió datos para', cedulaRaw);
+                return res.status(404).json({ error: 'NO_ENCONTRADO', message: 'No se encontró registro para esa cédula.' });
+            }
+
+            // Extraer nombre y título del objeto devuelto por la API de forma flexible
+            const pickString = v => (v === null || v === undefined) ? '' : String(v);
+
+            const extractName = (obj) => {
+                if (!obj) return '';
+                const keys = Object.keys(obj);
+                // Common patterns
+                const tryKeys = ['full_name','fullName','nombreCompleto','nombre_completo','nombre','nombres','nombreCompletoProfesional','apellidoPaterno','apellidoMaterno','apellido'];
+                for (const k of tryKeys) {
+                    if (obj[k]) return pickString(obj[k]);
+                }
+                // If has parts (several naming conventions supported)
+                if (obj.nombres && (obj.apellidoPaterno || obj.apellidoMaterno)) {
+                    return `${obj.nombres} ${obj.apellidoPaterno || ''} ${obj.apellidoMaterno || ''}`.trim();
+                }
+                // SEP API style: nombre + primerApellido + segundoApellido
+                if (obj.nombre && (obj.primerApellido || obj.segundoApellido)) {
+                    return `${obj.nombre} ${obj.primerApellido || ''} ${obj.segundoApellido || ''}`.trim();
+                }
+                // If docs array
+                if (Array.isArray(obj.docs) && obj.docs.length > 0) {
+                    const first = obj.docs[0];
+                    return extractName(first) || '';
+                }
+                // nested profesionist
+                if (obj.profesionista) return extractName(obj.profesionista);
+                // Fallback: try first stringy value
+                for (const k of keys) {
+                    if (typeof obj[k] === 'string' && obj[k].trim().length > 0) return obj[k];
+                }
+                return '';
+            };
+
+            const apiDataPrimary = Array.isArray(apiData) && apiData.length > 0 ? apiData[0] : apiData;
+            const apiNameRaw = extractName(apiDataPrimary) || extractName(apiDataPrimary?.profesional) || '';
+            const apiNameNorm = normalize(apiNameRaw);
+
+            console.log('[verificacion/cedula] Nombre en API SEP:', apiNameNorm || '(vacío)');
+
+            // Comparar
+            if (userFullNorm && apiNameNorm && userFullNorm === apiNameNorm) {
+                // Marcar usuario validado
+                try {
+                    req.db.prepare('UPDATE users SET is_validated = 1 WHERE id = ?').run(req.user.id);
+                    console.log(`[verificacion/cedula] Usuario ${req.user.id} validado correctamente por cédula ${cedulaRaw}`);
+                } catch (e) {
+                    console.error('[verificacion/cedula] Error actualizando BD:', e && e.message);
+                }
+                return res.json({ success: true, validated: true, message: 'Verificación exitosa' });
+            }
+
+            console.log(`[verificacion/cedula] Coincidencia FALLIDA para usuario ${req.user.id}. usuario=${userFullNorm} api=${apiNameNorm}`);
+            return res.status(400).json({ success: false, validated: false, error: 'NO_COINCIDE', message: 'Los datos no coinciden.' });
+        } catch (err) {
+            console.error('[verificacion/cedula] unexpected error:', err && err.stack);
+            return res.status(500).json({ error: 'internal_error' });
+        }
+    });
+
+    // Ruta de prueba (NO autenticada) para depuración local: acepta { cedula, userFull }
+    app.post('/verificacion/cedula/test', async (req, res) => {
+        try {
+            const cedulaRaw = String(req.body.cedula || '').trim();
+            const providedUser = String(req.body.userFull || '').trim();
+            if (!/^[0-9]{5,8}$/.test(cedulaRaw)) return res.status(400).json({ error: 'Número de cédula inválido' });
+
+            let apiData;
+            try { apiData = await consultarCedula(cedulaRaw); } catch (e) { return res.status(502).json({ error: 'SEP_ERROR', detail: e.message }); }
+            if (!apiData) return res.status(404).json({ error: 'NO_ENCONTRADO' });
+
+            const normalize = s => String(s || '').toUpperCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim();
+            const apiPrimary = Array.isArray(apiData) && apiData.length > 0 ? apiData[0] : apiData;
+            const pick = obj => (obj && (obj.nombre || obj.nombres)) ? `${obj.nombre || obj.nombres} ${obj.primerApellido || obj.apellidoPaterno || ''} ${obj.segundoApellido || obj.apellidoMaterno || ''}`.trim() : '';
+            const apiName = pick(apiPrimary) || '';
+            return res.json({ cedula: cedulaRaw, apiNameRaw: apiName, apiNameNorm: normalize(apiName), providedUser, providedNorm: normalize(providedUser) });
+        } catch (err) { console.error('test route error', err); return res.status(500).json({ error: 'internal_error' }); }
+    });
 
     // 3. Job automático para eliminar expirados
     setInterval(async () => {

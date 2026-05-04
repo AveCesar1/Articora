@@ -88,6 +88,51 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) { /* non-fatal */ }
 
+                // If verification type is 'cedula' and a cedula number was provided, use the automatic API
+                if (verificationType === 'cedula') {
+                    const cedulaInput = academicVerificationForm.querySelector('#cedulaNumber');
+                    const cedulaValue = cedulaInput ? cedulaInput.value.trim() : '';
+                    if (!/^[0-9]{5,8}$/.test(cedulaValue)) {
+                        alert('Número de cédula inválido. Debe contener entre 5 y 8 dígitos.');
+                        return;
+                    }
+
+                    console.debug('[profile-config-auth] usando verificación automática por cédula:', cedulaValue);
+                    try {
+                        const resp = await fetch('/verificacion/cedula', {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ cedula: cedulaValue })
+                        });
+
+                        let data;
+                        try { data = await resp.json(); } catch (e) { data = null; }
+
+                        if (!resp.ok) {
+                            console.error('[profile-config-auth] verificacion cedula fallo', resp.status, data);
+                            if (data && data.message) alert(`Error: ${data.message}`);
+                            else alert('No fue posible verificar la cédula. Intenta más tarde.');
+                            return;
+                        }
+
+                        if (data && data.validated) {
+                            alert('Tu cédula ha sido verificada con éxito. Tu cuenta ha sido validada.');
+                            if (academicVerificationForm) {
+                                academicVerificationForm.reset();
+                                if (verificationFormContainer) verificationFormContainer.style.display = 'none';
+                            }
+                        } else {
+                            alert('Los datos no coinciden. Si crees que esto es un error, intenta la verificación manual.');
+                        }
+                        return;
+                    } catch (err) {
+                        console.error('[profile-config-auth] fetch /verificacion/cedula error', err);
+                        alert('No se pudo conectar con el servidor de verificación. Intenta más tarde.');
+                        return;
+                    }
+                }
+
                 // Build FormData and ensure only one fetch call
                 const fd = new FormData();
                 fd.append('documento', academicDocumentFile);

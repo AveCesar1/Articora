@@ -1,6 +1,6 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const { consultarCedula, cacheStats } = require('../services/sepService');
+const { consultarCedula, cacheStats } = require('../../services/sepService');
 
 const router = express.Router();
 
