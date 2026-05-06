@@ -437,8 +437,20 @@ module.exports = function(app) {
             // Build Artícora messages dynamically from system_alerts + a user-specific upload reminder
             let articoraMessages = [];
             try {
-                const alerts = req.db.prepare("SELECT id, alert_type, description, created_at FROM system_alerts ORDER BY created_at DESC LIMIT 3").all();
+                const alerts = req.db.prepare("SELECT id, alert_type, description, details, created_at FROM system_alerts ORDER BY created_at DESC LIMIT 5").all();
                 for (const a of alerts) {
+                    // If the alert has a recipient_user_id in its details, only show it to that user
+                    try {
+                        if (a.details) {
+                            const dd = JSON.parse(a.details);
+                            if (dd && dd.recipient_user_id && Number(dd.recipient_user_id) !== Number(currentUserId)) {
+                                // skip alerts intended for other users
+                                continue;
+                            }
+                        }
+                    } catch (e) {
+                        // ignore parse errors and show alert globally
+                    }
                     const formatTime = (ts) => {
                         try {
                             const d = new Date(ts);

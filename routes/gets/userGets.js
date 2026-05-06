@@ -351,6 +351,26 @@ module.exports = function (app) {
             interests: interests
         };
 
+        // Load latest verification request (if any) so the UI can show precise state
+        try {
+            const latest = db.prepare('SELECT * FROM user_validations WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1').get(userId) || null;
+            if (latest) {
+                userData.verificationRequest = {
+                    id: latest.id,
+                    status: latest.status || 'pending',
+                    type: latest.validation_type || null,
+                    submitted_at: latest.submitted_at || null,
+                    resolved_at: latest.resolved_at || null,
+                    admin_notes: latest.admin_notes || null
+                };
+            } else {
+                userData.verificationRequest = null;
+            }
+        } catch (e) {
+            console.error('Error loading verificationRequest for profile-config', e && e.message);
+            userData.verificationRequest = null;
+        }
+
         // Load privacy settings (if table exists). Provide defaults.
         try {
             const ups = db.prepare('SELECT profile_visibility, allow_group_invites, show_institution, show_join_date FROM user_privacy_settings WHERE user_id = ?').get(userId) || {};

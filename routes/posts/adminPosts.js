@@ -3,11 +3,40 @@ const soloAdmin = checkRoles(['admin']);
 const { sanitizeText } = require('../../middlewares/sanitize');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const ejs = require('ejs');
+const { decryptEmail } = require('../../lib/crypto_utils');
+const { getVerificationKey } = require('../../lib/encryption_key');
 const urlChecker = require('../../lib/url_checker');
 const offensiveChecker = require('../../lib/offensive_checker');
 const duplicateChecker = require('../../lib/duplicate_checker');
 
 module.exports = function(app) {
+    // helper: ensure optional columns exist (best-effort)
+    function ensureUserColumns(db) {
+        try { db.prepare("ALTER TABLE users ADD COLUMN account_admin_note TEXT").run(); } catch (e) { /* ignore */ }
+        try { db.prepare("ALTER TABLE users ADD COLUMN deleted_at TIMESTAMP").run(); } catch (e) { /* ignore */ }
+        try { db.prepare("ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT 0").run(); } catch (e) { /* ignore */ }
+    }
+
+    // helper: send email via app.locals.transporter (if configured)
+    async function sendEmail(app, to, subject, templateName, vars) {
+        try {
+            const transporter = app && app.locals && app.locals.transporter;
+            const templatePath = path.join(__dirname, '..', '..', 'views', 'emails', templateName + '.ejs');
+            const html = await ejs.renderFile(templatePath, vars || {});
+            if (!transporter) {
+                console.warn('[mailer] no transporter configured; email skipped to', to);
+                return false;
+            }
+            await transporter.sendMail({ from: '"Artícora" <articora.noreply@gmail.com>', to, subject, html, text: '' });
+            return true;
+        } catch (e) {
+            console.error('sendEmail error', e && e.message);
+            return false;
+        }
+    }
     // Merge selected sources into a base source
     app.post('/api/admin/compare/merge', soloAdmin, (req, res) => {
         const db = req.db;
@@ -145,7 +174,7 @@ module.exports = function(app) {
                     if (!owner) return;
                     const desc = `Su publicación #${mergedId} fue fusionada en la publicación #${baseId} por el equipo de Artícora. Razón: ${reason || 'Fusión administrativa'}`;
                     db.prepare('INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))')
-                        .run('merge_notification', 'medium', desc, JSON.stringify({ mergedId, baseId, adminId, reason }));
+                        .run('merge_notification', 'medium', desc, JSON.stringify({ mergedId, baseId, adminId, reason, recipient_user_id: owner }));
                 });
             });
 
@@ -186,9 +215,12 @@ module.exports = function(app) {
     function createAdminAlert(db, report, status, adminMessage, adminId) {
         try {
             const type = (report.report_type || '').toString().toLowerCase();
-            if (typeof global !== 'undefined' && global.debugging) console.log(`Tipo de reporte para alerta: ${type}`); // Log para depuración
+            if (typeof global !== 'undefined' && global.debugging) console.log(`Tipo de reporte para alerta: ${type}`);
             let targetLabel = 'elemento';
             let targetInfo = '';
+            let description = '';
+            // Decide who should receive this admin alert: prefer reporter, otherwise reported_user
+            let recipient = report.reporter_id || report.reported_user_id || null;
 
             if (type === 'source') {
                 if (typeof global !== 'undefined' && global.debugging) console.log(`Identificando reporte como fuente`);
@@ -196,18 +228,23 @@ module.exports = function(app) {
             } else if (type === 'comment' || type === 'rating') {
                 if (typeof global !== 'undefined' && global.debugging) console.log(`Identificando reporte como comentario/valoración`);
                 description = `Mensaje del equipo de administración respecto al reporte contra el comentario/valoración #${report.comment_id || report.id} del usuario ${report.reported_username ? ('@' + report.reported_username) : (report.reported_user_id ? '#' + report.reported_user_id : 'desconocido')}. Su reporte fue ${status === 'resolved' ? 'aceptado' : 'rechazado'} por la siguiente razón: ${adminMessage || 'Sin comentario adicional.'}`;
+                recipient = report.reporter_id || report.reported_user_id || recipient;
             } else if (type === 'message') {
                 if (typeof global !== 'undefined' && global.debugging) console.log(`Identificando reporte como mensaje`);
                 description = `Mensaje del equipo de administración respecto al reporte contra el mensaje #${report.message_id || report.id} del usuario ${report.reported_username ? ('@' + report.reported_username) : (report.reported_user_id ? '#' + report.reported_user_id : 'desconocido')}. Su reporte fue ${status === 'resolved' ? 'aceptado' : 'rechazado'} por la siguiente razón: ${adminMessage || 'Sin comentario adicional.'}`;
+                recipient = report.reporter_id || report.reported_user_id || recipient;
             } else if (type === 'user') {
                 if (typeof global !== 'undefined' && global.debugging) console.log(`Identificando reporte como usuario`);
                 description = `Mensaje del equipo de administración respecto al reporte contra el usuario ${report.reported_username ? ('@' + report.reported_username) : (report.reported_user_id ? '#' + report.reported_user_id : report.id)}. Su reporte fue ${status === 'resolved' ? 'aceptado' : 'rechazado'} por la siguiente razón: ${adminMessage || 'Sin comentario adicional.'}`;
+                recipient = report.reported_user_id || report.reporter_id || recipient;
             } else {
                 if (typeof global !== 'undefined' && global.debugging) console.log(`Tipo de reporte desconocido, usando fallback genérico`);
                 description = `Mensaje del equipo de administración respecto al reporte contra el elemento #${report.id}. Su reporte fue ${status === 'resolved' ? 'aceptado' : 'rechazado'} por la siguiente razón: ${adminMessage || 'Sin comentario adicional.'}`;
             }
 
-            const details = JSON.stringify({ type: 'admin_response', reportId: report.id, adminId, status, target: { type: targetLabel, info: targetInfo } });
+            const detailsObj = { type: 'admin_response', reportId: report.id, adminId, status, target: { type: targetLabel, info: targetInfo } };
+            if (recipient) detailsObj.recipient_user_id = recipient;
+            const details = JSON.stringify(detailsObj);
 
             db.prepare("INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('admin_response', 'medium', description, details);
         } catch (e) {
@@ -235,8 +272,20 @@ module.exports = function(app) {
             // Instead of sending a private encrypted message from the admin account,
             // create a system alert so the message appears in the Artícora channel.
             const description = `Mensaje del equipo de administración respecto al reporte #${reportId}: ${text}`;
-            const details = JSON.stringify({ type: 'admin_contact', reportId, reporterId, adminId });
+            const details = JSON.stringify({ type: 'admin_contact', reportId, reporterId, adminId, recipient_user_id: reporterId });
             const ins = db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`).run('admin_contact', 'medium', description, details);
+
+            // Try sending an email to the reporter as well
+            (async () => {
+                try {
+                    const rep = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(reporterId);
+                    if (rep && rep.email) {
+                        let repEmail = null;
+                        try { repEmail = decryptEmail(rep.email, req.app); } catch (e) { repEmail = rep.email; }
+                        await sendEmail(req.app, repEmail, 'Mensaje de administración sobre tu reporte', 'admin_contact_notification', { username: rep.username, message: text });
+                    }
+                } catch (e) { console.error('admin contact mail error', e && e.message); }
+            })();
 
             return res.json({ success: true, alertId: ins.lastInsertRowid });
         } catch (e) {
@@ -279,10 +328,60 @@ module.exports = function(app) {
                 createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
                 return res.json({ success: true });
             } else if (action === 'suspend_user' && report.reported_user_id) {
-                // suspend 7 days
-                db.prepare("UPDATE users SET account_active = 0, locked_until = datetime('now', '+7 days') WHERE id = ?").run(report.reported_user_id);
-                db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'user_suspended: ' + (note || ''), adminId, reportId);
-                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                // suspend 7 days (soft action + admin note + emails)
+                ensureUserColumns(db);
+                const targetId = report.reported_user_id;
+                const lockSql = db.prepare("UPDATE users SET account_active = 0, locked_until = datetime('now', '+7 days'), account_admin_note = ? WHERE id = ?");
+                lockSql.run(note || adminMessage || 'Acción administrativa', targetId);
+                db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?")
+                    .run('resolved', 'user_suspended: ' + (note || ''), adminId, reportId);
+
+                // --- Envío de mensajes por el canal privado (Artícora) ---
+                // 1. Alerta para el REPORTERO
+                const reporterDescription = `El reporte #${report.id} que realizaste fue aceptado. El usuario reportado ha sido suspendido por 7 días. Motivo: ${adminMessage || note || 'Sin motivo adicional.'}`;
+                const reporterDetails = JSON.stringify({
+                    type: 'admin_response',
+                    reportId: report.id,
+                    adminId,
+                    status: 'resolved',
+                    recipient_user_id: report.reporter_id,
+                    target: { type: 'user', info: targetId }
+                });
+                db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at)
+                            VALUES (?, ?, ?, ?, datetime('now'))`)
+                    .run('admin_response', 'medium', reporterDescription, reporterDetails);
+
+                // 2. Alerta para el USUARIO SUSPENDIDO (reportado)
+                const suspendedDescription = `Tu cuenta ha sido suspendida por 7 días debido a un reporte en tu contra. Motivo: ${adminMessage || note || 'Infracción de las normas.'}. La suspensión terminará el ${new Date(Date.now() + 7*24*3600*1000).toLocaleString('es-ES')}.`;
+                const suspendedDetails = JSON.stringify({
+                    type: 'account_suspended',
+                    days: 7,
+                    adminId,
+                    reportId: report.id,
+                    recipient_user_id: targetId
+                });
+                db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at)
+                            VALUES (?, ?, ?, ?, datetime('now'))`)
+                    .run('account_suspended', 'high', suspendedDescription, suspendedDetails);
+
+                // --- Envío de emails ---
+                (async () => {
+                    try {
+                        const userRow = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(targetId);
+                        const reporterRow = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(report.reporter_id);
+                        if (userRow && userRow.email) {
+                            let userEmail = null;
+                            try { userEmail = decryptEmail(userRow.email, req.app); } catch (e) { userEmail = userRow.email; }
+                            await sendEmail(req.app, userEmail, 'Cuenta suspendida en Artícora', 'account_suspended', { username: userRow.username, days: 7, until: new Date(Date.now() + 7*24*3600*1000).toLocaleString('es-ES'), reason: note || adminMessage });
+                        }
+                        if (reporterRow && reporterRow.email) {
+                            let repEmail = null;
+                            try { repEmail = decryptEmail(reporterRow.email, req.app); } catch (e) { repEmail = reporterRow.email; }
+                            await sendEmail(req.app, repEmail, 'Acción tomada: usuario suspendido', 'admin_contact_notification', { username: reporterRow.username, message: `El usuario reportado ha sido suspendido por 7 días. Motivo: ${note || adminMessage}` });
+                        }
+                    } catch (e) { console.error('suspend notify error', e && e.message); }
+                })();
+
                 return res.json({ success: true });
             } else if (action === 'delete_comment' && report.comment_id) {
                 db.prepare("UPDATE ratings SET comment = NULL, updated_at = datetime('now') WHERE id = ?").run(report.comment_id);
@@ -293,6 +392,39 @@ module.exports = function(app) {
                 db.prepare("UPDATE messages SET content_type = 'deleted', encrypted_content = NULL, iv = NULL, encrypted_key = NULL WHERE id = ?").run(report.message_id);
                 db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'message_deleted: ' + (note || ''), adminId, reportId);
                 createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                return res.json({ success: true });
+            } else if (action === 'delete_user' && report.reported_user_id) {
+                // Soft-delete the reported user: deactivate account and mark deleted metadata; do not attempt hard delete to avoid FK errors.
+                ensureUserColumns(db);
+                const targetId = report.reported_user_id;
+                const u = db.prepare('SELECT id, is_admin, username, email FROM users WHERE id = ?').get(targetId);
+                if (!u) return res.status(404).json({ success: false, message: 'user_not_found' });
+                if (u.is_admin) return res.status(403).json({ success: false, message: 'cannot_delete_admin' });
+
+                db.transaction(() => {
+                    db.prepare("UPDATE users SET account_active = 0, is_deleted = 1, deleted_at = datetime('now'), account_admin_note = ? WHERE id = ?").run(note || adminMessage || 'Cuenta eliminada por administración', targetId);
+                    db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'user_deleted_soft: ' + (note || ''), adminId, reportId);
+                    // Notify reporter via Artícora (and target the alert to the reporter)
+                    createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                })();
+
+                // Send emails: reported user (only by email), and reporter (confirmation + Artícora message already created)
+                (async () => {
+                    try {
+                        if (u && u.email) {
+                            let userEmail = null;
+                            try { userEmail = decryptEmail(u.email, req.app); } catch (e) { userEmail = u.email; }
+                            await sendEmail(req.app, userEmail, 'Cuenta eliminada en Artícora', 'account_deleted', { username: u.username, reason: note || adminMessage });
+                        }
+                        const reporterRow = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(report.reporter_id);
+                        if (reporterRow && reporterRow.email) {
+                            let repEmail = null;
+                            try { repEmail = decryptEmail(reporterRow.email, req.app); } catch (e) { repEmail = reporterRow.email; }
+                            await sendEmail(req.app, repEmail, 'Acción tomada: usuario eliminado', 'admin_contact_notification', { username: reporterRow.username, message: `El usuario reportado ha sido eliminado. Motivo: ${note || adminMessage}` });
+                        }
+                    } catch (e) { console.error('delete notify error', e && e.message); }
+                })();
+
                 return res.json({ success: true });
             } else {
                 return res.status(400).json({ success: false, message: 'invalid_action_or_missing_target' });
@@ -344,6 +476,136 @@ module.exports = function(app) {
             return res.json({ success: true, alerts: rows });
         } catch (e) {
             console.error('GET /api/admin/system_alerts error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // List pending verification requests for admin review
+    app.get('/api/admin/verification_requests', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            // Only return requests with status = 'pending' so the queue is cleaned after accept/reject
+            const rows = db.prepare(`
+                SELECT uv.*, u.username, u.email, u.first_name, u.last_name, u.full_name, u.institution, u.academic_level
+                FROM user_validations uv
+                LEFT JOIN users u ON uv.user_id = u.id
+                WHERE uv.status = 'pending'
+                ORDER BY uv.submitted_at DESC
+            `).all();
+            return res.json({ success: true, requests: rows });
+        } catch (e) {
+            console.error('GET /api/admin/verification_requests error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Download a verification document (identity or certificate) decrypted for admin
+    app.get('/api/admin/verification_requests/:id/download', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const which = (req.query.which || 'identity').toString(); // 'identity' or 'certificate'
+            const uv = db.prepare('SELECT * FROM user_validations WHERE id = ?').get(id);
+            if (!uv) return res.status(404).json({ success: false, message: 'not_found' });
+
+            const targetPath = which === 'certificate' ? uv.certificate_path : uv.identity_document_path;
+            if (!targetPath) return res.status(404).json({ success: false, message: 'document_not_found' });
+
+            let dv = db.prepare('SELECT * FROM documentos_verificacion WHERE ruta_archivo = ? AND usuario_id = ?').get(targetPath, uv.user_id);
+            if (!dv) dv = db.prepare('SELECT * FROM documentos_verificacion WHERE ruta_archivo = ?').get(targetPath);
+            if (!dv) return res.status(404).json({ success: false, message: 'document_record_not_found' });
+
+            // Use centralized helper to obtain the same key used during upload
+            let keyBuffer;
+            try {
+                keyBuffer = getVerificationKey();
+            } catch (e) {
+                console.error('[verificacion] getVerificationKey error', e && e.message);
+                return res.status(500).json({ success: false, message: 'ENCRYPTION_KEY invalid' });
+            }
+
+            if (!fs.existsSync(dv.ruta_archivo)) return res.status(404).json({ success: false, message: 'file_missing' });
+            const encrypted = fs.readFileSync(dv.ruta_archivo);
+            const iv = Buffer.from(dv.iv, 'hex');
+            try {
+                const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
+                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                res.setHeader('Content-Type', dv.mime || 'application/octet-stream');
+                const safeName = dv.original_name || 'document';
+                res.setHeader('Content-Disposition', `attachment; filename="${safeName.replace(/\"/g,'') }"`);
+                return res.send(decrypted);
+            } catch (e) {
+                console.error('decryption error', e);
+                return res.status(500).json({ success: false, message: 'decryption_error' });
+            }
+        } catch (e) {
+            console.error('GET /api/admin/verification_requests/:id/download error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Admin accepts a verification request
+    app.post('/api/admin/verification_requests/:id/accept', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const adminId = req.session.userId;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const uv = db.prepare('SELECT * FROM user_validations WHERE id = ?').get(id);
+            if (!uv) return res.status(404).json({ success: false, message: 'not_found' });
+            if (uv.status !== 'pending') return res.status(400).json({ success: false, message: 'not_pending' });
+
+            const note = sanitizeText(req.body.note || '', { maxLength: 2000 });
+
+            db.transaction(() => {
+                db.prepare('UPDATE user_validations SET status = ?, resolved_at = datetime(\'now\'), admin_id = ?, admin_notes = ? WHERE id = ?').run('accepted', adminId, note, id);
+                db.prepare('UPDATE users SET is_validated = 1 WHERE id = ?').run(uv.user_id);
+                // mark any documentos_verificacion rows as completed
+                if (uv.identity_document_path) db.prepare('UPDATE documentos_verificacion SET verificacion_completada = 1 WHERE ruta_archivo = ?').run(uv.identity_document_path);
+                if (uv.certificate_path) db.prepare('UPDATE documentos_verificacion SET verificacion_completada = 1 WHERE ruta_archivo = ?').run(uv.certificate_path);
+
+                const description = `Su solicitud de verificación ha sido aceptada por el equipo de Artícora.`;
+                const details = JSON.stringify({ type: 'verification_accepted', validationId: id, adminId, recipient_user_id: uv.user_id });
+                db.prepare('INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run('verification_result', 'high', description, details);
+            })();
+
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('POST /api/admin/verification_requests/:id/accept error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Admin rejects a verification request
+    app.post('/api/admin/verification_requests/:id/reject', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const adminId = req.session.userId;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const uv = db.prepare('SELECT * FROM user_validations WHERE id = ?').get(id);
+            if (!uv) return res.status(404).json({ success: false, message: 'not_found' });
+            if (uv.status !== 'pending') return res.status(400).json({ success: false, message: 'not_pending' });
+
+            const note = sanitizeText(req.body.note || '', { maxLength: 2000 });
+
+            db.transaction(() => {
+                db.prepare('UPDATE user_validations SET status = ?, resolved_at = datetime(\'now\'), admin_id = ?, admin_notes = ? WHERE id = ?').run('rejected', adminId, note, id);
+                if (uv.identity_document_path) db.prepare('UPDATE documentos_verificacion SET verificacion_completada = 1 WHERE ruta_archivo = ?').run(uv.identity_document_path);
+                if (uv.certificate_path) db.prepare('UPDATE documentos_verificacion SET verificacion_completada = 1 WHERE ruta_archivo = ?').run(uv.certificate_path);
+
+                const description = `Su solicitud de verificación ha sido rechazada. Razón: ${note || 'Sin comentario adicional.'}`;
+                const details = JSON.stringify({ type: 'verification_rejected', validationId: id, adminId, recipient_user_id: uv.user_id });
+                db.prepare('INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run('verification_result', 'medium', description, details);
+            })();
+
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('POST /api/admin/verification_requests/:id/reject error', e);
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });

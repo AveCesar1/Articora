@@ -15,15 +15,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!verificationFormContainer) return;
         verificationFormContainer.style.display = 'block';
         if (verificationTypeInput) verificationTypeInput.value = type;
+        const acadInput = document.getElementById('academicDocumentFile');
+        const docInput = document.getElementById('documentFile');
 
         if (type === 'cedula') {
             if (cedulaFields) cedulaFields.style.display = 'block';
             if (certificadosFields) certificadosFields.style.display = 'none';
             if (verificationFormTitle) verificationFormTitle.textContent = 'Verificación con Cédula Profesional';
+            // For cedula flow only identity doc is required
+            if (docInput) { docInput.disabled = false; docInput.required = true; }
+            if (acadInput) { acadInput.disabled = true; acadInput.required = false; }
         } else {
             if (cedulaFields) cedulaFields.style.display = 'none';
             if (certificadosFields) certificadosFields.style.display = 'block';
             if (verificationFormTitle) verificationFormTitle.textContent = 'Verificación con Certificados Académicos';
+            // For certificates both files are needed
+            if (docInput) { docInput.disabled = false; docInput.required = true; }
+            if (acadInput) { acadInput.disabled = false; acadInput.required = true; }
         }
         verificationFormContainer.scrollIntoView({ behavior: 'smooth' });
     }
@@ -58,19 +66,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (academicDocumentFile) console.debug('[profile-config-auth] academicDocumentFile', academicDocumentFile.name, academicDocumentFile.size, academicDocumentFile.type);
 
                 // Basic validations
-                if (!documentFile || !academicDocumentFile) {
-                    alert('Por favor, sube todos los documentos requeridos. (Debug: revisa consola y pestaña Network)');
-                    return;
-                }
-
                 if (!termsAccepted) {
                     alert('Debes aceptar los términos de verificación.');
                     return;
                 }
 
                 const maxSize = 5 * 1024 * 1024; // 5MB
-                if (documentFile.size > maxSize || academicDocumentFile.size > maxSize) {
-                    alert('Los archivos no deben exceder los 5MB.');
+                if (documentFile && documentFile.size > maxSize) {
+                    alert('El archivo de identificación no debe exceder los 5MB.');
+                    return;
+                }
+                if (academicDocumentFile && academicDocumentFile.size > maxSize) {
+                    alert('El archivo académico no debe exceder los 5MB.');
                     return;
                 }
 
@@ -88,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) { /* non-fatal */ }
 
-                // If verification type is 'cedula' and a cedula number was provided, use the automatic API
+                // Decide required files per verification type
                 if (verificationType === 'cedula') {
                     const cedulaInput = academicVerificationForm.querySelector('#cedulaNumber');
                     const cedulaValue = cedulaInput ? cedulaInput.value.trim() : '';
@@ -96,85 +103,66 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert('Número de cédula inválido. Debe contener entre 5 y 8 dígitos.');
                         return;
                     }
+                    if (!documentFile) {
+                        alert('Por favor sube tu documento de identificación (INE/pasaporte).');
+                        return;
+                    }
 
-                    console.debug('[profile-config-auth] usando verificación automática por cédula:', cedulaValue);
+                    // Prepare FormData and attach cedula + identification file
+                    const fd = new FormData();
+                    fd.append('documento', documentFile);
+                    fd.append('tipo', 'ine');
+                    fd.append('cedula', cedulaValue);
+
+                    // Send request to create a verification request (admin will validate later)
                     try {
-                        const resp = await fetch('/verificacion/cedula', {
-                            method: 'POST',
-                            credentials: 'include',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ cedula: cedulaValue })
-                        });
-
-                        let data;
-                        try { data = await resp.json(); } catch (e) { data = null; }
-
+                        const resp = await fetch('/verificacion/subir', { method: 'POST', body: fd, credentials: 'include' });
+                        let data = null;
+                        try { data = await resp.json(); } catch (e) { }
                         if (!resp.ok) {
-                            console.error('[profile-config-auth] verificacion cedula fallo', resp.status, data);
-                            if (data && data.message) alert(`Error: ${data.message}`);
-                            else alert('No fue posible verificar la cédula. Intenta más tarde.');
+                            console.error('[profile-config-auth] upload error', resp.status, data);
+                            alert((data && data.error) ? `Error: ${data.error}` : 'Error al enviar la solicitud de verificación.');
                             return;
                         }
-
-                        if (data && data.validated) {
-                            alert('Tu cédula ha sido verificada con éxito. Tu cuenta ha sido validada.');
-                            if (academicVerificationForm) {
-                                academicVerificationForm.reset();
-                                if (verificationFormContainer) verificationFormContainer.style.display = 'none';
-                            }
-                        } else {
-                            alert('Los datos no coinciden. Si crees que esto es un error, intenta la verificación manual.');
-                        }
+                        alert('Solicitud de verificación enviada. Un administrador revisará tu cédula y te notificará.');
+                        if (academicVerificationForm) { academicVerificationForm.reset(); if (verificationFormContainer) verificationFormContainer.style.display = 'none'; }
+                        // refresh my requests list
+                        if (typeof loadMyRequests === 'function') loadMyRequests();
                         return;
                     } catch (err) {
-                        console.error('[profile-config-auth] fetch /verificacion/cedula error', err);
-                        alert('No se pudo conectar con el servidor de verificación. Intenta más tarde.');
+                        console.error('[profile-config-auth] fetch /verificacion/subir error', err);
+                        alert('No se pudo enviar la solicitud. Intenta más tarde.');
                         return;
                     }
                 }
 
-                // Build FormData and ensure only one fetch call
+                // For certificados (manual flow) require both files
+                if (!documentFile || !academicDocumentFile) {
+                    alert('Por favor, sube todos los documentos requeridos para la verificación por certificados.');
+                    return;
+                }
+
                 const fd = new FormData();
                 fd.append('documento', academicDocumentFile);
-                // Also include the other file under a different field name for reference
                 fd.append('extra_document', documentFile);
                 fd.append('tipo', verificationType);
 
-                // Debug before sending
                 console.debug('[profile-config-auth] about to send fetch /verificacion/subir with formdata');
-
-                // Send request with credentials so cookie session (if any) is included
-                let didSend = false;
                 try {
-                    const resp = await fetch('/verificacion/subir', {
-                        method: 'POST',
-                        body: fd,
-                        credentials: 'include'
-                    });
-                    didSend = true;
-                    console.debug('[profile-config-auth] fetch returned status', resp.status);
-
-                    let data;
-                    try { data = await resp.json(); } catch (e) { data = null; }
-
+                    const resp = await fetch('/verificacion/subir', { method: 'POST', body: fd, credentials: 'include' });
+                    let data = null;
+                    try { data = await resp.json(); } catch (e) { }
                     if (!resp.ok) {
                         console.error('[profile-config-auth] server error response', resp.status, data);
-                        alert((data && data.error) ? `Error: ${data.error}` : 'Error al subir los documentos. Revisa la consola.');
+                        alert((data && data.error) ? `Error: ${data.error}` : 'Error al subir los documentos.');
                         return;
                     }
-
-                    console.log('[profile-config-auth] upload success', data);
-                    alert(`Solicitud de verificación enviada. El proceso tomará ${verificationType === 'cedula' ? '72 horas' : '7 días'} máximo.`);
-
-                    if (academicVerificationForm) {
-                        academicVerificationForm.reset();
-                        if (verificationFormContainer) verificationFormContainer.style.display = 'none';
-                    }
+                    alert('Solicitud de verificación enviada. Un administrador la revisará y te notificará.');
+                    if (academicVerificationForm) { academicVerificationForm.reset(); if (verificationFormContainer) verificationFormContainer.style.display = 'none'; }
+                    if (typeof loadMyRequests === 'function') loadMyRequests();
                 } catch (fetchErr) {
                     console.error('[profile-config-auth] fetch failed', fetchErr);
-                    if (!didSend) {
-                        alert('No se pudo enviar la petición al servidor. Revisa la consola y la pestaña Network.');
-                    }
+                    alert('No se pudo enviar la petición al servidor. Revisa la consola y la pestaña Network.');
                 }
             } catch (err) {
                 console.error('[profile-config-auth] unexpected error during submission:', err);
@@ -182,5 +170,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Load current user's verification requests and render them
+    async function loadMyRequests() {
+        try {
+            const resp = await fetch('/verificacion/my_requests', { credentials: 'include' });
+            const data = await resp.json();
+            const container = document.getElementById('myVerificationRequests');
+            if (!container) return;
+            if (!resp.ok) {
+                container.innerHTML = '<div class="text-danger">Error cargando solicitudes</div>';
+                return;
+            }
+            const rows = data.requests || [];
+            if (!rows.length) { container.innerHTML = '<div class="text-muted">No tienes solicitudes pendientes.</div>'; return; }
+            const list = document.createElement('div');
+            list.className = 'list-group';
+            rows.forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-start';
+                const left = document.createElement('div');
+                left.innerHTML = `<div><strong>#${r.id}</strong> ${r.validation_type || ''} - ${r.license_number || ''}</div><div class="small text-muted">Enviado: ${r.submitted_at || ''} | Estado: ${r.status || ''}</div>`;
+                const right = document.createElement('div');
+                if (r.status === 'pending') {
+                    const cancel = document.createElement('button');
+                    cancel.className = 'btn btn-sm btn-outline-danger';
+                    cancel.textContent = 'Cancelar solicitud';
+                    cancel.addEventListener('click', async () => {
+                        if (!confirm('¿Deseas cancelar la solicitud #' + r.id + '?')) return;
+                        try {
+                            const res = await fetch('/verificacion/cancel/' + r.id, { method: 'POST', credentials: 'include' });
+                            const body = await res.json();
+                            if (!res.ok) { alert('Error cancelando: ' + (body && body.message ? body.message : res.status)); return; }
+                            alert('Solicitud cancelada.');
+                            loadMyRequests();
+                        } catch (e) { console.error('cancel error', e); alert('Error de red al cancelar.'); }
+                    });
+                    right.appendChild(cancel);
+                }
+                item.appendChild(left);
+                item.appendChild(right);
+                list.appendChild(item);
+            });
+            container.innerHTML = ''; container.appendChild(list);
+        } catch (e) {
+            console.error('loadMyRequests error', e);
+        }
+    }
+
+    // Load on page load
+    try { if (typeof loadMyRequests === 'function') loadMyRequests(); } catch (e) { /* ignore */ }
 
 });

@@ -23,7 +23,10 @@
 
         const actions = [];
         if (report.type === 'source') actions.push({ value: 'delete_source', label: 'Eliminar fuente' });
-        if (report.type === 'user') actions.push({ value: 'suspend_user', label: 'Suspender usuario (7 días)' });
+        if (report.type === 'user') {
+            actions.push({ value: 'suspend_user', label: 'Suspender usuario (7 días)' });
+            actions.push({ value: 'delete_user', label: 'Eliminar usuario (borrar datos)' });
+        }
         if (report.type === 'comment') actions.push({ value: 'delete_comment', label: 'Eliminar comentario' });
         if (report.type === 'message') actions.push({ value: 'delete_message', label: 'Eliminar mensaje' });
 

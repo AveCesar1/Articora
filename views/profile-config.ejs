@@ -60,12 +60,21 @@
                 <div class="card-body">
                     <h6 class="card-title mb-3">Estado de la cuenta</h6>
                     <div class="d-flex align-items-center mb-3">
-                        <div class="status-indicator <%= user.academicStatus === 'Validado' ? 'validated' : 'pending' %> me-3"></div>
+                        <div class="status-indicator <%= user.academicStatus === 'Validado' ? 'validated' : (user.verificationRequest && user.verificationRequest.status === 'rejected' ? 'rejected' : 'pending') %> me-3"></div>
                         <div>
                             <p class="mb-0"><strong>Estado:</strong> <%= user.academicStatus %></p>
                             <small class="text-muted">
                                 <% if (user.academicStatus === 'Validado') { %>
-                                    Verificado el 20/08/2023
+                                    Verificado
+                                    <% if (user.verificationRequest && user.verificationRequest.resolved_at) { %>
+                                        el <%= new Date(user.verificationRequest.resolved_at).toLocaleDateString('es-ES') %>
+                                    <% } %>
+                                <% } else if (!user.verificationRequest) { %>
+                                    No has enviado una solicitud de verificación
+                                <% } else if (user.verificationRequest.status === 'pending') { %>
+                                    Solicitud enviada el <%= new Date(user.verificationRequest.submitted_at).toLocaleDateString('es-ES') %> — en espera de revisión
+                                <% } else if (user.verificationRequest.status === 'rejected') { %>
+                                    Solicitud rechazada el <%= user.verificationRequest.resolved_at ? new Date(user.verificationRequest.resolved_at).toLocaleDateString('es-ES') : '' %>
                                 <% } else { %>
                                     Pendiente de verificación
                                 <% } %>
@@ -195,6 +204,11 @@
                                     <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-save me-2"></i> Guardar cambios
                                     </button>
+                                </div>
+                                <!-- User's own requests -->
+                                <div id="myVerificationRequestsContainer" class="mt-4">
+                                    <h6>Mis solicitudes de verificación</h6>
+                                    <div id="myVerificationRequests"></div>
                                 </div>
                             </form>
                         </div>
@@ -335,7 +349,7 @@
                                                     <div class="mb-3">
                                                         <label for="documentFile" class="form-label">Documento de identificación</label>
                                                         <input type="file" class="form-control" id="documentFile" 
-                                                               accept=".pdf,.jpg,.jpeg,.png" required>
+                                                               accept=".pdf,.jpg,.jpeg,.png">
                                                         <div class="form-text">
                                                             Sube una copia de tu identificación oficial (INE/IFE/pasaporte). 
                                                             Máximo 5MB. Formatos: PDF, JPG, PNG.
@@ -345,12 +359,12 @@
                                                     <div class="mb-4">
                                                         <label for="academicDocumentFile" class="form-label">Documento académico</label>
                                                         <input type="file" class="form-control" id="academicDocumentFile" 
-                                                               accept=".pdf,.jpg,.jpeg,.png" required>
+                                                               accept=".pdf,.jpg,.jpeg,.png">
                                                         <div class="form-text">
                                                             Sube una copia de tu cédula profesional o certificado académico. 
                                                             Máximo 5MB. Formatos: PDF, JPG, PNG.
                                                         </div>
-                                                    </div>
+                                                    </div> <!-- Esto aparece en verificación por cédula aunque solo debería aparecer en verificación manual :/ -->
 
                                                     <div class="alert alert-warning">
                                                         <i class="fas fa-exclamation-triangle me-2"></i>

@@ -10,6 +10,7 @@ const autenticacion = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
 const { encryptEmail, decryptEmail } = require('../../lib/crypto_utils');
 const { consultarCedula } = require('../../services/sepService');
+const { getVerificationKey } = require('../../lib/encryption_key');
 
 // Usa esto como condicional para activar los debuggings.
 const debugging = global.debugging;
@@ -440,6 +441,32 @@ module.exports = function (app) {
                 return res.redirect('/login?error=not_verified');
             }
 
+            // Verificar si la cuenta está activa or deleted
+            const isActive = (typeof user.account_active === 'undefined') ? 1 : Number(user.account_active);
+            const isDeleted = (typeof user.is_deleted === 'undefined') ? 0 : Number(user.is_deleted);
+            const adminNote = user.account_admin_note || null;
+            if (isActive === 0) {
+                const payload = { success: false, message: isDeleted ? 'account_deleted' : 'account_inactive', admin_note: adminNote };
+                if (user.locked_until) payload.locked_until = user.locked_until;
+                if (req.headers.accept && req.headers.accept.includes('text/html')) {
+                    // Provide a short query hint; detailed note is returned in JSON for API clients
+                    return res.redirect('/login?error=' + (isDeleted ? 'account_deleted' : 'account_inactive'));
+                }
+                return res.status(403).json(payload);
+            }
+
+            // Verificar bloqueo temporal (locked_until)
+            if (user.locked_until) {
+                try {
+                    const lockedUntil = new Date(user.locked_until);
+                    if (!Number.isNaN(lockedUntil.getTime()) && lockedUntil > new Date()) {
+                        const payload = { success: false, message: 'account_locked', locked_until: user.locked_until, admin_note: adminNote };
+                        if (req.headers.accept && req.headers.accept.includes('text/html')) return res.redirect('/login?error=account_locked');
+                        return res.status(403).json(payload);
+                    }
+                } catch (e) { /* ignore parse errors */ }
+            }
+
             // Generar token JWT
             const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, {
                 expiresIn: '1h',
@@ -676,6 +703,7 @@ module.exports = function (app) {
     // En tres partes:
     // 1. Configurar Multer para validación
     // 2. Ruta de subida con cifrado AES-256 y guardado seguro
+    // 2b. Ruta de subida por cédula profesional (automático y sin validación de INE)
     // 3. Job automático para eliminar documentos expirados
 
     // 1. Configurar Multer para validación
@@ -710,9 +738,9 @@ module.exports = function (app) {
         async (req, res) => {
             if (debugging) console.log("POST /verificacion/subir recibido. Usuario ID:", req.user.id, 'files:', Object.keys(req.files || {}));
             try {
-                // Elegir el fichero principal: preferir 'documento', si no existe usar 'extra_document'
-                const primaryFile = (req.files && req.files.documento && req.files.documento[0]) || (req.files && req.files.extra_document && req.files.extra_document[0]);
-                if (!primaryFile) return res.status(400).json({ error: 'No file uploaded' });
+                const docMain = (req.files && req.files.documento && req.files.documento[0]) || null;
+                const docExtra = (req.files && req.files.extra_document && req.files.extra_document[0]) || null;
+                if (!docMain && !docExtra) return res.status(400).json({ error: 'No file uploaded' });
 
                 // Normalizar tipo enviado desde cliente ('cedula'|'certificados') a valores internos
                 const tipoRaw = (req.body.tipo || '').toLowerCase();
@@ -721,93 +749,96 @@ module.exports = function (app) {
                 else if (['certificados', 'certificado'].includes(tipoRaw)) tipo = 'certificado';
                 else return res.status(400).json({ error: 'tipo inválido' });
 
-                // Mime permitidos
-                const mime = primaryFile.mimetype;
                 const imgTypes = ['image/jpeg', 'image/jpg', 'image/png'];
                 const certTypes = ['application/pdf', ...imgTypes];
 
-                if (tipo === 'ine' && !imgTypes.includes(mime)) {
-                    return res.status(400).json({ error: 'Formato no permitido para INE' });
-                }
-                if (tipo === 'certificado' && !certTypes.includes(mime)) {
-                    return res.status(400).json({ error: 'Formato no permitido para certificado' });
-                }
-
-                // Límites por tipo
-                const maxSize = tipo === 'ine' ? 3 * 1024 * 1024 : 5 * 1024 * 1024;
-                if (primaryFile.size > maxSize) {
-                    return res.status(413).json({ error: 'Archivo demasiado grande' });
+                // Validate files depending on type
+                if (tipo === 'ine') {
+                    const main = docMain || docExtra;
+                    if (!main || !imgTypes.includes(main.mimetype)) return res.status(400).json({ error: 'Formato no permitido para INE' });
+                } else if (tipo === 'certificado') {
+                    const main = docMain || docExtra;
+                    if (!main || !certTypes.includes(main.mimetype)) return res.status(400).json({ error: 'Formato no permitido para certificado' });
                 }
 
-                // ENCRYPTION KEY: esperar HEX o BASE64; convertir a Buffer y comprobar 32 bytes
+                // Size limits
+                const maxSizeMain = tipo === 'ine' ? 3 * 1024 * 1024 : 5 * 1024 * 1024;
+                if (docMain && docMain.size > maxSizeMain) return res.status(413).json({ error: 'Archivo demasiado grande' });
+                if (docExtra && docExtra.size > 5 * 1024 * 1024) return res.status(413).json({ error: 'Archivo extra demasiado grande' });
+
+                // Use centralized key helper to obtain a 32-byte key (persistent in dev)
                 let keyBuffer;
-                if (!process.env.ENCRYPTION_KEY) {
-                    // If in development, allow a temporary key to make local testing easier
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.warn('[verificacion] ENCRYPTION_KEY no configurada: usando clave temporal de desarrollo (no segura)');
-                        keyBuffer = crypto.randomBytes(32);
-                    } else {
-                        console.error('[verificacion] ENCRYPTION_KEY no configurada');
-                        return res.status(500).json({ error: 'ENCRYPTION_KEY no configurada' });
-                    }
-                } else {
-                    try {
-                        // intenta hex primero
-                        keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
-                        if (keyBuffer.length !== 32) {
-                            // intenta base64
-                            keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
-                        }
-                    } catch (e) {
-                        try {
-                            keyBuffer = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
-                        } catch (e2) {
-                            keyBuffer = null;
-                        }
-                    }
+                try {
+                    keyBuffer = getVerificationKey();
+                } catch (e) {
+                    console.error('[verificacion] getVerificationKey error', e && e.message);
+                    return res.status(500).json({ error: 'ENCRYPTION_KEY invalid' });
                 }
 
-                if (!keyBuffer || keyBuffer.length !== 32) {
-                    // Provide detailed log for debugging but avoid printing the key itself
-                    const provided = process.env.ENCRYPTION_KEY ? 'present' : 'absent';
-                    console.error('[verificacion] ENCRYPTION_KEY inválida (debe tener 32 bytes). Variable status:', provided, 'resolvedLength:', keyBuffer ? keyBuffer.length : null);
-
-                    if (process.env.NODE_ENV !== 'production') {
-                        // In dev, fallback to a random key instead of failing hard — useful for local testing
-                        console.warn('[verificacion] Modo desarrollo: usando clave temporal aleatoria para permitir la prueba. No usar en producción.');
-                        keyBuffer = crypto.randomBytes(32);
-                    } else {
-                        return res.status(500).json({ error: 'ENCRYPTION_KEY inválida (debe tener 32 bytes)' });
-                    }
-                }
-
-                // Cifrar (AES-256-CBC)
-                const iv = crypto.randomBytes(16);
-                const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
-                const encrypted = Buffer.concat([cipher.update(primaryFile.buffer), cipher.final()]);
-
-                // Directorio seguro configurable
+                // Helper: encrypt a multer file buffer and persist to secure dir, return metadata
                 const baseDir = process.env.VERIFY_DIR || path.join(__dirname, '..', '..', 'secure_storage', 'verificaciones');
                 fs.mkdirSync(baseDir, { recursive: true, mode: 0o700 });
 
-                // Nombre de archivo seguro y único
-                const safeOriginal = path.basename(sanitizeText(primaryFile.originalname || 'upload'));
-                const filename = `${Date.now()}_${req.user.id}_${crypto.randomBytes(6).toString('hex')}.enc`;
-                const filepath = path.join(baseDir, filename);
+                function encryptAndSaveFile(file) {
+                    const iv = crypto.randomBytes(16);
+                    const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
+                    const encrypted = Buffer.concat([cipher.update(file.buffer), cipher.final()]);
+                    const safeOriginal = path.basename(sanitizeText(file.originalname || 'upload'));
+                    const filename = `${Date.now()}_${req.user.id}_${crypto.randomBytes(6).toString('hex')}.enc`;
+                    const filepath = path.join(baseDir, filename);
+                    fs.writeFileSync(filepath, encrypted, { mode: 0o600 });
+                    return { filepath, ivHex: iv.toString('hex'), safeOriginal, mime: file.mimetype };
+                }
 
-                // Escribir archivo con permisos 600
-                fs.writeFileSync(filepath, encrypted, { mode: 0o600 });
+                const insertedDocs = [];
+                const expiresAt = tipo === 'ine' ? new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-                // Guardar metadatos en BD (usar consultas preparadas)
-                const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(); // 72h
-                const stmt = req.db.prepare(`
-                    INSERT INTO documentos_verificacion
-                    (usuario_id, ruta_archivo, iv, tipo, original_name, mime, fecha_subida, expira_en, verificacion_completada)
-                    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, 0)
+                // Insert main file if present
+                if (docMain) {
+                    const meta = encryptAndSaveFile(docMain);
+                    const insertStmt = req.db.prepare(`
+                        INSERT INTO documentos_verificacion (usuario_id, ruta_archivo, iv, tipo, original_name, mime, fecha_subida, expira_en, verificacion_completada)
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, 0)
+                    `);
+                    const info = insertStmt.run(req.user.id, meta.filepath, meta.ivHex, tipo, meta.safeOriginal, meta.mime, expiresAt);
+                    insertedDocs.push({ id: info.lastInsertRowid, path: meta.filepath, mime: meta.mime });
+                }
+
+                // Insert extra file if present
+                if (docExtra) {
+                    const meta2 = encryptAndSaveFile(docExtra);
+                    const insertStmt2 = req.db.prepare(`
+                        INSERT INTO documentos_verificacion (usuario_id, ruta_archivo, iv, tipo, original_name, mime, fecha_subida, expira_en, verificacion_completada)
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, 0)
+                    `);
+                    const info2 = insertStmt2.run(req.user.id, meta2.filepath, meta2.ivHex, tipo, meta2.safeOriginal, meta2.mime, expiresAt);
+                    insertedDocs.push({ id: info2.lastInsertRowid, path: meta2.filepath, mime: meta2.mime });
+                }
+
+                // Create a user_validations row to track admin review
+                const licenseNumber = sanitizeText(String(req.body.cedula || req.body.license || '').trim()) || null;
+                // Determine which path is identity vs certificate
+                let identityPath = null; let certificatePath = null;
+                if (tipo === 'ine') {
+                    // identity should be the main file when type is ine
+                    identityPath = insertedDocs.length ? insertedDocs[0].path : null;
+                } else {
+                    // certificado: main is certificate, extra may be identity
+                    if (insertedDocs.length === 1) {
+                        certificatePath = insertedDocs[0].path;
+                    } else if (insertedDocs.length >= 2) {
+                        certificatePath = insertedDocs[0].path;
+                        identityPath = insertedDocs[1].path;
+                    }
+                }
+
+                const uvStmt = req.db.prepare(`
+                    INSERT INTO user_validations (user_id, validation_type, license_number, certificate_path, identity_document_path, api_validation_result, status, submitted_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'))
                 `);
-                stmt.run(req.user.id, filepath, iv.toString('hex'), tipo, safeOriginal, mime, expiresAt);
+                const uvRes = uvStmt.run(req.user.id, tipo, licenseNumber, certificatePath, identityPath, null);
 
-                return res.json({ success: true, message: 'Subido y cifrado correctamente', expiresAt });
+                return res.json({ success: true, message: 'Solicitud de verificación creada y documentos guardados', validationRequestId: uvRes.lastInsertRowid, expiresAt });
             } catch (err) {
                 console.error('upload error', err);
                 return res.status(500).json({ error: 'internal_error' });
@@ -818,21 +849,16 @@ module.exports = function (app) {
     // 2b. Ruta de verificación automática por cédula (consulta al servidor privado SEP)
     app.post('/verificacion/cedula', autenticacion, async (req, res) => {
         try {
-            const cedulaRaw = String(req.body.cedula || req.body.numero || '').trim();
+            // This endpoint no longer performs automatic validation for regular users.
+            // Only administrators may invoke direct SEP checks via this route.
+            if (!req.user || !req.user.isAdmin) {
+                return res.status(403).json({ error: 'ADMIN_REQUIRED', message: 'Only administrators may perform direct cedula checks. Upload a verification request instead.' });
+            }
 
+            const cedulaRaw = String(req.body.cedula || req.body.numero || '').trim();
             if (!/^[0-9]{5,8}$/.test(cedulaRaw)) {
                 return res.status(400).json({ error: 'Número de cédula inválido. Debe ser numérico entre 5 y 8 dígitos.' });
             }
-
-            // Obtener usuario de la BD
-            const userRow = req.db.prepare('SELECT id, first_name, last_name, full_name FROM users WHERE id = ?').get(req.user.id);
-            if (!userRow) return res.status(404).json({ error: 'Usuario no encontrado' });
-
-            const userFull = (userRow.full_name && String(userRow.full_name).trim()) || ((userRow.first_name || '') + ' ' + (userRow.last_name || '')).trim();
-            const normalize = s => String(s || '').toUpperCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim();
-            const userFullNorm = normalize(userFull);
-
-            console.log(`[verificacion/cedula] Usuario ${req.user.id} solicitó verificación de cédula ${cedulaRaw}. Usuario nombre: ${userFullNorm}`);
 
             // Consultar servicio SEP
             let apiData;
@@ -840,76 +866,60 @@ module.exports = function (app) {
                 apiData = await consultarCedula(cedulaRaw);
             } catch (err) {
                 console.error('[verificacion/cedula] error al consultar SEP:', err && err.message);
-                if (err.message === 'RECAPTCHA_REQUIRED') {
-                    return res.status(503).json({ error: 'RECAPTCHA_REQUIRED', message: 'La API de la SEP requiere verificación. Intenta más tarde.' });
-                }
-                if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-                    return res.status(504).json({ error: 'TIMEOUT', message: 'El servidor de la SEP tardó demasiado. Intenta más tarde.' });
-                }
+                if (err.message === 'RECAPTCHA_REQUIRED') return res.status(503).json({ error: 'RECAPTCHA_REQUIRED', message: 'La API de la SEP requiere verificación. Intenta más tarde.' });
+                if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') return res.status(504).json({ error: 'TIMEOUT', message: 'El servidor de la SEP tardó demasiado. Intenta más tarde.' });
                 return res.status(502).json({ error: 'SEP_UNAVAILABLE', message: 'No fue posible conectar con el servicio de la SEP.' });
             }
 
-            if (!apiData) {
-                console.log('[verificacion/cedula] SEP no devolvió datos para', cedulaRaw);
-                return res.status(404).json({ error: 'NO_ENCONTRADO', message: 'No se encontró registro para esa cédula.' });
-            }
+            if (!apiData) return res.status(404).json({ error: 'NO_ENCONTRADO', message: 'No se encontró registro para esa cédula.' });
 
-            // Extraer nombre y título del objeto devuelto por la API de forma flexible
-            const pickString = v => (v === null || v === undefined) ? '' : String(v);
-
-            const extractName = (obj) => {
-                if (!obj) return '';
-                const keys = Object.keys(obj);
-                // Common patterns
-                const tryKeys = ['full_name','fullName','nombreCompleto','nombre_completo','nombre','nombres','nombreCompletoProfesional','apellidoPaterno','apellidoMaterno','apellido'];
-                for (const k of tryKeys) {
-                    if (obj[k]) return pickString(obj[k]);
-                }
-                // If has parts (several naming conventions supported)
-                if (obj.nombres && (obj.apellidoPaterno || obj.apellidoMaterno)) {
-                    return `${obj.nombres} ${obj.apellidoPaterno || ''} ${obj.apellidoMaterno || ''}`.trim();
-                }
-                // SEP API style: nombre + primerApellido + segundoApellido
-                if (obj.nombre && (obj.primerApellido || obj.segundoApellido)) {
-                    return `${obj.nombre} ${obj.primerApellido || ''} ${obj.segundoApellido || ''}`.trim();
-                }
-                // If docs array
-                if (Array.isArray(obj.docs) && obj.docs.length > 0) {
-                    const first = obj.docs[0];
-                    return extractName(first) || '';
-                }
-                // nested profesionist
-                if (obj.profesionista) return extractName(obj.profesionista);
-                // Fallback: try first stringy value
-                for (const k of keys) {
-                    if (typeof obj[k] === 'string' && obj[k].trim().length > 0) return obj[k];
-                }
-                return '';
-            };
-
-            const apiDataPrimary = Array.isArray(apiData) && apiData.length > 0 ? apiData[0] : apiData;
-            const apiNameRaw = extractName(apiDataPrimary) || extractName(apiDataPrimary?.profesional) || '';
-            const apiNameNorm = normalize(apiNameRaw);
-
-            console.log('[verificacion/cedula] Nombre en API SEP:', apiNameNorm || '(vacío)');
-
-            // Comparar
-            if (userFullNorm && apiNameNorm && userFullNorm === apiNameNorm) {
-                // Marcar usuario validado
-                try {
-                    req.db.prepare('UPDATE users SET is_validated = 1 WHERE id = ?').run(req.user.id);
-                    console.log(`[verificacion/cedula] Usuario ${req.user.id} validado correctamente por cédula ${cedulaRaw}`);
-                } catch (e) {
-                    console.error('[verificacion/cedula] Error actualizando BD:', e && e.message);
-                }
-                return res.json({ success: true, validated: true, message: 'Verificación exitosa' });
-            }
-
-            console.log(`[verificacion/cedula] Coincidencia FALLIDA para usuario ${req.user.id}. usuario=${userFullNorm} api=${apiNameNorm}`);
-            return res.status(400).json({ success: false, validated: false, error: 'NO_COINCIDE', message: 'Los datos no coinciden.' });
+            // Return API data to admin for manual inspection; do not modify user state here.
+            return res.json({ success: true, cedula: cedulaRaw, apiData });
         } catch (err) {
             console.error('[verificacion/cedula] unexpected error:', err && err.stack);
             return res.status(500).json({ error: 'internal_error' });
+        }
+    });
+
+    // Get current user's verification requests
+    app.get('/verificacion/my_requests', autenticacion, (req, res) => {
+        try {
+            const db = req.db;
+            const rows = db.prepare('SELECT * FROM user_validations WHERE user_id = ? ORDER BY submitted_at DESC').all(req.user.id || 0);
+            return res.json({ success: true, requests: rows });
+        } catch (e) {
+            console.error('GET /verificacion/my_requests error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Allow users to cancel their own pending verification request
+    app.post('/verificacion/cancel/:id', autenticacion, (req, res) => {
+        try {
+            const db = req.db;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+            const uv = db.prepare('SELECT * FROM user_validations WHERE id = ?').get(id);
+            if (!uv) return res.status(404).json({ success: false, message: 'not_found' });
+            if (uv.user_id !== req.user.id) return res.status(403).json({ success: false, message: 'forbidden' });
+            if (uv.status !== 'pending') return res.status(400).json({ success: false, message: 'not_pending' });
+
+            db.transaction(() => {
+                db.prepare('UPDATE user_validations SET status = ?, resolved_at = datetime(\'now\') WHERE id = ?').run('cancelled', id);
+                if (uv.identity_document_path) {
+                    try { if (fs.existsSync(uv.identity_document_path)) fs.unlinkSync(uv.identity_document_path); } catch (e) { /* ignore */ }
+                    db.prepare('UPDATE documentos_verificacion SET verificacion_completada = 1 WHERE ruta_archivo = ?').run(uv.identity_document_path);
+                }
+                if (uv.certificate_path) {
+                    try { if (fs.existsSync(uv.certificate_path)) fs.unlinkSync(uv.certificate_path); } catch (e) { /* ignore */ }
+                    db.prepare('UPDATE documentos_verificacion SET verificacion_completada = 1 WHERE ruta_archivo = ?').run(uv.certificate_path);
+                }
+            })();
+
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('POST /verificacion/cancel/:id error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
 
@@ -936,6 +946,8 @@ module.exports = function (app) {
     setInterval(async () => {
     try {
         const now = new Date().toISOString();
+
+        // 1) Remove documentos_verificacion rows that expired or were marked completed
         const rows = db.prepare(`
             SELECT * FROM documentos_verificacion
             WHERE expira_en < ?
@@ -943,7 +955,7 @@ module.exports = function (app) {
         `).all(now);
 
         rows.forEach(r => {
-        try { if (fs.existsSync(r.ruta_archivo)) fs.unlinkSync(r.ruta_archivo); } catch (e) { console.error('error deleting file', e); }
+            try { if (fs.existsSync(r.ruta_archivo)) fs.unlinkSync(r.ruta_archivo); } catch (e) { console.error('error deleting file', e); }
         });
 
         db.prepare(`
@@ -951,6 +963,25 @@ module.exports = function (app) {
             WHERE expira_en < ? 
             OR verificacion_completada = 1
         `).run(now);
+
+        // 2) Remove stale user_validations that remained pending for more than 7 days
+        const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const staleValidations = db.prepare(`SELECT * FROM user_validations WHERE status = 'pending' AND submitted_at < ?`).all(cutoff);
+        staleValidations.forEach(v => {
+            try {
+                // delete associated documentos_verificacion entries if they exist
+                if (v.identity_document_path) {
+                    try { if (fs.existsSync(v.identity_document_path)) fs.unlinkSync(v.identity_document_path); } catch (e) { /* ignore */ }
+                    db.prepare('DELETE FROM documentos_verificacion WHERE ruta_archivo = ?').run(v.identity_document_path);
+                }
+                if (v.certificate_path) {
+                    try { if (fs.existsSync(v.certificate_path)) fs.unlinkSync(v.certificate_path); } catch (e) { /* ignore */ }
+                    db.prepare('DELETE FROM documentos_verificacion WHERE ruta_archivo = ?').run(v.certificate_path);
+                }
+                // delete the validation request
+                db.prepare('DELETE FROM user_validations WHERE id = ?').run(v.id);
+            } catch (e) { console.error('error cleaning stale validation', e); }
+        });
 
     } catch (e) { console.error('cleanup error', e); }
     }, 60 * 60 * 1000);
