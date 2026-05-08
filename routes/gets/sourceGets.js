@@ -201,10 +201,16 @@ module.exports = function (app) {
                 let pyResults = [];
                 try {
                     pyResults = await searchWithPython(query);
+                    pyResults = await searchWithPython(query);
+                    if (debugging) console.log(`Top 5 scores: ${pyResults.slice(0, 5).map(r => r.score)}`);
                 } catch (e) {
                     console.error('Error calling TF-IDF search.py:', e);
                     pyResults = [];
                 }
+
+                // UMBRAL DE SIMILITUD (AJUSTAR ESTO)
+                const MIN_SIMILARITY = 0.1;
+                pyResults = pyResults.filter(r => r.score >= MIN_SIMILARITY);
 
                 // pyResults expected to be [{source_id: <int>, score: <float>}, ...]
                 if (Array.isArray(pyResults) && pyResults.length > 0) {

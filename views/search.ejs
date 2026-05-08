@@ -29,16 +29,16 @@
                     <!-- Filtros rápidos -->
                     <div class="mt-3 d-flex flex-wrap gap-2">
                         <span class="text-muted me-2">Filtrar por:</span>
-                        <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&type=article" 
-                           class="badge <%= typeof filters !== 'undefined' && filters.type === 'article' ? 'bg-primary' : 'bg-light text-dark' %>">
+                        <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&sourceType=artículo%20de%20revista" 
+                        class="badge <%= typeof filters !== 'undefined' && filters.sourceType === 'article' ? 'bg-primary' : 'bg-light text-dark' %>">
                             Artículos
                         </a>
-                        <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&type=book" 
-                           class="badge <%= typeof filters !== 'undefined' && filters.type === 'book' ? 'bg-primary' : 'bg-light text-dark' %>">
+                        <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&sourceType=libro" 
+                        class="badge <%= typeof filters !== 'undefined' && filters.sourceType === 'book' ? 'bg-primary' : 'bg-light text-dark' %>">
                             Libros
                         </a>
-                        <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&type=thesis" 
-                           class="badge <%= typeof filters !== 'undefined' && filters.type === 'thesis' ? 'bg-primary' : 'bg-light text-dark' %>">
+                        <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&sourceType=tesis%20o%20disertación" 
+                        class="badge <%= typeof filters !== 'undefined' && filters.sourceType === 'thesis' ? 'bg-primary' : 'bg-light text-dark' %>">
                             Tesis
                         </a>
                         <a href="?q=<%= typeof query !== 'undefined' ? encodeURIComponent(query) : '' %>&sort=recent" 

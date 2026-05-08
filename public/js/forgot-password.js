@@ -266,6 +266,10 @@ document.addEventListener('DOMContentLoaded', function() {
             captchaInput.value = '';
             return;
         }
+
+        const submitBtn = identifyForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando...';
         
         // Enviar petición al servidor para generar código
         (async function() {
@@ -283,6 +287,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (err) {
                 console.error('forgot-password identify error', err);
                 showAlert('danger', err.message || 'Error al solicitar código');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Enviar Código de Recuperación';
             }
         })();
     });

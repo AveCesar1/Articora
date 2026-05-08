@@ -574,6 +574,16 @@ module.exports = function (app) {
             let identifier = (req.body && req.body.identifier) ? sanitizeText(req.body.identifier).toLowerCase() : '';
             if (!identifier) return res.status(400).json({ success: false, message: 'missing_identifier' });
 
+            // Si ya hay un código pendiente y recién generado, no creamos otro
+            const now = Date.now();
+            if (req.session.passwordReset && req.session.passwordReset.expiresAt > now && !req.session.passwordReset.verified) {
+                const elapsed = now - (req.session.passwordReset.createdAt || 0);
+                if (elapsed < 30_000) { // menos de 30 segundos
+                    return res.json({ success: true, message: 'Si existe una cuenta asociada se ha enviado un código.' });
+                }
+                // Si ha pasado más tiempo, permitimos reenvío
+            }
+
             const db = req.db;
             let user = null;
             const isEmail = identifier.includes('@');
@@ -594,7 +604,8 @@ module.exports = function (app) {
                     code,
                     expiresAt,
                     attempts: 0,
-                    verified: false
+                    verified: false,
+                    createdAt: now
                 };
 
                 // Try to send email with transporter
@@ -660,6 +671,13 @@ module.exports = function (app) {
             const newPassword = req.body && req.body.newPassword ? String(req.body.newPassword) : '';
             if (!req.session.passwordReset || !req.session.passwordReset.verified) return res.status(400).json({ success: false, message: 'not_verified' });
             if (!newPassword || newPassword.length < 8) return res.status(400).json({ success: false, message: 'invalid_password' });
+
+            // Validaciones...
+            // Password: 8-22 chars; allow letters, numbers and selected symbols, no spaces
+            const passwordRegex = /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};:,.\/\?]{8,22}$/;
+            if (!newPassword || !passwordRegex.test(newPassword)) {
+                return res.status(400).json({ success: false, message: 'Contraseña inválida. Debe tener entre 8 y 22 caracteres y puede incluir letras, números y símbolos permitidos.' });
+            }
 
             const userId = req.session.passwordReset.userId;
             if (!userId) return res.status(400).json({ success: false, message: 'invalid_state' });
