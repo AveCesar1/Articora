@@ -261,3 +261,15 @@ hr {
 #interestsList .badge span {
     color: #fff;
 }
+
+.plain-link {
+  color: inherit;          /* uses the parent's text color */
+  text-decoration: none;  /* removes underline */
+}
+/* Also override visited, hover, active states */
+.plain-link:visited,
+.plain-link:hover,
+.plain-link:active {
+  color: inherit;
+  text-decoration: none;
+}

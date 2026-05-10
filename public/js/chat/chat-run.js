@@ -19,11 +19,11 @@ initChat();
                     infoBody.innerHTML = `
                             <div class="text-center mb-3">
                                 <img src="${u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(u.full_name || u.username) + '&background=8d6e63&color=fff')}" class="rounded-circle mb-2" width="80" height="80">
-                                <h5 class="mb-0">${escapeHtml(u.full_name || u.username)}</h5>
+                                <h5 class="mb-0"><a href=/profile/${u.id} class=plain-link>${escapeHtml(u.full_name || u.username)}</a></h5>
                                 <small class="text-muted">@${escapeHtml(u.username || '')}</small>
                             </div>
                             <div class="mb-3">
-                                <strong>Correo (AES-256 cifrado):</strong>
+                                <strong>Correo:</strong>
                                 <div class="small text-break">${escapeHtml(u.encryptedEmail || 'No disponible')}</div>
                             </div>
                             

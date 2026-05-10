@@ -196,7 +196,7 @@
                                 <!-- Idioma y Licencia no se muestran en la plataforma -->
 
                                 <dt class="col-sm-4">Subido por</dt>
-                                <dd class="col-sm-8"><%= post.uploadedBy %></dd>
+                                <dd class="col-sm-8"> <a href="/profile/<%=post.uploadedById%>" class="plain-link"><%= post.uploadedBy %></a></dd>
                             </dl>
                         </div>
                     </div>
@@ -255,7 +255,7 @@
                                                 <div class="d-flex justify-content-between align-items-start">
                                                     <div>
                                                         <h6 class="mb-1 d-flex align-items-center">
-                                                            <span><%= comment.user %></span>
+                                                            <span><a href="/profile/<%= comment.user_id %>" class="plain-link"><%= comment.user %></a></span>
                                                             <small class="text-muted ms-2"><%= comment.academic %></small>
                                                         </h6>
                                                         <small class="text-muted"><%= comment.date %></small>

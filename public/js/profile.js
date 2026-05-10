@@ -1,5 +1,24 @@
 // profile.js
 document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('shareProfileBtn')?.addEventListener('click', function() {
+        const userId = this.getAttribute('data-user-id');
+        const profileUrl = `/profile/${userId}`;
+        // Build full URL (use current origin for absolute link)
+        const fullUrl = window.location.origin + profileUrl;
+        
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            //Optional: brief user feedback 
+            const originalHtml = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-check me-2"></i> ¡Enlace copiado!';
+            setTimeout(() => {
+                this.innerHTML = originalHtml;
+            }, 1500);
+        }).catch(err => {
+            console.error('Error al copiar: ', err);
+            alert('No se pudo copiar el enlace manualmente.');
+        });
+    });
+
     const sendRequestBtn = document.querySelector('.send-contact-request');
     if (sendRequestBtn) {
         sendRequestBtn.addEventListener('click', function() {
