@@ -29,6 +29,7 @@ module.exports = function (app) {
         // Fallback: prepend slash
         return '/' + s;
     }
+    
     // Página: Listas (lista del usuario + públicas)
     app.get('/lists', IsRegistered, noAdmin, (req, res) => {
         try {
