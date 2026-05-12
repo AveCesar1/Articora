@@ -610,7 +610,6 @@ module.exports = function(app) {
         }
     });
 
-    // Run system checks on demand (admin button)
     app.post('/api/admin/run_system_checks', soloAdmin, async (req, res) => {
         try {
             const db = req.db;

@@ -62,7 +62,7 @@
                     <div class="d-flex align-items-center mb-3">
                         <div class="status-indicator <%= user.academicStatus === 'Validado' ? 'validated' : (user.verificationRequest && user.verificationRequest.status === 'rejected' ? 'rejected' : 'pending') %> me-3"></div>
                         <div>
-                            <p class="mb-0"><strong>Estado:</strong> <%= user.academicStatus %></p>
+                            <p class="mb-0"><strong>Estado:</strong> <%= user.type === 'validated' ? 'Validado' : 'Registrado' %></p>
                             <small class="text-muted">
                                 <% if (user.academicStatus === 'Validado') { %>
                                     Verificado

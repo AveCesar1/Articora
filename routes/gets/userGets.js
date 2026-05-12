@@ -330,7 +330,7 @@ module.exports = function (app) {
         if (!userId) return res.redirect('/login');
 
         const userRow = db.prepare(`
-        SELECT id, username, email, profile_picture, bio, institution, 
+        SELECT id, username, email, profile_picture, bio, institution, is_validated,
                academic_level, available_for_messages, first_name, last_name
         FROM users WHERE id = ?
     `).get(userId);
@@ -343,9 +343,12 @@ module.exports = function (app) {
             email: (function(){ try { return decryptEmail(userRow.email, req.app); } catch(e) { console.error('Email decryption failed:', e); return userRow.email; } })(),
             bio: userRow.bio || '',
             first_name: userRow.first_name || '',
+            type: userRow.is_validated ? 'validated' : 'registered',
             last_name: userRow.last_name || '',
             institution: userRow.institution || '',
             academicDegree: userRow.academic_level || '',
+            academicStatus: userRow.is_validated ? 'Validado' : 'No validado',
+            isValidated: !!userRow.is_validated,
             availableForMessages: !!userRow.available_for_messages,
             profile_picture: userRow.profile_picture || null,
             interests: interests

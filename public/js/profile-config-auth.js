@@ -71,6 +71,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
+                // Pre-check: ensure user doesn't already have a pending validation
+                try {
+                    const checkResp = await fetch('/verificacion/my_requests', { credentials: 'include' });
+                    if (checkResp.ok) {
+                        const checkData = await checkResp.json().catch(() => null);
+                        const pendingExists = (checkData && Array.isArray(checkData.requests) && checkData.requests.some(r => r.status === 'pending')) || false;
+                        if (pendingExists) {
+                            alert('Ya tienes una solicitud de verificación pendiente. Cancela la existente o espera a que sea revisada por un administrador.');
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('No se pudo comprobar solicitudes existentes antes de enviar:', e);
+                }
+
                 const maxSize = 5 * 1024 * 1024; // 5MB
                 if (documentFile && documentFile.size > maxSize) {
                     alert('El archivo de identificación no debe exceder los 5MB.');

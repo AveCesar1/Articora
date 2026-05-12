@@ -215,7 +215,7 @@ module.exports = function (app) {
                 title: r.source_title || null,
                 reason: r.reason || 'otro',
                 description: r.description || '',
-                reportedBy: r.reporter_username || ('#' + (r.reporter_id || '')), 
+                reportedBy: r.reporter_username || ('#' + (r.reporter_id || '')),
                 reportDate: r.reported_at || null,
                 status: r.status || 'pending',
                 priority
@@ -315,34 +315,34 @@ module.exports = function (app) {
             avgResolutionTime
         };
 
-        res.render('admin', { 
-            title: 'Panel de Administración - Artícora', 
-            currentPage: 'admin', 
-            cssFile: 'admin.css', 
-            jsFile: 'admin/admin.js', 
-            userType: 'admin', 
-            manualReports: manualReports, 
-            systemReports: systemReports, 
-            stats: stats, 
-            totalReportsCount: manualReports.length + systemReports.length 
+        res.render('admin', {
+            title: 'Panel de Administración - Artícora',
+            currentPage: 'admin',
+            cssFile: 'admin.css',
+            jsFile: 'admin/admin.js',
+            userType: 'admin',
+            manualReports: manualReports,
+            systemReports: systemReports,
+            stats: stats,
+            totalReportsCount: manualReports.length + systemReports.length
         });
     });
 
     // PLATFORM
     app.get('/faq', (req, res) => {
-        res.render('faq', { 
-            title: 'Preguntas Frecuentes - Artícora', 
-            currentPage: 'faq', 
-            cssFile: 'faq.css' 
+        res.render('faq', {
+            title: 'Preguntas Frecuentes - Artícora',
+            currentPage: 'faq',
+            cssFile: 'faq.css'
         });
     });
 
     // TERMS AND POLICIES
     app.get('/terms', (req, res) => {
-        res.render('terms', { 
-            title: 'Términos y Políticas - Artícora', 
-            currentPage: 'terms', 
-            cssFile: 'terms.css' 
+        res.render('terms', {
+            title: 'Términos y Políticas - Artícora',
+            currentPage: 'terms',
+            cssFile: 'terms.css'
         });
     });
 
@@ -400,6 +400,27 @@ module.exports = function (app) {
             return res.json({ success: true, report, reporter, reportedUser, source, comment, message });
         } catch (e) {
             console.error('GET /api/admin/reports/:id error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Run system checks on demand (admin button)
+    // Detailed admin stats (used by modal)
+    app.get('/api/admin/stats/detailed', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const totalPending = db.prepare("SELECT COUNT(1) as c FROM reports WHERE status = 'pending'").get().c || 0;
+            const resolvedLast7 = db.prepare("SELECT COUNT(1) as c FROM reports WHERE status = 'resolved' AND resolved_at >= datetime('now','-7 days')").get().c || 0;
+            const avgRow = db.prepare("SELECT AVG((julianday(resolved_at) - julianday(reported_at)) * 24 * 60) as avg_minutes FROM reports WHERE status = 'resolved' AND resolved_at IS NOT NULL AND reported_at IS NOT NULL").get() || {};
+            const avgResolutionMinutes = avgRow && avgRow.avg_minutes ? parseFloat(Number(avgRow.avg_minutes).toFixed(2)) : null;
+            const topReporters = db.prepare("SELECT reporter_id, u.username, COUNT(1) as cnt FROM reports r LEFT JOIN users u ON r.reporter_id = u.id GROUP BY reporter_id ORDER BY cnt DESC LIMIT 5").all();
+            const topReported = db.prepare("SELECT reported_user_id, u.username, COUNT(1) as cnt FROM reports r LEFT JOIN users u ON r.reported_user_id = u.id GROUP BY reported_user_id ORDER BY cnt DESC LIMIT 5").all();
+            const pendingByType = db.prepare("SELECT report_type, COUNT(1) as cnt FROM reports WHERE status = 'pending' GROUP BY report_type").all();
+            const recentResolved = db.prepare("SELECT id, report_type, action_taken, resolved_at FROM reports WHERE status = 'resolved' ORDER BY resolved_at DESC LIMIT 10").all();
+
+            return res.json({ success: true, stats: { totalPending, resolvedLast7, avgResolutionMinutes, topReporters, topReported, pendingByType, recentResolved } });
+        } catch (e) {
+            console.error('GET /api/admin/stats/detailed error', e && e.message);
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });

@@ -784,6 +784,16 @@ module.exports = function (app) {
                 if (docMain && docMain.size > maxSizeMain) return res.status(413).json({ error: 'Archivo demasiado grande' });
                 if (docExtra && docExtra.size > 5 * 1024 * 1024) return res.status(413).json({ error: 'Archivo extra demasiado grande' });
 
+                // Prevent users from creating multiple concurrent pending validation requests
+                try {
+                    const existing = req.db.prepare("SELECT id, submitted_at, validation_type FROM user_validations WHERE user_id = ? AND status = 'pending' LIMIT 1").get(req.user.id);
+                    if (existing) {
+                        return res.status(409).json({ error: 'ALREADY_PENDING', message: 'Ya tienes una solicitud de verificación en proceso. Cancela la existente o espera su resolución.', existing: { id: existing.id, submitted_at: existing.submitted_at, type: existing.validation_type } });
+                    }
+                } catch (e) {
+                    console.error('[verificacion] error checking existing pending validation', e && e.message);
+                }
+
                 // Use centralized key helper to obtain a 32-byte key (persistent in dev)
                 let keyBuffer;
                 try {
