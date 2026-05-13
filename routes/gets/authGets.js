@@ -24,11 +24,11 @@ module.exports = function (app) {
             errorMessage: (() => {
                 const error = req.query.error;
                 if (error === 'missing_fields') {
-                    return 'Por favor, completa todos los campos.';
+                    return res.status(400).json({ success: false, message: 'Por favor, completa todos los campos.' });
                 } else if (error === 'invalid_credentials') {
-                    return 'Usuario o contraseña incorrectos.';
+                    return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
                 } else if (error === 'not_verified') {
-                    return 'Por favor, verifica tu correo electrónico antes de iniciar sesión.';
+                    return res.status(403).json({ success: false, message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' });
                 }
                 return '';
              })()

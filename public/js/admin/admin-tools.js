@@ -34,45 +34,86 @@
             const s = j.stats || {};
             const html = `
                 <div class="container-fluid">
-                    <div class="row mb-2">
-                        <div class="col-md-4"><strong>Reportes pendientes:</strong> ${s.totalPending || 0}</div>
-                        <div class="col-md-4"><strong>Resueltos (últimos 7 días):</strong> ${s.resolvedLast7 || 0}</div>
-                        <div class="col-md-4"><strong>Tiempo medio (min):</strong> ${s.avgResolutionMinutes !== null ? s.avgResolutionMinutes : 'N/A'}</div>
+                // Lets make everyone white for better contrast with icons
+                    <div class="row gx-3 gy-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="modal-stat-card text-dark" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                                <div class="modal-stat-icon bg-brown text-white"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="modal-stat-label">Pendientes</div>
+                                <div class="modal-stat-value" style="color: #1b120b;">${s.totalPending || 0}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="modal-stat-card text-white" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                                <div class="modal-stat-icon bg-brown text-white"><i class="fas fa-check-circle"></i></div>
+                                <div class="modal-stat-label">Resueltos (7 días)</div>
+                                <div class="modal-stat-value" style="color: #1b120b;">${s.resolvedLast7 || 0}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="modal-stat-card text-white" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                                <div class="modal-stat-icon bg-brown text-white"><i class="fas fa-stopwatch"></i></div>
+                                <div class="modal-stat-label">Tiempo medio</div>
+                                <div class="modal-stat-value" style="color: #1b120b;">${s.avgResolutionMinutes !== null ? s.avgResolutionMinutes : 'N/A'}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="modal-stat-card text-dark" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                                <div class="modal-stat-icon bg-brown text-white"><i class="fas fa-chart-line"></i></div>
+                                <div class="modal-stat-label">Tasa de resolución</div>
+                                <div class="modal-stat-value" style="color: #1b120b;">${s.resolutionRate || '0.00'}%</div>
+                            </div>
+                        </div>
                     </div>
-                    <hr>
-                    <div class="row">
+                    <div class="row gx-3 gy-3">
                         <div class="col-md-6">
-                            <h6>Top reportantes</h6>
-                            <ul>
-                                ${(s.topReporters || []).map(r => `<li>${r.username || ('user#'+r.reporter_id)} — ${r.cnt} reportes</li>`).join('')}
-                            </ul>
+                            <div class="modal-section">
+                                <h6 class="modal-section-title"><i class="fas fa-user-friends me-1"></i>Top reportantes</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${(s.topReporters || []).map(r => `<li class="list-group-item py-2 px-0 border-0">${r.username || ('user#'+r.reporter_id)} <span class="badge bg-brown text-white float-end">${r.cnt}</span></li>`).join('')}
+                                </ul>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <h6>Top reportados</h6>
-                            <ul>
-                                ${(s.topReported || []).map(r => `<li>${r.username || ('user#'+r.reported_user_id)} — ${r.cnt} reportes</li>`).join('')}
-                            </ul>
+                            <div class="modal-section">
+                                <h6 class="modal-section-title"><i class="fas fa-user-shield me-1"></i>Top reportados</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${(s.topReported || []).map(r => `<li class="list-group-item py-2 px-0 border-0">${r.username || ('user#'+r.reported_user_id)} <span class="badge bg-secondary text-dark float-end">${r.cnt}</span></li>`).join('')}
+                                </ul>
+                            </div>
                         </div>
                     </div>
-                    <h6>Pendientes por tipo</h6>
-                    <ul>
-                        ${(s.pendingByType || []).map(p => `<li>${p.report_type} — ${p.cnt}</li>`).join('')}
-                    </ul>
-                    <h6>Últimos resueltos</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead><tr><th>ID</th><th>Tipo</th><th>Acción</th><th>Resuelto</th></tr></thead>
-                            <tbody>
-                                ${(s.recentResolved || []).map(rr => `<tr><td>#${rr.id}</td><td>${rr.report_type || ''}</td><td>${rr.action_taken || ''}</td><td>${rr.resolved_at || ''}</td></tr>`).join('')}
-                            </tbody>
-                        </table>
+                    <div class="row gx-3 gy-3 mt-3">
+                        <div class="col-md-6">
+                            <div class="modal-section">
+                                <h6 class="modal-section-title"><i class="fas fa-layer-group me-1"></i>Reportes pendientes por tipo</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${(s.pendingByType || []).map(item => `<li class="list-group-item py-2 px-0 border-0">${item.report_type} <span class="badge bg-warning text-dark float-end">${item.cnt}</span></li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="modal-section">
+                                <h6 class="modal-section-title"><i class="fas fa-check-double me-1"></i>Últimos resueltos</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${(s.recentResolved || []).map(item => `<li class="list-group-item py-2 px-0 border-0">${item.report_type} <span class="text-muted small d-block">Resuelto ${item.resolved_at || 'N/A'}</span></li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `;
-            window.showCustomModal('Estadísticas detalladas', html, 'Cerrar', 'secondary');
-        } catch (e) {
-            console.error('viewDetailedStats error', e);
-            window.showToast('Error al cargar estadísticas', 'danger');
+                </div>`;
+
+            const modalElement = document.getElementById('detailedStatsModal');
+            if (!modalElement) {
+                console.error('Modal element not found');
+                return;
+            }
+            const modal = new bootstrap.Modal(modalElement);
+            document.getElementById('detailedStatsContent').innerHTML = html;
+            modal.show();
+        } catch (error) {
+            console.error('Error:', error);
+            window.showToast('Error de red al cargar estadísticas', 'danger');
         }
     }
     function viewUserManagement() { window.showToast('Cargando gestión de usuarios...', 'info'); setTimeout(() => window.showToast('Funcionalidad en desarrollo', 'warning'), 500); }

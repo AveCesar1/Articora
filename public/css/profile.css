@@ -265,10 +265,36 @@
     font-weight: 700;
 }
 
+.list-card-img {
+    height: 180px;
+    object-fit: cover;
+    width: 100%;
+}
+
 .list-card .card-text {
     color: var(--text-color);
     font-family: var(--font-serif);
     line-height: 1.6;
+}
+
+.list-card-footer {
+    background-color: rgba(183, 147, 76, 0.04);
+    border-top: 1px solid rgba(141, 110, 99, 0.12);
+}
+
+.profile-lists-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: #e0d6c2;
+    border-bottom: 1px solid rgba(141, 110, 99, 0.2);
+}
+
+.profile-lists-header h5,
+.profile-lists-header i {
+    color: #e0d6c2;
+}
+
+.profile-lists-header .fas {
+    color: #e0d6c2;
 }
 
 /* Badges de estado */

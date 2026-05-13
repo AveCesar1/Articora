@@ -424,4 +424,29 @@ module.exports = function (app) {
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
+
+    // Resumen de estadísticas para el panel principal
+    app.get('/api/admin/stats', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const reportsThisWeek = db.prepare("SELECT COUNT(1) as c FROM reports WHERE reported_at >= datetime('now','-7 days')").get().c || 0;
+            const resolved = db.prepare("SELECT COUNT(1) as c FROM reports WHERE status = 'resolved'").get().c || 0;
+            const pending = db.prepare("SELECT COUNT(1) as c FROM reports WHERE status = 'pending'").get().c || 0;
+            const totalReports = resolved + pending;
+            const resolutionRate = totalReports > 0 ? ((resolved / totalReports) * 100).toFixed(2) : 0;
+
+            return res.json({
+                success: true,
+                stats: {
+                    reportsThisWeek,
+                    resolved,
+                    pending,
+                    resolutionRate
+                }
+            });
+        } catch (e) {
+            console.error('GET /api/admin/stats error', e);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
 };
