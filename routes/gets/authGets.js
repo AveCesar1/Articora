@@ -16,22 +16,22 @@ module.exports = function (app) {
     // - missing_fields
     // - not_verified
     app.get('/login', (req, res) => {
+        const error = req.query.error;
+        let errorMessage = '';
+        if (error === 'missing_fields') {
+            errorMessage = 'Por favor, completa todos los campos.';
+        } else if (error === 'invalid_credentials') {
+            errorMessage = 'Usuario o contraseña incorrectos.';
+        } else if (error === 'not_verified') {
+            errorMessage = 'Por favor, verifica tu correo electrónico antes de iniciar sesión.';
+        }
+
         res.render('login', {
             title: 'Iniciar Sesión - Artícora',
             currentPage: 'login',
             cssFile: 'login.css',
             jsFile: 'login.js',
-            errorMessage: (() => {
-                const error = req.query.error;
-                if (error === 'missing_fields') {
-                    return res.status(400).json({ success: false, message: 'Por favor, completa todos los campos.' });
-                } else if (error === 'invalid_credentials') {
-                    return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
-                } else if (error === 'not_verified') {
-                    return res.status(403).json({ success: false, message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' });
-                }
-                return '';
-             })()
+            errorMessage
         });
     });
 

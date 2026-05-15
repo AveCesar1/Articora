@@ -408,7 +408,10 @@ module.exports = function (app) {
         username = sanitizeText(username);
 
         if (!username || !password) {
-            return res.redirect('/login?error=missing_fields');
+            if (req.headers.accept && req.headers.accept.includes('text/html')) {
+                return res.redirect('/login?error=missing_fields');
+            }
+            return res.status(400).json({ success: false, message: 'Faltan campos de inicio de sesión.' });
         }
 
         try {
@@ -427,18 +430,27 @@ module.exports = function (app) {
             }
 
             if (!user) {
-                return res.redirect('/login?error=invalid_credentials');
+                if (req.headers.accept && req.headers.accept.includes('text/html')) {
+                    return res.redirect('/login?error=invalid_credentials');
+                }
+                return res.status(401).json({ success: false, message: 'Credenciales inválidas.' });
             }
 
             // Verificar contraseña
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
-                return res.redirect('/login?error=invalid_credentials');
+                if (req.headers.accept && req.headers.accept.includes('text/html')) {
+                    return res.redirect('/login?error=invalid_credentials');
+                }
+                return res.status(401).json({ success: false, message: 'Credenciales inválidas.' });
             }
 
             // Verificar si el usuario está verificado
             if (!user.is_verified) {
-                return res.redirect('/login?error=not_verified');
+                if (req.headers.accept && req.headers.accept.includes('text/html')) {
+                    return res.redirect('/login?error=not_verified');
+                }
+                return res.status(403).json({ success: false, message: 'Cuenta no verificada. Revisa tu correo.' });
             }
 
             // Verificar si la cuenta está activa or deleted

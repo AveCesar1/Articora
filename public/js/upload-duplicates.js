@@ -330,6 +330,12 @@ function redirectToSource(sourceId, tipo) {
     } else if (tipo === 'url_nueva') {
         mensaje = 'Se ha añadido un nuevo enlace a esta fuente. Será redirigido en 5 segundos.';
     }
+    // Si no tenemos elementos del modal o el propio modal, hacer la navegación inmediata
+    if (!redirectModal || !messageElement || !countdownElement || !progressBar) {
+        window.location.href = `/post/${sourceId}`;
+        return;
+    }
+
     messageElement.textContent = mensaje;
 
     let countdown = 5;
