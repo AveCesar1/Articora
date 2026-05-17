@@ -1,7 +1,7 @@
 const isRegistered = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
 const bcrypt = require('bcrypt');
-const { encryptEmail } = require('../../lib/crypto_utils');
+const { encryptEmail, findUserByEmail, emailIndex } = require('../../lib/crypto_utils');
 const { sanitizeText } = require('../../middlewares/sanitize');
 const multer = require('multer');
 const path = require('path');
@@ -30,17 +30,9 @@ module.exports = function (app) {
             if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
                 return res.status(400).json({ success: false, message: 'Email inválido' });
             }
-            let encryptedEmail;
-            try {
-                encryptedEmail = encryptEmail(email, req.app);
-            } catch (e) {
-                console.error('Error encrypting email:', e);
-                return res.status(500).json({ success: false, message: 'Error interno: no se pudo encriptar el email' });
-            }
-
             // Verificar si el email ya existe para otro usuario
-            const existingEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(encryptedEmail, userId);
-            if (existingEmail) {
+            const existing = findUserByEmail(db, email, req.app);
+            if (existing && Number(existing.id) !== Number(userId)) {
                 return res.status(400).json({ success: false, message: 'El email ya está registrado' });
             }
 
@@ -51,6 +43,15 @@ module.exports = function (app) {
             const safeLast = sanitizeText(last_name || '', { maxLength: 50 });
 
             // Actualizar usuario
+            // Encrypt email for storage
+            let encryptedEmail;
+            try {
+                encryptedEmail = encryptEmail(email, req.app);
+            } catch (e) {
+                console.error('Error encrypting email:', e);
+                return res.status(500).json({ success: false, message: 'Error interno: no se pudo encriptar el email' });
+            }
+
             const actualizar = db.prepare(`
                 UPDATE users 
                 SET email = ?, 
@@ -63,6 +64,18 @@ module.exports = function (app) {
             `);
 
             actualizar.run(encryptedEmail, safeBio || null, academicDegree || null, safeInstitution || null, safeFirst, safeLast, userId);
+
+            // Update email_index if available
+            try {
+                const idx = emailIndex(email, req.app);
+                try {
+                    db.prepare('UPDATE users SET email_index = ? WHERE id = ?').run(idx, userId);
+                } catch (e) {
+                    // ignore if column doesn't exist
+                }
+            } catch (e) {
+                // index key not configured; skip
+            }
 
             if (Array.isArray(interests)) {
 

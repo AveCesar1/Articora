@@ -8,7 +8,7 @@ const fs = require('fs');
 const { sanitizeText } = require('../../middlewares/sanitize');
 const autenticacion = require('../../middlewares/auth');
 const { db } = require('../../lib/database');
-const { encryptEmail, decryptEmail } = require('../../lib/crypto_utils');
+const { encryptEmail, decryptEmail, findUserByEmail, emailIndex } = require('../../lib/crypto_utils');
 const { consultarCedula } = require('../../services/sepService');
 const { getVerificationKey } = require('../../lib/encryption_key');
 
@@ -51,11 +51,10 @@ module.exports = function (app) {
 
         try {
             // Verificar si el usuario o correo ya existen (en BD real)
-            const encryptedEmailForCheck = encryptEmail(email, req.app);
-            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(username, encryptedEmailForCheck);
-
-            if (userExists) {
-                console.log('Usuario ya existe:', userExists);
+            const userByUsername = req.db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+            const userByEmail = findUserByEmail(req.db, email, req.app);
+            if (userByUsername || userByEmail) {
+                console.log('Usuario ya existe:', userByUsername || userByEmail);
                 return res.status(400).json({ success: false, message: 'El nombre de usuario o correo ya están registrados.' });
             }
 
@@ -336,11 +335,9 @@ module.exports = function (app) {
             const allowedLevels = ['Licenciatura', 'Maestría', 'Doctorado', 'Estudiante', 'Profesional'];
             if (academicLevel && !allowedLevels.includes(academicLevel)) academicLevel = null;
 
-            const encryptedEmail = encryptEmail(pending.email, req.app);
-
-            // Verificar que no se haya registrado en el ínterin
-            const userExists = req.db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(pending.username, encryptedEmail);
-            if (userExists) {
+            const userExistsByUsername = req.db.prepare('SELECT * FROM users WHERE username = ?').get(pending.username);
+            const userExistsByEmail = findUserByEmail(req.db, pending.email, req.app);
+            if (userExistsByUsername || userExistsByEmail) {
                 return res.status(400).json({ success: false, message: 'El nombre de usuario o correo ya están registrados.' });
             }
 
@@ -377,6 +374,18 @@ module.exports = function (app) {
                     INSERT INTO user_keys (user_id, public_key, encrypted_private_key, private_key_iv, private_key_salt, private_key_tag)
                     VALUES (?, ?, ?, ?, ?, ?)
                 `).run(userId, publicKey || null, encryptedPrivateKey, privateKeyIv, privateKeySalt, privateKeyTag);
+            }
+
+            // If the users table has email_index column configured, store an HMAC index for fast lookup
+            try {
+                const idx = emailIndex(pending.email, req.app);
+                try {
+                    req.db.prepare('UPDATE users SET email_index = ? WHERE id = ?').run(idx, userId);
+                } catch (e) {
+                    // ignore if column doesn't exist
+                }
+            } catch (e) {
+                // no index key configured; skip
             }
 
             // Insertar intereses
@@ -421,11 +430,10 @@ module.exports = function (app) {
             let user;
 
             if (isEmail) {
-                // Si es email, hashearlo para buscar en la BD
-                const encryptedEmailForLogin = encryptEmail(username, req.app);
-                user = req.db.prepare('SELECT * FROM users WHERE email = ?').get(encryptedEmailForLogin);
+                // If it's an email, use findUserByEmail which handles index/encrypted/fallback
+                user = findUserByEmail(req.db, username, req.app);
             } else {
-                // Si es username, buscar por username
+                // If it's username, search by username
                 user = req.db.prepare('SELECT * FROM users WHERE username = ?').get(username);
             }
 
@@ -599,9 +607,11 @@ module.exports = function (app) {
             const db = req.db;
             let user = null;
             const isEmail = identifier.includes('@');
+            console.log(`Forgot password request for identifier: ${identifier} (isEmail: ${isEmail})`);
             if (isEmail) {
-                const enc = encryptEmail(identifier, req.app);
-                user = db.prepare('SELECT id, email, username FROM users WHERE email = ? LIMIT 1').get(enc) || null;
+                const found = findUserByEmail(db, identifier, req.app);
+                if (found) user = { id: found.id, email: found.email, username: found.username };
+                console.log(`User lookup by email: ${ JSON.stringify({ userFound: !!user }) }`);
             } else {
                 user = db.prepare('SELECT id, email, username FROM users WHERE username = ? LIMIT 1').get(identifier) || null;
             }

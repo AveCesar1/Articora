@@ -51,3 +51,4 @@ CREATE INDEX IF NOT EXISTS idx_sources_title_lower ON sources(LOWER(title));
 CREATE INDEX IF NOT EXISTS idx_list_sources_list ON list_sources(list_id);
 CREATE INDEX IF NOT EXISTS idx_list_sources_source ON list_sources(source_id);
 CREATE INDEX IF NOT EXISTS idx_user_readings_user_status_date ON user_readings(user_id, status, added_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_email_index ON users(email_index);

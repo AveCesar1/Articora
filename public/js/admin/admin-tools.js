@@ -34,7 +34,6 @@
             const s = j.stats || {};
             const html = `
                 <div class="container-fluid">
-                // Lets make everyone white for better contrast with icons
                     <div class="row gx-3 gy-3 mb-3">
                         <div class="col-md-3">
                             <div class="modal-stat-card text-dark" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
