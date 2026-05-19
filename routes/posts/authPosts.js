@@ -349,6 +349,8 @@ module.exports = function (app) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, datetime('now'), NULL, 1, 0, NULL, 0)
             `);
 
+            encryptedEmail = encryptEmail(pending.email, req.app);
+
             const result = insertStmt.run(
                 pending.username,
                 encryptedEmail,
