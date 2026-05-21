@@ -1,5 +1,5 @@
 -- ============================================
--- DATABASE: ARTICORA - CLEANED FOR SQLITE
+-- DATABASE: ARTICORA - SCHEMA INITIALIZATION
 -- ============================================
 
 -- Note: This file creates tables only. Indexes are defined in database/indexes.sql

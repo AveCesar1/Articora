@@ -1,0 +1,476 @@
+erDiagram
+    users {
+        int id PK
+        string username
+        string email
+        string password
+        text profile_picture
+        string first_name
+        string last_name
+        string full_name
+        text bio
+        string institution
+        string department
+        bool available_for_messages
+        string academic_level
+        bool is_validated
+        bool is_admin
+        bool is_verified
+        timestamp created_at
+        timestamp last_login
+        bool account_active
+        int login_attempts
+        int weekly_file_uploads
+        timestamp locked_until
+    }
+
+    user_validations {
+        int id PK
+        int user_id FK
+        string validation_type
+        string license_number
+        string certificate_path
+        string identity_document_path
+        string api_validation_result
+        string status
+        timestamp submitted_at
+        timestamp resolved_at
+        int admin_id FK
+        text admin_notes
+    }
+
+    user_dashboard_settings {
+        int user_id PK,FK
+        bool radar_chart_public
+        bool show_recent_study
+        bool show_my_references
+        bool show_most_read
+        bool show_global_trends
+        text widget_order
+        timestamp updated_at
+    }
+
+    documentos_verificacion {
+        int id PK
+        int usuario_id FK
+        string ruta_archivo
+        string iv
+        string tipo
+        string original_name
+        string mime
+        timestamp fecha_subida
+        timestamp expira_en
+        bool verificacion_completada
+    }
+
+    user_keys {
+        int user_id PK,FK
+        text public_key
+        text encrypted_private_key
+        string private_key_iv
+        string private_key_salt
+        string private_key_tag
+        timestamp created_at
+    }
+
+    categories {
+        int id PK
+        string name
+        text description
+        string icon_name
+    }
+
+    subcategories {
+        int id PK
+        int category_id FK
+        string name
+        text description
+    }
+
+    source_types {
+        int id PK
+        string name
+    }
+
+    authors {
+        int id PK
+        string last_name
+        string first_name
+        string full_name
+        string affiliation
+    }
+
+    sources {
+        int id PK
+        text title
+        int publication_year
+        string journal_publisher
+        string volume
+        int issue_number
+        string pages
+        int edition
+        int source_type_id FK
+        string doi
+        text keywords
+        string primary_url
+        int category_id FK
+        int subcategory_id FK
+        int uploaded_by FK
+        string cover_image_url
+        timestamp created_at
+        timestamp updated_at
+        bool is_active
+        int total_reads
+        int total_ratings
+        float avg_readability
+        float avg_completeness
+        float avg_detail_level
+        float avg_veracity
+        float avg_technical_difficulty
+        float overall_rating
+    }
+
+    source_authors {
+        int source_id PK,FK
+        int author_id PK,FK
+        int sort_order
+    }
+
+    source_urls {
+        int id PK
+        int source_id FK
+        string url
+        string url_type
+        timestamp added_at
+        timestamp last_checked
+        bool is_active
+    }
+
+    related_sources {
+        int source_id PK,FK
+        int related_source_id PK,FK
+        float similarity_score
+        text relationship_factors
+    }
+
+    ratings {
+        int id PK
+        int source_id FK
+        int user_id FK
+        float readability
+        float completeness
+        float detail_level
+        float veracity
+        float technical_difficulty
+        text comment
+        string academic_context
+        timestamp created_at
+        timestamp updated_at
+        int version
+    }
+
+    rating_history {
+        int id PK
+        int rating_id FK
+        float readability
+        float completeness
+        float detail_level
+        float veracity
+        float technical_difficulty
+        string academic_context
+        text comment
+        timestamp created_at
+    }
+
+    curatorial_lists {
+        int id PK
+        int user_id FK
+        string title
+        text description
+        string cover_image
+        int dominant_category_id FK
+        bool is_public
+        bool is_collaborative
+        int total_sources
+        int total_views
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    list_sources {
+        int list_id PK,FK
+        int source_id PK,FK
+        int sort_order
+        timestamp added_at
+    }
+
+    list_collaborators {
+        int list_id PK,FK
+        int user_id PK,FK
+        timestamp invited_at
+        timestamp accepted_at
+        string status
+    }
+
+    contact_requests {
+        int id PK
+        int sender_id FK
+        int receiver_id FK
+        text initial_message
+        string status
+        timestamp sent_at
+        timestamp responded_at
+    }
+
+    confirmed_contacts {
+        int user_id_1 PK,FK
+        int user_id_2 PK,FK
+        timestamp confirmed_at
+    }
+
+    chats {
+        int id PK
+        string chat_type
+        string group_name
+        int created_by FK
+        timestamp created_at
+        timestamp last_message_at
+    }
+
+    chat_participants {
+        int chat_id PK,FK
+        int user_id PK,FK
+        timestamp joined_at
+        bool is_admin
+    }
+
+    messages {
+        int id PK
+        int chat_id FK
+        int user_id FK
+        text encrypted_content
+        string iv
+        string encrypted_key
+        string content_type
+        string file_name
+        string file_path
+        string file_type
+        int file_size
+        timestamp sent_at
+        timestamp read_at
+    }
+
+    user_readings {
+        int id PK
+        int user_id FK
+        int source_id FK
+        string status
+        date read_date
+        timestamp added_at
+        int priority
+    }
+
+    reading_stats {
+        int user_id PK,FK
+        int total_read
+        int total_to_read
+        text category_distribution
+        timestamp last_updated
+    }
+
+    user_reading_list {
+        int user_id PK,FK
+        int source_id PK,FK
+        timestamp added_at
+        int position
+    }
+
+    reports {
+        int id PK
+        string report_type
+        int reporter_id FK
+        int source_id FK
+        int reported_user_id FK
+        int comment_id
+        int message_id
+        string reason
+        text description
+        string status
+        int admin_id FK
+        timestamp reported_at
+        timestamp reviewed_at
+        timestamp resolved_at
+        text action_taken
+    }
+
+    tfidf_vectors {
+        int source_id PK,FK
+        string term PK
+        float tf
+        float idf
+        float weight
+    }
+
+    equivalent_domains {
+        int id PK
+        string base_domain
+        string equivalent_domain
+    }
+
+    global_idf {
+        string term PK
+        float idf
+        int doc_freq
+        timestamp updated_at
+    }
+
+    source_norms {
+        int source_id PK,FK
+        float norm
+    }
+
+    security_logs {
+        int id PK
+        int user_id FK
+        string ip_address
+        string action
+        string severity
+        text details
+        timestamp created_at
+    }
+
+    verification_codes {
+        int id PK
+        int user_id FK
+        string email
+        string code
+        string code_type
+        bool is_used
+        timestamp created_at
+        timestamp expires_at
+    }
+
+    system_config {
+        string config_key PK
+        string config_value
+        text description
+        timestamp updated_at
+    }
+
+    scheduled_tasks {
+        int id PK
+        string task_name
+        text description
+        timestamp last_run
+        timestamp next_run
+        int interval_seconds
+        bool is_active
+    }
+
+    system_alerts {
+        int id PK
+        string alert_type
+        string severity
+        text description
+        text details
+        timestamp created_at
+        timestamp resolved_at
+        int resolved_by FK
+    }
+
+    user_interests {
+        int id PK
+        int user_id FK
+        string interest
+        timestamp added_at
+    }
+
+    user_privacy_settings {
+        int user_id PK,FK
+        string profile_visibility
+        bool available_for_messages
+        bool allow_group_invites
+        bool filter_messages
+        bool show_reading_stats
+        bool show_recent_activity
+        bool show_lists_public
+        bool show_email
+        bool show_institution
+        bool show_join_date
+        timestamp updated_at
+    }
+
+    user_notification_settings {
+        int user_id PK,FK
+        bool email_messages
+        bool email_comments
+        bool email_verification
+        bool platform_messages
+        bool platform_comments
+        bool platform_ratings
+        bool platform_system
+        string notification_frequency
+        bool urgent_notifications
+        timestamp updated_at
+    }
+
+    %% Relationships
+    users ||--o{ user_validations : "user_id"
+    users ||--o| user_dashboard_settings : "user_id"
+    users ||--o{ documentos_verificacion : "usuario_id"
+    users ||--o| user_keys : "user_id"
+    users ||--o{ sources : "uploaded_by"
+    users ||--o{ ratings : "user_id"
+    users ||--o{ curatorial_lists : "user_id"
+    users ||--o{ list_collaborators : "user_id"
+    users ||--o{ contact_requests : "sender_id"
+    users ||--o{ contact_requests : "receiver_id"
+    users ||--o{ confirmed_contacts : "user_id_1"
+    users ||--o{ confirmed_contacts : "user_id_2"
+    users ||--o{ chats : "created_by"
+    users ||--o{ chat_participants : "user_id"
+    users ||--o{ messages : "user_id"
+    users ||--o{ user_readings : "user_id"
+    users ||--o| reading_stats : "user_id"
+    users ||--o{ user_reading_list : "user_id"
+    users ||--o{ reports : "reporter_id"
+    users ||--o{ reports : "reported_user_id"
+    users ||--o{ reports : "admin_id"
+    users ||--o{ security_logs : "user_id"
+    users ||--o{ verification_codes : "user_id"
+    users ||--o{ system_alerts : "resolved_by"
+    users ||--o{ user_interests : "user_id"
+    users ||--o| user_privacy_settings : "user_id"
+    users ||--o| user_notification_settings : "user_id"
+
+    categories ||--o{ subcategories : "category_id"
+    categories ||--o{ sources : "category_id"
+    categories ||--o{ curatorial_lists : "dominant_category_id"
+
+    subcategories ||--o{ sources : "subcategory_id"
+
+    source_types ||--o{ sources : "source_type_id"
+
+    sources ||--o{ source_authors : "source_id"
+    sources ||--o{ source_urls : "source_id"
+    sources ||--o{ related_sources : "source_id"
+    sources ||--o{ related_sources : "related_source_id"
+    sources ||--o{ ratings : "source_id"
+    sources ||--o{ list_sources : "source_id"
+    sources ||--o{ user_readings : "source_id"
+    sources ||--o{ user_reading_list : "source_id"
+    sources ||--o{ reports : "source_id"
+    sources ||--o{ tfidf_vectors : "source_id"
+    sources ||--o| source_norms : "source_id"
+
+    authors ||--o{ source_authors : "author_id"
+
+    ratings ||--o{ rating_history : "rating_id"
+
+    curatorial_lists ||--o{ list_sources : "list_id"
+    curatorial_lists ||--o{ list_collaborators : "list_id"
+
+    chats ||--o{ chat_participants : "chat_id"
+    chats ||--o{ messages : "chat_id"
+
+    user_validations ||--o| users : "admin_id"

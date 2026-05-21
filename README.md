@@ -1,84 +1,60 @@
-# Artícora - Plataforma de Investigación Colaborativa
+# 📜 Artícora — Curación y descubrimiento académico en español
 
-Plataforma web para la curación colaborativa de fuentes bibliográficas académicas.
+Artícora es una plataforma pensada para académicos que necesitan descubrir, organizar y evaluar fuentes bibliográficas. Permite crear colecciones revisadas por personas, buscar por similitud semántica en español y comunicarse sin comprometer la privacidad.
 
-## 🚀 Instalación
+Todas las funcionalidades giran alrededor de tres ideas: colaboración real en la curación de referencias, búsquedas que entiendan el contenido (no solo palabras exactas) y protección de los datos desde el diseño.
 
-1. Clonar el repositorio
-2. Instalar dependencias: `npm install`
-3. Crear archivo `.env` con las variables necesarias
-4. Ejecutar en desarrollo: `npm run dev`
+## ⁉️ Qué puedes hacer con Artícora
 
-## 📁 Estructura del proyecto
+- **Listas curatoriales colaborativas.** Cada lista reúne fuentes verificadas. Puedes invitar a colegas, añadir comentarios y decidir qué se incluye.
+- **Búsqueda semántica local (TF‑IDF).** No depende de servicios externos; indexa títulos, autores y palabras clave. Los resultados aparecen ordenados por relevancia temática, no solo por coincidencia textual.
+- **Registro con verificación.** Los nuevos usuarios pasan por un flujo de verificación de identidad (documentos oficiales o certificados institucionales). Las cuentas verificadas generan más confianza en las valoraciones.
+- **Valoraciones detalladas.** Puedes puntuar fuentes con cinco criterios (extensión, nivel de detalle, dificultad técnica, completitud y veracidad) y añadir comentarios. Todo queda registrado y visible para la comunidad.
+- **Mensajería y archivos cifrados.** El chat (individual o grupal) cifra el contenido de extremo a extremo; el servidor solo guarda datos ilegibles. Lo mismo ocurre con los archivos adjuntos.
+- **Moderación automática y backups seguros.** Se comprueban URLs diariamente, se detecta lenguaje ofensivo y se marcan posibles duplicados. Las copias de seguridad se cifran y rotan automáticamente.
 
-- `public/` - Archivos estáticos (CSS, JS, imágenes)
-- `views/` - Plantillas EJS
-- `server.js` - Servidor principal (punto de entrada)
-- `lib/` - Módulos reutilizables (p. ej. `database.js`)
-- `routes/` - Rutas separadas por tipo (`getRoutes.js`, `postRoutes.js`)
+## 📌 Rutas de la aplicación
 
-## 🔧 Comandos
+### 📍 Páginas principales
+- `/` – landing page
+- `/login` – inicio de sesión
+- `/register` – registro de cuenta
+- `/chat` – mensajería (individual y grupal)
 
-- `npm start` - Inicia en modo producción
-- `npm run dev` - Inicia con nodemon (recarga automática)
+### 👤 Perfil y configuración
+- `/dashboard` – panel principal
+- `/profile` – perfil público
+- `/profile/config` – ajustes personales (seis pestañas)
+- `/verify-email` – verificación del correo con código OTP
+- `/forgot-password` – recuperación de contraseña
 
-## 🔗 Rutas
+### 🔍 Búsqueda y contenido
+- `/search` – búsqueda avanzada con filtros
+- `/upload` – subida de nuevas fuentes bibliográficas
+- `/post/:id` – vista de detalle de una fuente
+- `/lists` – gestión y búsqueda de listas curatoriales
+- `/lists/:id` – vista de una lista concreta
+- `/compare` – comparador de fuentes
 
-### 📍 Páginas Principales
-- `/` - Landing page (página de inicio)
-- `/login` - Página de inicio de sesión
-- `/register` - Página de registro de cuenta
-- `/chat` - Sistema de chat individual y grupal
-
-### 👤 Perfil y Configuración
-- `/dashboard` - Dashboard principal de usuario
-- `/profile` - Perfil de usuario
-- `/profile/config` - Configuración del perfil de usuario (6 pestañas)
-- `/verify-email` - Página de verificación de correo electrónico (OTP)
-- `/forgot-password` - Página de recuperación de contraseña
-
-### 🔍 Búsqueda y Contenido
-- `/search` - Página de búsqueda avanzada con filtros
-- `/upload` - Página para subir nuevas fuentes bibliográficas
-- `/post/:id` - Página de detalle de una publicación
-- `/lists` - Gestión y búsqueda de listas curatoriales
-- `/lists/:id` - Vista de listas curatoriales
-- `/compare` - Comparador de fuentes
-
-### 📚 Información y Ayuda
-- `/faq` - Página de preguntas frecuentes (FAQ) con 5 categorías
-- `/terms` - Página de términos y políticas
+### 📚 Información y ayuda
+- `/faq` – preguntas frecuentes (cinco categorías)
+- `/terms` – términos y políticas
 
 ### ⚠️ Error
-- Cualquier ruta no definida muestra la página 404 personalizada
+- Cualquier ruta no definida muestra una página 404 personalizada.
 
-### 🚩Administración
-- `/admin` - Panel de administración
-- `/compare/admin` - Comparador de metadatos para duplicados
+### 🚩 Administración
+- `/admin` – panel de administración
+- `/compare/admin` – comparador de metadatos para fusionar duplicados
 
-## 🎨 Diseño
+## Puesta en marcha rápida
 
-- Bootstrap 5.3
-- CSS personalizado
-- JavaScript modular
-- Diseño responsivo
+1. Clona el repositorio e instala las dependencias: `npm install`
+2. Define las variables de entorno necesarias (consulta el [RESUMEN.MD](RESUMEN.MD) para ver la lista completa y qué hace cada una).
+3. Ejecuta en desarrollo: `npm run dev` (o `npm start` en producción).
 
----
+Para la documentación técnica detallada (endpoints, esquema de base de datos, TF‑IDF, cifrado y despliegue), abre **[RESUMEN.MD](RESUMEN.MD)**.
 
-## 🧩 Estructura modular (Node.js)
+## Licencia y contacto
 
-La aplicación se organizó en módulos pequeños y conectados para facilitar el mantenimiento y para que el flujo back-end esté claro y localizado.
-
-- `server.js` — Orquesta la aplicación: configura Express/EJS, carga middlewares globales, expone el `transporter` de nodemailer en `app.locals`, y registra rutas usando los loaders en `routes/`.
-
-- `lib/database.js` — Núcleo de la base de datos: `initialize()` para crear/optimizar la BD y `databaseMiddleware` que inyecta `req.db`. Aquí están los helpers SQL reutilizables.
-
-- `routes/getRoutes.js` y `routes/postRoutes.js` — Loaders: cada uno requiere automáticamente los ficheros en `routes/gets/` y `routes/posts/`. Cada fichero de rutas exporta una función `(app) => { /* registra endpoints */ }` para mantener las rutas agrupadas por responsabilidad.
-
-- `middlewares/` — Middlewares compartidos (p. ej. `auth.js`, `checkrole.js`). `auth.js` contiene la lógica de autenticación: verificación de credenciales con `bcrypt` (salt=12), creación/verificación de JWT (`process.env.JWT_SECRET`) y population de `req.session`/`res.locals`.
-
-- `views/emails/` — Plantillas de correo (por ejemplo `verification.ejs`) usadas por las rutas de registro/verificación junto al `transporter` de nodemailer.
-
-Estado y dónde mirar
-- El backend core y la autenticación ya están implementados: la inicialización de la BD, el flujo de registro/verification por correo, login con cookie JWT (`token`, httpOnly) y logout están en `server.js`, `routes/posts/userPosts.js` y `middlewares/auth.js`.
-- Para entender o cambiar el comportamiento de autenticación/email revisa esos tres archivos.
+Proyecto para uso personal y demostración.

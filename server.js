@@ -172,7 +172,7 @@ if (require.main === module) {
 const cron = require('node-cron');
 cron.schedule('0 2 * * *', () => {
   console.log('Recalculando IDF...');
-  const python = spawn('python3', ['tfidf/recalc_idf.py']);
+  const python = spawn('python3', ['tf-idf/recalc_idf.py']);
   python.stdout.on('data', (data) => console.log(data.toString()));
   python.stderr.on('data', (data) => console.error(data.toString()));
 });
