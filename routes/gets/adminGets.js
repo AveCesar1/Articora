@@ -1,5 +1,6 @@
 const IsRegistered = require('../../middlewares/auth');
 const checkRoles = require('../../middlewares/checkrole');
+const { decryptEmail } = require('../../lib/crypto_utils');
 const soloAdmin = checkRoles(['admin']);
 
 //Alias de middlewares
@@ -371,6 +372,30 @@ module.exports = function (app) {
         }
     });
 
+        // Get offensive terms (admin)
+        app.get('/api/admin/offensive_terms', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const rows = db.prepare('SELECT id, term, normalized_term, is_active, created_at FROM offensive_terms ORDER BY created_at DESC').all();
+                return res.json({ success: true, terms: rows });
+            } catch (e) {
+                console.error('GET /api/admin/offensive_terms error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
+
+        // Get equivalent domains mapping
+        app.get('/api/admin/equivalent_domains', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const rows = db.prepare('SELECT id, base_domain, equivalent_domain FROM equivalent_domains ORDER BY base_domain, equivalent_domain').all();
+                return res.json({ success: true, domains: rows });
+            } catch (e) {
+                console.error('GET /api/admin/equivalent_domains error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
+
     // Get detailed report
     app.get('/api/admin/reports/:id', soloAdmin, (req, res) => {
         try {
@@ -421,6 +446,51 @@ module.exports = function (app) {
             return res.json({ success: true, stats: { totalPending, resolvedLast7, avgResolutionMinutes, topReporters, topReported, pendingByType, recentResolved } });
         } catch (e) {
             console.error('GET /api/admin/stats/detailed error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // List suspended / deleted users for admin management
+    app.get('/api/admin/suspended_users', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const tableInfo = db.prepare("PRAGMA table_info('users')").all();
+            const cols = new Set((tableInfo || []).map(c => c.name));
+
+            const selectCols = [];
+            selectCols.push('id', 'username', 'full_name', 'email', 'is_admin', 'account_active');
+            selectCols.push(cols.has('is_deleted') ? 'is_deleted' : '0 as is_deleted');
+            selectCols.push(cols.has('deleted_at') ? 'deleted_at' : "NULL as deleted_at");
+            selectCols.push(cols.has('locked_until') ? 'locked_until' : "NULL as locked_until");
+            selectCols.push(cols.has('account_admin_note') ? 'account_admin_note' : "NULL as account_admin_note");
+            selectCols.push('created_at');
+
+            const whereParts = ["account_active = 0", "(locked_until IS NOT NULL AND locked_until > datetime('now'))"];
+            if (cols.has('is_deleted')) whereParts.push('is_deleted = 1');
+            const whereClause = whereParts.join(' OR ');
+
+            const rows = db.prepare(`SELECT ${selectCols.join(', ')} FROM users WHERE ${whereClause} ORDER BY created_at DESC`).all();
+
+            const users = rows.map(r => {
+                let email = r.email || null;
+                try { email = decryptEmail(r.email, req.app); } catch (e) { /* leave as stored */ }
+                return {
+                    id: r.id,
+                    username: r.username,
+                    full_name: r.full_name,
+                    email: email,
+                    is_admin: !!r.is_admin,
+                    account_active: !!r.account_active,
+                    is_deleted: !!r.is_deleted,
+                    deleted_at: r.deleted_at,
+                    locked_until: r.locked_until,
+                    account_admin_note: r.account_admin_note
+                };
+            });
+
+            return res.json({ success: true, users });
+        } catch (e) {
+            console.error('GET /api/admin/suspended_users error', e && e.message);
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });

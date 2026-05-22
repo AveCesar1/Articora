@@ -1,7 +1,8 @@
 // admin-verification.js
 // Enhanced admin UI logic to list verification requests, preview documents inline,
 // call SEP verification for cedula numbers and perform accept/reject actions.
-document.addEventListener('DOMContentLoaded', function() {
+
+function initAdminVerification() {
     const viewBtn = document.getElementById('viewVerificationQueue');
     const modalEl = document.getElementById('verificationQueueModal');
     if (!viewBtn || !modalEl) return;
@@ -245,12 +246,47 @@ document.addEventListener('DOMContentLoaded', function() {
         await loadRequests();
         // Create modal instance on demand (bootstrap is loaded in footer)
         if (typeof bootstrap !== 'undefined' && modalEl) {
-            const bsModal = new bootstrap.Modal(modalEl);
+            // reuse existing instance when possible to avoid duplicate backdrops/listeners
+            let bsModal = bootstrap.Modal.getInstance(modalEl);
+            if (!bsModal) {
+                bsModal = new bootstrap.Modal(modalEl);
+            }
+
+            // Attach a cleanup handler once to ensure no leftover backdrop or body lock
+            if (!modalEl._verificationCleanupAttached) {
+                modalEl.addEventListener('hidden.bs.modal', () => {
+                    // Ensure backdrop elements are removed and scrolling restored
+                    setTimeout(() => {
+                        try {
+                            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                        } catch (e) { /* ignore */ }
+                        try { document.body.classList.remove('modal-open'); } catch (e) { /* ignore */ }
+                        try { document.body.style.overflow = ''; document.body.style.paddingRight = ''; } catch (e) { /* ignore */ }
+                    }, 10);
+                });
+                modalEl._verificationCleanupAttached = true;
+            }
+
             bsModal.show();
         } else {
-            // fallback: ensure element is visible
+            // fallback: ensure element is visible and add simple cleanup
             modalEl.classList.add('show');
             modalEl.style.display = 'block';
+            setTimeout(() => { try { document.body.classList.add('modal-open'); } catch (e) {} }, 0);
+            if (!modalEl._fallbackCleanupAttached) {
+                const closeBtns = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+                closeBtns.forEach(b => b.addEventListener('click', () => {
+                    modalEl.classList.remove('show'); modalEl.style.display = 'none'; document.body.classList.remove('modal-open');
+                    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                }));
+                modalEl._fallbackCleanupAttached = true;
+            }
         }
     });
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdminVerification);
+} else {
+    initAdminVerification();
+}

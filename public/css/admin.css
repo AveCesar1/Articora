@@ -127,6 +127,14 @@ html,body{background:var(--bg);color:var(--text);font-family: 'Inter', system-ui
 /* Modal tweaks */
 .modal-content{border-radius:10px}
 
+/* User management tiles */
+.user-tool-tile{background:linear-gradient(180deg, rgba(93,64,55,0.03), rgba(255,255,255,0.6));min-height:150px;display:flex;align-items:center;justify-content:center;transition:transform .18s ease, box-shadow .18s ease;border-radius:12px;box-shadow:var(--shadow-soft);}
+.card .user-tool-tile{height:100%}
+.user-tool-tile .btn{background:transparent;border:none;padding:.7rem;display:flex;flex-direction:column;align-items:center;gap:.4rem;color:var(--primary-brown);}
+.user-tool-tile .btn i{font-size:1.6rem}
+.user-tool-tile:hover{transform:translateY(-6px);box-shadow:0 16px 48px rgba(20,20,20,0.08)}
+
+
 /* Responsive tweaks */
 @media (max-width: 991.98px){
     .table-responsive{max-height:500px}

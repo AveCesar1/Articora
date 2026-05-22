@@ -47,7 +47,7 @@ Todas las funcionalidades giran alrededor de tres ideas: colaboración real en l
 - `/admin` – panel de administración
 - `/compare/admin` – comparador de metadatos para fusionar duplicados
 
-## Puesta en marcha rápida
+## ⚡️ Puesta en marcha rápida
 
 1. Clona el repositorio e instala las dependencias: `npm install`
 2. Define las variables de entorno necesarias (consulta el [RESUMEN.MD](RESUMEN.MD) para ver la lista completa y qué hace cada una).
@@ -55,6 +55,6 @@ Todas las funcionalidades giran alrededor de tres ideas: colaboración real en l
 
 Para la documentación técnica detallada (endpoints, esquema de base de datos, TF‑IDF, cifrado y despliegue), abre **[RESUMEN.MD](RESUMEN.MD)**.
 
-## Licencia y contacto
+## ⚖️ Licencia y contacto
 
 Proyecto para uso personal y demostración.

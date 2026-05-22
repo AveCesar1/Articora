@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP,
     account_active BOOLEAN DEFAULT 1,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    offensive_checked_at TIMESTAMP,
+    offensive_flagged BOOLEAN DEFAULT 0,
     login_attempts INTEGER DEFAULT 0,
     weekly_file_uploads INTEGER DEFAULT 0,
     locked_until TIMESTAMP
@@ -209,6 +212,8 @@ CREATE TABLE IF NOT EXISTS ratings (
     academic_context VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
+    offensive_checked_at TIMESTAMP,
+    offensive_detected BOOLEAN DEFAULT 0,
     version INTEGER DEFAULT 1,
     UNIQUE(source_id, user_id),
     FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE,
@@ -288,6 +293,7 @@ CREATE TABLE IF NOT EXISTS contact_requests (
     FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Tabla que representa contactos confirmados (amistades / contactos)
 CREATE TABLE IF NOT EXISTS confirmed_contacts (
     user_id_1 INTEGER NOT NULL,
     user_id_2 INTEGER NOT NULL,
@@ -416,6 +422,15 @@ CREATE TABLE IF NOT EXISTS equivalent_domains (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     base_domain VARCHAR(100) NOT NULL,
     equivalent_domain VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- Offensive terms stored as discrete rows for easier management
+CREATE TABLE IF NOT EXISTS offensive_terms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term VARCHAR(200) NOT NULL UNIQUE,
+    normalized_term VARCHAR(200),
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE global_idf (

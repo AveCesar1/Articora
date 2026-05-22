@@ -610,6 +610,52 @@ module.exports = function(app) {
         }
     });
 
+    // Unblock a suspended user
+    app.post('/api/admin/suspended_users/:id/unblock', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            ensureUserColumns(db);
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const u = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(id);
+            if (!u) return res.status(404).json({ success: false, message: 'user_not_found' });
+            if (u.is_admin) return res.status(403).json({ success: false, message: 'cannot_modify_admin' });
+
+            db.prepare('UPDATE users SET account_active = 1, locked_until = NULL, account_admin_note = NULL WHERE id = ?').run(id);
+            db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`)
+                .run('user_unblocked', 'medium', `Tu cuenta ha sido reactivada por el equipo de administración.`, JSON.stringify({ userId: id }));
+
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('POST /api/admin/suspended_users/:id/unblock error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
+    // Restore a soft-deleted user
+    app.post('/api/admin/suspended_users/:id/restore', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            ensureUserColumns(db);
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+
+            const u = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(id);
+            if (!u) return res.status(404).json({ success: false, message: 'user_not_found' });
+            if (u.is_admin) return res.status(403).json({ success: false, message: 'cannot_modify_admin' });
+
+            db.prepare('UPDATE users SET is_deleted = 0, is_validated = 0, account_active = 1, deleted_at = NULL, account_admin_note = NULL WHERE id = ?').run(id);
+            db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`)
+                .run('user_restored', 'medium', `Tu cuenta ha sido restaurada por el equipo de administración.`, JSON.stringify({ userId: id }));
+
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('POST /api/admin/suspended_users/:id/restore error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
+
     app.post('/api/admin/run_system_checks', soloAdmin, async (req, res) => {
         try {
             const db = req.db;
@@ -745,4 +791,106 @@ module.exports = function(app) {
             return res.status(500).json({ success: false, message: 'internal_error' });
         }
     });
+
+        // --- Offensive terms management (CRUD) ---
+        app.post('/api/admin/offensive_terms', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const term = sanitizeText(String(req.body.term || '').trim(), { maxLength: 200 });
+                if (!term) return res.status(400).json({ success: false, message: 'empty_term' });
+                // normalized_term: remove diacritics and lowercase
+                let normalized = term;
+                try { normalized = term.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase(); } catch (e) { normalized = term.toLowerCase(); }
+                try {
+                    const ins = db.prepare('INSERT INTO offensive_terms (term, normalized_term, is_active, created_at) VALUES (?, ?, 1, datetime(\'now\'))').run(term, normalized);
+                    return res.json({ success: true, id: ins.lastInsertRowid });
+                } catch (e) {
+                    // If unique constraint, reactivate existing
+                    if (e && /UNIQUE/i.test(e.message || '')) {
+                        const ex = db.prepare('SELECT id FROM offensive_terms WHERE term = ? OR normalized_term = ?').get(term, normalized);
+                        if (ex && ex.id) {
+                            db.prepare('UPDATE offensive_terms SET is_active = 1, term = ?, normalized_term = ? WHERE id = ?').run(term, normalized, ex.id);
+                            return res.json({ success: true, id: ex.id });
+                        }
+                    }
+                    console.error('POST /api/admin/offensive_terms insert error', e && e.message);
+                    return res.status(500).json({ success: false, message: 'internal_error' });
+                }
+            } catch (e) {
+                console.error('POST /api/admin/offensive_terms error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
+
+        app.put('/api/admin/offensive_terms/:id', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const id = Number(req.params.id);
+                if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+                const term = sanitizeText(String(req.body.term || '').trim(), { maxLength: 200 });
+                const isActive = typeof req.body.is_active !== 'undefined' ? (!!req.body.is_active) : null;
+                let normalized = term;
+                try { normalized = term.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase(); } catch (e) { normalized = term.toLowerCase(); }
+                const updates = [];
+                const params = [];
+                if (term) { updates.push('term = ?'); params.push(term); updates.push('normalized_term = ?'); params.push(normalized); }
+                if (isActive !== null) { updates.push('is_active = ?'); params.push(isActive ? 1 : 0); }
+                if (!updates.length) return res.status(400).json({ success: false, message: 'nothing_to_update' });
+                params.push(id);
+                const sql = `UPDATE offensive_terms SET ${updates.join(', ')} WHERE id = ?`;
+                db.prepare(sql).run(...params);
+                return res.json({ success: true });
+            } catch (e) {
+                console.error('PUT /api/admin/offensive_terms/:id error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
+
+        app.delete('/api/admin/offensive_terms/:id', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const id = Number(req.params.id);
+                if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+                // Soft-delete: mark inactive
+                db.prepare('UPDATE offensive_terms SET is_active = 0 WHERE id = ?').run(id);
+                return res.json({ success: true });
+            } catch (e) {
+                console.error('DELETE /api/admin/offensive_terms/:id error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
+
+        // --- Equivalent domains management ---
+        app.post('/api/admin/equivalent_domains', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const base = sanitizeText(String(req.body.base_domain || '').trim(), { maxLength: 200 });
+                const equiv = sanitizeText(String(req.body.equivalent_domain || '').trim(), { maxLength: 200 });
+                if (!base || !equiv) return res.status(400).json({ success: false, message: 'missing_params' });
+                try {
+                    const ins = db.prepare('INSERT INTO equivalent_domains (base_domain, equivalent_domain) VALUES (?, ?)').run(base, equiv);
+                    return res.json({ success: true, id: ins.lastInsertRowid });
+                } catch (e) {
+                    if (e && /UNIQUE/i.test(e.message || '')) return res.status(409).json({ success: false, message: 'already_exists' });
+                    console.error('POST /api/admin/equivalent_domains error', e && e.message);
+                    return res.status(500).json({ success: false, message: 'internal_error' });
+                }
+            } catch (e) {
+                console.error('POST /api/admin/equivalent_domains error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
+
+        app.delete('/api/admin/equivalent_domains/:id', soloAdmin, (req, res) => {
+            try {
+                const db = req.db;
+                const id = Number(req.params.id);
+                if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+                db.prepare('DELETE FROM equivalent_domains WHERE id = ?').run(id);
+                return res.json({ success: true });
+            } catch (e) {
+                console.error('DELETE /api/admin/equivalent_domains/:id error', e && e.message);
+                return res.status(500).json({ success: false, message: 'internal_error' });
+            }
+        });
 };

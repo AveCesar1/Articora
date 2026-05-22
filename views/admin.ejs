@@ -401,11 +401,17 @@
                                 <div class="card-body">
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Diccionario de lenguaje ofensivo</label>
-                                        <textarea class="form-control form-control-sm border-brown" rows="3" placeholder="Términos separados por comas..." id="offensiveDict"></textarea>
+                                        <div class="input-group">
+                                            <textarea class="form-control form-control-sm border-brown" rows="3" placeholder="Términos separados por comas..." id="offensiveDict"></textarea>
+                                            <button class="btn btn-sm btn-outline-brown" type="button" id="manageOffensiveBtn">Gestionar</button>
+                                        </div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Dominios equivalentes para URLs</label>
-                                        <textarea class="form-control form-control-sm border-brown" rows="3" placeholder="Dominios separados por comas..." id="equivalentDomains"></textarea>
+                                        <div class="input-group">
+                                            <textarea class="form-control form-control-sm border-brown" rows="3" placeholder="Dominios separados por comas..." id="equivalentDomains"></textarea>
+                                            <button class="btn btn-sm btn-outline-brown" type="button" id="manageDomainsBtn">Gestionar</button>
+                                        </div>
                                     </div>
                                     <button class="btn btn-sm btn-brown w-100" id="saveSystemConfig">
                                         <i class="fas fa-save me-1"></i> Guardar configuración
@@ -464,16 +470,19 @@
                                 </div>
                                 <div class="card-body">
                                     <p class="card-text">Herramientas para administrar usuarios y permisos.</p>
-                                    <div class="d-grid gap-2">
-                                        <button class="btn btn-outline-brown" id="viewUserManagement">
-                                            <i class="fas fa-user-cog me-1"></i> Administrar usuarios
-                                        </button>
-                                        <button class="btn btn-outline-brown" id="viewVerificationQueue">
-                                            <i class="fas fa-user-check me-1"></i> Ver cola de verificación
-                                        </button>
-                                        <button class="btn btn-outline-brown" id="viewSuspendedUsers">
-                                            <i class="fas fa-user-slash me-1"></i> Ver usuarios suspendidos
-                                        </button>
+                                    <div class="d-flex gap-3 justify-content-center align-items-stretch">
+                                        <div class="user-tool-tile text-center p-3 flex-fill" style="min-width:180px; border:1px solid #efe6dc; border-radius:8px;">
+                                            <button class="btn btn-light w-100 h-100 d-flex flex-column justify-content-center align-items-center" id="viewVerificationQueue" style="gap:.5rem;">
+                                                <i class="fas fa-user-check fa-2x text-brown"></i>
+                                                <div class="mt-1">Cola de verificación</div>
+                                            </button>
+                                        </div>
+                                        <div class="user-tool-tile text-center p-3 flex-fill" style="min-width:180px; border:1px solid #efe6dc; border-radius:8px;">
+                                            <button class="btn btn-light w-100 h-100 d-flex flex-column justify-content-center align-items-center" id="viewSuspendedUsers" style="gap:.5rem;">
+                                                <i class="fas fa-user-slash fa-2x text-brown"></i>
+                                                <div class="mt-1">Usuarios suspendidos</div>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -520,6 +529,25 @@
     </div>
 </div>
 
+<!-- Modal: Suspended / Deleted Users -->
+<div class="modal fade" id="suspendedUsersModal" tabindex="-1" aria-labelledby="suspendedUsersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="suspendedUsersModalLabel">Usuarios suspendidos / eliminados</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="suspendedUsersContent">
+                <!-- Contenido cargado por JS -->
+                <div class="text-center text-muted">Cargando...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal para estadísticas detalladas -->
 <div class="modal fade" id="detailedStatsModal" tabindex="-1" aria-labelledby="detailedStatsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -537,8 +565,6 @@
         </div>
     </div>
 </div>
-
-<script src="/js/admin-verification.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', async () => {

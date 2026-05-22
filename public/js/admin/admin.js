@@ -1,5 +1,5 @@
 // Loader and common helpers for admin UI (manual/auto/tools modules)
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     const adminContainer = document.querySelector('[data-admin-data]');
     let adminData = { manualReports: [], systemReports: [], stats: {} };
     if (adminContainer) {
@@ -23,15 +23,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         saveSystemConfig: document.getElementById('saveSystemConfig'),
         viewDetailedStats: document.getElementById('viewDetailedStats'),
         scanDuplicates: document.getElementById('scanDuplicates'),
-        viewUserManagement: document.getElementById('viewUserManagement'),
         viewVerificationQueue: document.getElementById('viewVerificationQueue'),
         viewSuspendedUsers: document.getElementById('viewSuspendedUsers'),
         offensiveDict: document.getElementById('offensiveDict'),
-        equivalentDomains: document.getElementById('equivalentDomains')
+        equivalentDomains: document.getElementById('equivalentDomains'),
+        manageOffensive: document.getElementById('manageOffensiveBtn'),
+        manageDomains: document.getElementById('manageDomainsBtn')
     };
 
     // Common helpers
-    window.showCustomModal = function(title, content, closeText = 'Cerrar', closeBtnClass = 'secondary', onClose = null) {
+    window.showCustomModal = function (title, content, closeText = 'Cerrar', closeBtnClass = 'secondary', onClose = null) {
         const modalId = 'custom-modal-' + Date.now();
         const modalHtml = `
             <div class="modal fade" id="${modalId}" tabindex="-1">
@@ -56,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         modalEl.addEventListener('hidden.bs.modal', function () { if (onClose) onClose(); this.remove(); });
     };
 
-    window.showFormModal = function(title, content, primaryText = 'Enviar', primaryClass = 'primary', onPrimary) {
+    window.showFormModal = function (title, content, primaryText = 'Enviar', primaryClass = 'primary', onPrimary) {
         const modalId = 'form-modal-' + Date.now();
         const modalHtml = `
             <div class="modal fade" id="${modalId}" tabindex="-1">
@@ -84,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         modalEl.addEventListener('hidden.bs.modal', function () { modalEl.remove(); });
     };
 
-    window.showToast = function(message, type = 'info') {
+    window.showToast = function (message, type = 'info') {
         const toastId = 'toast-' + Date.now();
         const toastHtml = `
             <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert">
@@ -98,12 +99,32 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!toastContainer) { toastContainer = document.createElement('div'); toastContainer.id = 'toastContainer'; toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3'; document.body.appendChild(toastContainer); }
         toastContainer.innerHTML += toastHtml;
         const toastElement = document.getElementById(toastId);
-        const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
-        toast.show();
-        toastElement.addEventListener('hidden.bs.toast', function () { toastElement.remove(); });
+        let bsToast = null;
+        try {
+            if (typeof bootstrap !== 'undefined' && bootstrap && bootstrap.Toast) {
+                bsToast = new bootstrap.Toast(toastElement, { delay: 3000 });
+                bsToast.show();
+                toastElement.addEventListener('hidden.bs.toast', function () { try { toastElement.remove(); } catch (e) {} });
+            } else {
+                // If bootstrap not available, remove element later
+                setTimeout(() => { try { toastElement.remove(); } catch (e) {} }, 3000);
+                return;
+            }
+        } catch (e) {
+            console.error('showToast bootstrap error', e);
+        }
+        // Force-remove the toast after a longer timeout in case the bootstrap lifecycle fails
+        setTimeout(() => {
+            try {
+                if (toastElement && toastElement.parentNode) {
+                    try { const t = (typeof bootstrap !== 'undefined' && bootstrap && bootstrap.Toast) ? bootstrap.Toast.getOrCreateInstance(toastElement) : null; if (t) t.hide(); } catch (e) { /* ignore */ }
+                    if (toastElement.parentNode) toastElement.remove();
+                }
+            } catch (e) { /* ignore */ }
+        }, 8000);
     };
 
-    window.updateReportCounts = function() {
+    window.updateReportCounts = function () {
         const manualCount = document.querySelectorAll('.report-row').length;
         const systemCount = document.querySelectorAll('.system-report-row').length;
         const manualBadge = document.querySelector('#manual-tab .badge');
@@ -119,7 +140,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         await Promise.all([
             loadScript('/js/admin/admin-manual.js'),
             loadScript('/js/admin/admin-auto.js'),
-            loadScript('/js/admin/admin-tools.js')
+            loadScript('/js/admin/admin-tools.js'),
+            loadScript('/js/admin-verification.js')
         ]);
     } catch (e) {
         console.error('Error cargando módulos admin:', e);
@@ -135,12 +157,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (el.saveSystemConfig) el.saveSystemConfig.addEventListener('click', () => { if (window.adminTools && window.adminTools.saveSystemConfig) window.adminTools.saveSystemConfig(); });
         if (el.viewDetailedStats) el.viewDetailedStats.addEventListener('click', () => { if (window.adminTools && window.adminTools.viewDetailedStats) window.adminTools.viewDetailedStats(); });
         if (el.scanDuplicates) el.scanDuplicates.addEventListener('click', () => { if (window.adminTools && window.adminTools.scanDuplicates) window.adminTools.scanDuplicates(); });
-        if (el.viewUserManagement) el.viewUserManagement.addEventListener('click', () => { if (window.adminTools && window.adminTools.viewUserManagement) window.adminTools.viewUserManagement(); });
         if (el.viewVerificationQueue) el.viewVerificationQueue.addEventListener('click', () => { if (window.adminTools && window.adminTools.viewVerificationQueue) window.adminTools.viewVerificationQueue(); });
         if (el.viewSuspendedUsers) el.viewSuspendedUsers.addEventListener('click', () => { if (window.adminTools && window.adminTools.viewSuspendedUsers) window.adminTools.viewSuspendedUsers(); });
+            if (el.manageOffensive) el.manageOffensive.addEventListener('click', () => { if (window.adminTools && window.adminTools.manageOffensiveTerms) window.adminTools.manageOffensiveTerms(); });
+            if (el.manageDomains) el.manageDomains.addEventListener('click', () => { if (window.adminTools && window.adminTools.manageEquivalentDomains) window.adminTools.manageEquivalentDomains(); });
 
         // Delegated clicks for report actions
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const v = e.target.closest('.view-report'); if (v) { const id = Number(v.dataset.reportId); if (window.adminManual && window.adminManual.viewReport) window.adminManual.viewReport(id); return; }
             const r = e.target.closest('.resolve-report'); if (r) { const id = Number(r.dataset.reportId); if (window.adminManual && window.adminManual.resolveManualReport) window.adminManual.resolveManualReport(id); return; }
             const x = e.target.closest('.reject-report'); if (x) { const id = Number(x.dataset.reportId); if (window.adminManual && window.adminManual.rejectManualReport) window.adminManual.rejectManualReport(id); return; }
