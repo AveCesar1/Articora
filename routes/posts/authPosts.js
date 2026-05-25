@@ -344,9 +344,18 @@ module.exports = function (app) {
             const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
 
             // version without profile_picture and not admin (is_admin defaults to 0):
+            // Compute email index (HMAC) before inserting so it is stored atomically
+            let emailIdx = null;
+            try {
+                emailIdx = emailIndex(pending.email, req.app);
+            } catch (e) {
+                // If index key not configured, leave as null (will skip uniqueness enforcement)
+                emailIdx = null;
+            }
+
             const insertStmt = req.db.prepare(`
-                INSERT INTO users (username, email, password, first_name, last_name, full_name, bio, institution, department, available_for_messages, academic_level, is_validated, is_verified, created_at, last_login, account_active, login_attempts, locked_until, is_admin)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, datetime('now'), NULL, 1, 0, NULL, 0)
+                INSERT INTO users (username, email, email_index, password, first_name, last_name, full_name, bio, institution, department, available_for_messages, academic_level, is_validated, is_verified, created_at, last_login, account_active, login_attempts, locked_until, is_admin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, datetime('now'), NULL, 1, 0, NULL, 0)
             `);
 
             encryptedEmail = encryptEmail(pending.email, req.app);
@@ -354,6 +363,7 @@ module.exports = function (app) {
             const result = insertStmt.run(
                 pending.username,
                 encryptedEmail,
+                emailIdx,
                 pending.password,
                 firstName,
                 lastName,
@@ -378,17 +388,7 @@ module.exports = function (app) {
                 `).run(userId, publicKey || null, encryptedPrivateKey, privateKeyIv, privateKeySalt, privateKeyTag);
             }
 
-            // If the users table has email_index column configured, store an HMAC index for fast lookup
-            try {
-                const idx = emailIndex(pending.email, req.app);
-                try {
-                    req.db.prepare('UPDATE users SET email_index = ? WHERE id = ?').run(idx, userId);
-                } catch (e) {
-                    // ignore if column doesn't exist
-                }
-            } catch (e) {
-                // no index key configured; skip
-            }
+            // email_index was stored atomically in the INSERT above when possible
 
             // Insertar intereses
             try {
