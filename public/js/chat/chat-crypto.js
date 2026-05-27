@@ -4,6 +4,11 @@
 let myPrivateKey = null;
 let myPublicKeyBase64 = null;
 
+// Queues y flags globales para manejo de claves y mensajes pendientes
+window._messageSendQueue = window._messageSendQueue || [];
+window._decryptQueue = window._decryptQueue || [];
+window.myKeysReady = window.myKeysReady || false;
+
 async function loadMyKeys() {
     try {
         // Recuperar clave privada
@@ -26,6 +31,10 @@ async function loadMyKeys() {
         if (!myPublicKeyBase64) {
             console.warn('No se encontró la clave pública propia. No se podrá cifrar mensajes para uno mismo.');
         }
+        // Mark keys as ready for other modules
+        window.myKeysReady = true;
+        // Notify any listeners waiting for keys
+        try { window.dispatchEvent(new Event('myKeysReady')); } catch (e) { }
         return true;
     } catch (err) {
         console.error('Error al cargar claves:', err);

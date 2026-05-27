@@ -88,13 +88,29 @@ async function switchToChat(userId, chatId, type, isRequest = false) {
                     }
                     const encryptedAESForMe = encryptedKeys ? encryptedKeys[currentUser.id] : undefined;
 
-                    // Si no hay clave cifrada para este usuario o no tenemos privada, mostrar placeholder
-                    if (!encryptedAESForMe || !myPrivateKey) {
+                    // Si no hay clave cifrada para este usuario: mostrar placeholder
+                    if (!encryptedAESForMe) {
                         decryptedMessages.push({
                             id: m.id,
                             sender: (m.full_name || m.username),
                             type: 'encrypted',
                             text: '[Mensaje cifrado]',
+                            time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                            isOwn: m.user_id === currentUser.id,
+                            status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
+                        });
+                        continue;
+                    }
+
+                    // Si no tenemos la clave privada aún, encolar para descifrado posterior
+                    if (!myPrivateKey) {
+                        window._decryptQueue = window._decryptQueue || [];
+                        window._decryptQueue.push({ chatId, msg: m });
+                        decryptedMessages.push({
+                            id: m.id,
+                            sender: (m.full_name || m.username),
+                            type: 'encrypted',
+                            text: '[Descifrado pendiente]',
                             time: new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
                             isOwn: m.user_id === currentUser.id,
                             status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
@@ -171,17 +187,29 @@ async function switchToChat(userId, chatId, type, isRequest = false) {
     }
 }
 
-async function sendMessage(text) {
+async function sendMessage(text, opts = {}) {
     const messagesContainer = document.getElementById('messagesContainer');
     if (!messagesContainer) return;
 
-    // Mostrar el mensaje inmediatamente en la UI (optimista)
-    const messageId = Date.now();
-    const messageElement = document.createElement('div');
-    messageElement.className = 'message own new';
-    messageElement.dataset.messageId = messageId;
+    // Determine whether we're reusing an existing optimistic DOM element (for queued sends)
+    let messageElement = null;
+    let messageId = null;
+    if (opts && opts.queued && opts.tempElement) {
+        messageElement = opts.tempElement;
+        messageId = messageElement.dataset.messageId;
+    } else if (opts && opts.queued && opts.tempId) {
+        messageId = opts.tempId;
+        messageElement = document.querySelector(`.message[data-message-id="${messageId}"]`);
+    }
 
-    messageElement.innerHTML = `
+    // Crear el elemento optimista si no se pasa uno
+    if (!messageElement) {
+        messageId = Date.now();
+        messageElement = document.createElement('div');
+        messageElement.className = 'message own new';
+        messageElement.dataset.messageId = messageId;
+
+        messageElement.innerHTML = `
             <div class="message-content">
                 ${currentChat.type === 'group' ? `<small class="message-sender">${currentUser.name}</small>` : ''}
                 <div class="message-bubble">
@@ -196,15 +224,29 @@ async function sendMessage(text) {
             </div>
         `;
 
-    // Insertar antes del encryption notice si existe
-    const encryptionNotice = messagesContainer.querySelector('.encryption-notice');
-    if (encryptionNotice) {
-        messagesContainer.insertBefore(messageElement, encryptionNotice);
-    } else {
-        messagesContainer.appendChild(messageElement);
+        // Insertar antes del encryption notice si existe
+        const encryptionNotice = messagesContainer.querySelector('.encryption-notice');
+        if (encryptionNotice) {
+            messagesContainer.insertBefore(messageElement, encryptionNotice);
+        } else {
+            messagesContainer.appendChild(messageElement);
+        }
     }
 
     scrollToBottom();
+
+    // If keys are not ready and this is not already a queued retry, add to queue
+    if ((!window.myKeysReady || !myPrivateKey || !myPublicKeyBase64) && !(opts && opts.queued)) {
+        window._messageSendQueue = window._messageSendQueue || [];
+        window._messageSendQueue.push({ text, chatId: currentChat.chatId, tempId: messageId });
+        const statusIcon = messageElement.querySelector('.message-status i');
+        if (statusIcon) {
+            statusIcon.className = 'fas fa-clock text-muted';
+            statusIcon.title = 'En cola (esperando claves)';
+        }
+        showNotification('Mensaje en cola hasta que se carguen tus claves de cifrado.', 'info');
+        return;
+    }
 
     try {
         let encryptedKeys = {};
@@ -297,9 +339,61 @@ async function sendMessage(text) {
             statusIcon.className = 'fas fa-exclamation-circle text-danger';
             statusIcon.title = 'Error al enviar';
         }
-        showNotification('No se pudo enviar el mensaje: ' + err.message, 'error');
+        showNotification('No se pudo enviar el mensaje: ' + (err && err.message), 'error');
     }
 }
+
+// Procesar cola de envíos cuando las claves estén listas
+window.addEventListener('myKeysReady', async () => {
+    try {
+        window._messageSendQueue = window._messageSendQueue || [];
+        const queue = window._messageSendQueue.splice(0, window._messageSendQueue.length);
+        for (const item of queue) {
+            try {
+                const tempEl = document.querySelector(`.message[data-message-id="${item.tempId}"]`);
+                await sendMessage(item.text, { queued: true, tempElement: tempEl, tempId: item.tempId });
+            } catch (e) {
+                console.error('Error enviando mensaje en cola:', e && e.message);
+            }
+        }
+    } catch (e) { console.error('processSendQueue error', e && e.message); }
+});
+
+// Procesar cola de descifrado cuando las claves estén listas
+window.addEventListener('myKeysReady', async () => {
+    try {
+        window._decryptQueue = window._decryptQueue || [];
+        const queue = window._decryptQueue.splice(0, window._decryptQueue.length);
+        for (const entry of queue) {
+            try {
+                const m = entry.msg || entry;
+                const chatId = entry.chatId || m.chatId || m.chat_id || m.chatId;
+                if (!window.currentChat || parseInt(window.currentChat.chatId, 10) !== parseInt(chatId, 10)) continue;
+
+                // find placeholder message in currentChat.messages
+                const targetId = m.messageId || m.id;
+                const cm = window.currentChat.messages.find(x => String(x.id) === String(targetId));
+                if (!cm) continue;
+
+                let encryptedKeys = {};
+                try { encryptedKeys = m.encrypted_key ? JSON.parse(m.encrypted_key) : {}; } catch (e) { encryptedKeys = {}; }
+                const encryptedAESForMe = encryptedKeys ? encryptedKeys[window.currentUser.id] : undefined;
+                if (!encryptedAESForMe) continue;
+
+                const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
+                const aesKey = await importAESKey(aesRaw);
+                const plaintext = await decryptAES(aesKey, m.iv, m.encrypted_content);
+
+                cm.type = 'text';
+                cm.text = plaintext;
+                cm.status = 'delivered';
+            } catch (e) {
+                console.error('Error procesando cola de descifrado:', e && e.message);
+            }
+        }
+        updateMessagesArea();
+    } catch (e) { console.error('processDecryptQueue error', e && e.message); }
+});
 
 async function acceptRequest(requestId, element = null) {
     try {

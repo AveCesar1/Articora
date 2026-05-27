@@ -4,6 +4,24 @@
     const socket = window.socket;
     if (!socket) return;
 
+    // Helper to update contact DOM in the left sidebar
+    function updateContactDOMStatus(uid, status, lastSeen) {
+      try {
+        const item = document.querySelector(`.chat-item[data-id="${uid}"]`);
+        if (!item) return;
+        if (item.getAttribute('data-type') !== 'individual') return;
+        const statusSpan = item.querySelector('.avatar-container .status-indicator');
+        if (statusSpan) statusSpan.className = 'status-indicator ' + status;
+        const small = item.querySelector('.chat-info small.text-muted');
+        if (small) {
+          const badge = small.querySelector('.badge');
+          const badgeHTML = badge ? badge.outerHTML + ' ' : '';
+          const statusText = status === 'online' ? 'En línea' : (lastSeen || 'Desconectado');
+          small.innerHTML = badgeHTML + statusText;
+        }
+      } catch (e) { /* ignore DOM update errors */ }
+    }
+
     // Presence: initial state and updates
     socket.on('presence_state', (payload) => {
       try {
@@ -12,13 +30,16 @@
 
         if (window.data && Array.isArray(window.data.contacts)) {
           window.data.contacts.forEach(c => {
-            c.status = window._onlineUsers.has(String(c.id)) ? 'online' : 'offline';
+            const st = window._onlineUsers.has(String(c.id)) ? 'online' : 'offline';
+            c.status = st;
+            updateContactDOMStatus(c.id, st, c.lastSeen);
           });
         }
 
         if (window.currentChat && window.currentChat.type === 'individual') {
           const otherId = String(window.currentChat.id);
           window.currentChat.status = window._onlineUsers.has(otherId) ? 'online' : 'offline';
+          updateContactDOMStatus(otherId, window.currentChat.status, window.currentChat.lastSeen);
           updateChatHeader();
         }
       } catch (e) { console.warn('presence_state handler error', e && e.message); }
@@ -32,10 +53,14 @@
         window._onlineUsers.add(String(uid));
         if (window.data && Array.isArray(window.data.contacts)) {
           const c = window.data.contacts.find(x => String(x.id) === String(uid));
-          if (c) c.status = 'online';
+          if (c) {
+            c.status = 'online';
+            updateContactDOMStatus(uid, 'online', c.lastSeen);
+          }
         }
         if (window.currentChat && String(window.currentChat.id) === String(uid)) {
           window.currentChat.status = 'online';
+          updateContactDOMStatus(uid, 'online', window.currentChat.lastSeen);
           updateChatHeader();
         }
       } catch (e) { console.warn('user_online handler error', e && e.message); }
@@ -52,11 +77,13 @@
           if (c) {
             c.status = 'offline';
             if (p && p.lastSeen) c.lastSeen = p.lastSeen;
+            updateContactDOMStatus(uid, 'offline', c.lastSeen);
           }
         }
         if (window.currentChat && String(window.currentChat.id) === String(uid)) {
           window.currentChat.status = 'offline';
           if (p && p.lastSeen) window.currentChat.lastSeen = p.lastSeen;
+          updateContactDOMStatus(uid, 'offline', window.currentChat.lastSeen);
           updateChatHeader();
         }
       } catch (e) { console.warn('user_offline handler error', e && e.message); }
@@ -92,13 +119,32 @@
           try { encryptedKeys = msg.encrypted_key ? JSON.parse(msg.encrypted_key) : {}; } catch (e) { encryptedKeys = {}; }
           const encryptedAESForMe = encryptedKeys ? encryptedKeys[currentUser.id] : undefined;
 
-          if (!encryptedAESForMe || typeof myPrivateKey === 'undefined' || !myPrivateKey) {
-            // No podemos descifrar: mostrar placeholder
+          if (!encryptedAESForMe) {
+            // No hay clave cifrada para este usuario: mostrar placeholder
             const placeholder = {
               id: msg.messageId,
               sender: msg.full_name || msg.username || 'Usuario',
               type: 'encrypted',
               text: '[Mensaje cifrado]',
+              time: new Date(msg.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+              isOwn: msg.userId === currentUser.id,
+              status: 'delivered'
+            };
+            window.currentChat.messages.push(placeholder);
+            updateMessagesArea();
+            scrollToBottom();
+            return;
+          }
+
+          if (typeof myPrivateKey === 'undefined' || !myPrivateKey) {
+            // Keys not loaded yet: queue for later decryption
+            window._decryptQueue = window._decryptQueue || [];
+            window._decryptQueue.push({ chatId, msg });
+            const placeholder = {
+              id: msg.messageId,
+              sender: msg.full_name || msg.username || 'Usuario',
+              type: 'encrypted',
+              text: '[Descifrado pendiente]',
               time: new Date(msg.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
               isOwn: msg.userId === currentUser.id,
               status: 'delivered'

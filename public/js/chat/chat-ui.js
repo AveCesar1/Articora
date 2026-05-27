@@ -367,7 +367,14 @@ function updateInputArea() {
             input.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    form.dispatchEvent(new Event('submit'));
+                    // Use requestSubmit when available (creates a cancelable submit event).
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        // Fallback: dispatch a cancelable submit event so preventDefault works across browsers
+                        const ev = new Event('submit', { bubbles: true, cancelable: true });
+                        form.dispatchEvent(ev);
+                    }
                 }
             });
         }
