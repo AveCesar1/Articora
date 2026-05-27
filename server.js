@@ -213,11 +213,35 @@ if (require.main === module) {
             }
         });
 
+        // Simple in-memory presence store: userId -> Set(socketId)
+        if (!global.onlineUsers) global.onlineUsers = new Map();
+        if (!global.lastSeen) global.lastSeen = new Map();
+
         // Eventos básicos de socket
         io.on('connection', (socket) => {
             const uid = socket.user && socket.user.id;
             console.log('Socket conectado, userId=', uid);
-            if (uid) socket.join(`user_${uid}`);
+
+            if (uid) {
+                socket.join(`user_${uid}`);
+
+                // track socket for this user
+                let s = global.onlineUsers.get(uid);
+                if (!s) {
+                    s = new Set();
+                    global.onlineUsers.set(uid, s);
+                }
+                s.add(socket.id);
+
+                // Broadcast to peers that this user is online
+                try { io.emit('user_online', { userId: uid, online: true }); } catch (e) { }
+
+                // Send current presence state to this socket
+                try {
+                    const onlineList = Array.from(global.onlineUsers.keys());
+                    socket.emit('presence_state', { online: onlineList });
+                } catch (e) { }
+            }
 
             socket.on('join_chat', (chatId) => {
                 try { socket.join(`chat_${chatId}`); } catch (e) { }
@@ -241,7 +265,30 @@ if (require.main === module) {
                 } catch (e) { }
             });
 
+            // Optional heartbeat to update lastSeen while connected
+            socket.on('presence_ping', () => {
+                try {
+                    if (uid) {
+                        global.lastSeen.set(uid, new Date().toISOString());
+                    }
+                } catch (e) { }
+            });
+
             socket.on('disconnect', (reason) => {
+                try {
+                    if (uid && global.onlineUsers) {
+                        const set = global.onlineUsers.get(uid);
+                        if (set) {
+                            set.delete(socket.id);
+                            if (set.size === 0) {
+                                global.onlineUsers.delete(uid);
+                                const lastSeen = new Date().toISOString();
+                                global.lastSeen.set(uid, lastSeen);
+                                try { io.emit('user_offline', { userId: uid, online: false, lastSeen }); } catch (e) { }
+                            }
+                        }
+                    }
+                } catch (e) { }
                 console.log('Socket disconnected user=', uid, 'reason=', reason);
             });
         });

@@ -4,6 +4,64 @@
     const socket = window.socket;
     if (!socket) return;
 
+    // Presence: initial state and updates
+    socket.on('presence_state', (payload) => {
+      try {
+        const online = payload && payload.online ? payload.online : [];
+        window._onlineUsers = new Set(online.map(x => String(x)));
+
+        if (window.data && Array.isArray(window.data.contacts)) {
+          window.data.contacts.forEach(c => {
+            c.status = window._onlineUsers.has(String(c.id)) ? 'online' : 'offline';
+          });
+        }
+
+        if (window.currentChat && window.currentChat.type === 'individual') {
+          const otherId = String(window.currentChat.id);
+          window.currentChat.status = window._onlineUsers.has(otherId) ? 'online' : 'offline';
+          updateChatHeader();
+        }
+      } catch (e) { console.warn('presence_state handler error', e && e.message); }
+    });
+
+    socket.on('user_online', (p) => {
+      try {
+        const uid = p && p.userId;
+        if (!uid) return;
+        if (!window._onlineUsers) window._onlineUsers = new Set();
+        window._onlineUsers.add(String(uid));
+        if (window.data && Array.isArray(window.data.contacts)) {
+          const c = window.data.contacts.find(x => String(x.id) === String(uid));
+          if (c) c.status = 'online';
+        }
+        if (window.currentChat && String(window.currentChat.id) === String(uid)) {
+          window.currentChat.status = 'online';
+          updateChatHeader();
+        }
+      } catch (e) { console.warn('user_online handler error', e && e.message); }
+    });
+
+    socket.on('user_offline', (p) => {
+      try {
+        const uid = p && p.userId;
+        if (!uid) return;
+        if (!window._onlineUsers) window._onlineUsers = new Set();
+        window._onlineUsers.delete(String(uid));
+        if (window.data && Array.isArray(window.data.contacts)) {
+          const c = window.data.contacts.find(x => String(x.id) === String(uid));
+          if (c) {
+            c.status = 'offline';
+            if (p && p.lastSeen) c.lastSeen = p.lastSeen;
+          }
+        }
+        if (window.currentChat && String(window.currentChat.id) === String(uid)) {
+          window.currentChat.status = 'offline';
+          if (p && p.lastSeen) window.currentChat.lastSeen = p.lastSeen;
+          updateChatHeader();
+        }
+      } catch (e) { console.warn('user_offline handler error', e && e.message); }
+    });
+
     socket.on('new_message', async (msg) => {
       try {
         // Si el mensaje pertenece al chat abierto, intentar descifrar y renderizar
