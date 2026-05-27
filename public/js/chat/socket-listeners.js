@@ -52,6 +52,7 @@
           }
 
           try {
+            console.debug('socket new_message decrypt attempt', msg.messageId, 'encKeyLen=', encryptedAESForMe ? encryptedAESForMe.length : 0, 'ivLen=', msg.iv ? msg.iv.length : 0, 'encContentLen=', msg.encrypted_content ? msg.encrypted_content.length : 0, 'hasPrivate=', !!myPrivateKey);
             const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
             const aesKey = await importAESKey(aesRaw);
             const plaintext = await decryptAES(aesKey, msg.iv, msg.encrypted_content);

@@ -26,7 +26,25 @@
       return;
     }
 
-    const token = getCookie('token');
+    // Try to obtain JWT for handshake. Prefer server-issued token via session (secure).
+    let token = getCookie('token');
+    if (!token) {
+      try {
+        const r = await fetch('/api/socket/token', { credentials: 'same-origin' });
+        if (r.ok) {
+          const j = await r.json();
+          token = j && j.token;
+        }
+      } catch (e) {
+        console.warn('socket-init: no se pudo obtener token vía /api/socket/token', e && e.message);
+      }
+    }
+
+    if (!token) {
+      console.warn('socket-init: no se encontró token para autenticar socket; la conexión fallará');
+      return;
+    }
+
     try {
       const socket = io({ auth: { token }, transports: ['websocket', 'polling'] });
       window.socket = socket;

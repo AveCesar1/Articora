@@ -102,6 +102,7 @@ async function switchToChat(userId, chatId, type, isRequest = false) {
                         continue;
                     }
 
+                    console.debug('Attempting decrypt for message', m.id, 'encKeyLen=', encryptedAESForMe ? encryptedAESForMe.length : 0, 'ivLen=', m.iv ? m.iv.length : 0, 'encContentLen=', m.encrypted_content ? m.encrypted_content.length : 0, 'hasPrivate=', !!myPrivateKey);
                     const aesRaw = await decryptAESKeyWithRSA(myPrivateKey, encryptedAESForMe);
                     const aesKey = await importAESKey(aesRaw);
                     const plaintext = await decryptAES(aesKey, m.iv, m.encrypted_content);
@@ -116,7 +117,12 @@ async function switchToChat(userId, chatId, type, isRequest = false) {
                         status: m.read_at ? 'read' : (m.sent_at ? 'delivered' : 'sent')
                     });
                 } catch (err) {
-                    console.error('Error procesando mensaje:', err);
+                    console.error('Error procesando mensaje:', err && err.message, err && err.name);
+                    try {
+                        console.debug('encrypted_key snippet:', (m.encrypted_key || '').slice ? (m.encrypted_key || '').slice(0, 120) : m.encrypted_key);
+                        console.debug('iv snippet:', (m.iv || '').slice ? (m.iv || '').slice(0, 32) : m.iv);
+                        console.debug('encrypted_content snippet length:', m.encrypted_content ? m.encrypted_content.length : 0);
+                    } catch (e) { /* ignore logging errors */ }
                     decryptedMessages.push({
                         id: m.id,
                         sender: (m.full_name || m.username),

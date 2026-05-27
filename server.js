@@ -179,8 +179,30 @@ if (require.main === module) {
         // Middleware de autenticación para sockets usando JWT (handshake.auth.token)
         io.use((socket, next) => {
             try {
-                const token = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
+                let token = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
+
+                // If no token in auth, try to parse cookie header (secure httpOnly cookie fallback)
+                if (!token && socket.handshake && socket.handshake.headers && socket.handshake.headers.cookie) {
+                    try {
+                        const cookieHeader = socket.handshake.headers.cookie;
+                        const parts = cookieHeader.split(';').map(p => p.trim());
+                        const cookies = {};
+                        for (const p of parts) {
+                            const idx = p.indexOf('=');
+                            if (idx > -1) {
+                                const k = decodeURIComponent(p.slice(0, idx).trim());
+                                const v = decodeURIComponent(p.slice(idx + 1).trim());
+                                cookies[k] = v;
+                            }
+                        }
+                        token = cookies.token;
+                    } catch (e) {
+                        // ignore parse errors
+                    }
+                }
+
                 if (!token) return next(new Error('auth_error'));
+
                 jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
                     if (err) return next(new Error('auth_error'));
                     socket.user = decoded;
