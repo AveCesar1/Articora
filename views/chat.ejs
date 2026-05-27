@@ -42,7 +42,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
                             <i class="fas fa-users me-1"></i>
-                            Grupos: <span class="fw-bold"><%= data.user.currentGroups %>/<%= data.user.maxGroups %></span>
+                            Grupos: <span id="groupCount" class="fw-bold"><%= data.user.currentGroups %></span>/<span id="groupMax" class="fw-bold"><%= data.user.maxGroups %></span>
                         </small>
                     </div>
                     <% } %>

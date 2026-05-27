@@ -216,14 +216,33 @@
 
     socket.on('message_read', (data) => {
       try {
-        // Si corresponde al chat abierto, actualizar estados de mensajes
-        if (window.currentChat && window.currentChat.chatId === data.chatId) {
-          // Marcar mensaje como leído si coincide
+        // data may contain messageId or messageIds array
+        const msgIds = Array.isArray(data.messageIds) ? data.messageIds : (data.messageId ? [data.messageId] : []);
+        const chatId = data.chatId || data.chat_id;
+
+        // Update current chat messages statuses
+        if (window.currentChat && String(window.currentChat.chatId) === String(chatId) && msgIds.length > 0) {
           for (const m of window.currentChat.messages) {
-            if (m.id === data.messageId) m.status = 'read';
+            if (msgIds.find(id => String(id) === String(m.id))) m.status = 'read';
           }
           updateMessagesArea();
         }
+
+        // Update unread badge in sidebar: subtract number of read messages
+        try {
+          const selector = `.chat-item[data-chat-id="${chatId}"]`;
+          const item = document.querySelector(selector);
+          if (item) {
+            const badge = item.querySelector('.badge');
+            if (badge) {
+              const old = parseInt(badge.textContent || '0', 10) || 0;
+              const dec = msgIds.length || 1;
+              const now = Math.max(0, old - dec);
+              if (now === 0) badge.remove();
+              else badge.textContent = String(now);
+            }
+          }
+        } catch (e) { /* ignore badge update errors */ }
       } catch (e) { console.error('Error message_read handler', e && e.message); }
     });
 

@@ -53,7 +53,15 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error);
                 showNotification('Grupo creado exitosamente', 'success');
-                setTimeout(() => location.reload(), 1500);
+                // Update group counter in header without reloading
+                try {
+                    window.chatData = window.chatData || {};
+                    window.chatData.user = window.chatData.user || {};
+                    const prev = parseInt(window.chatData.user.currentGroups || '0', 10) || 0;
+                    window.chatData.user.currentGroups = prev + 1;
+                    const el = document.getElementById('groupCount');
+                    if (el) el.textContent = String(window.chatData.user.currentGroups);
+                } catch (e) { console.warn('Could not update group counter in DOM', e && e.message); }
             } catch (err) {
                 console.error(err);
                 showNotification(err.message || 'Error al crear grupo', 'error');
