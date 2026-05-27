@@ -15,6 +15,8 @@ const crypto = require('crypto');
 
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -160,7 +162,69 @@ const PORT = process.env.PORT || 3000;
 // Inicializar base de datos y arrancar servidor
 if (require.main === module) {
     initialize().then(() => {
-        app.listen(PORT, () => {
+        const server = http.createServer(app);
+
+        // Inicializar Socket.io y adjuntarlo a la app
+        const io = new Server(server, {
+            cors: {
+                origin: process.env.SOCKET_IO_CORS || true,
+                methods: ['GET', 'POST'],
+                credentials: true
+            }
+        });
+
+        // Hacer io accesible desde rutas (req.app.get('io'))
+        app.set('io', io);
+
+        // Middleware de autenticación para sockets usando JWT (handshake.auth.token)
+        io.use((socket, next) => {
+            try {
+                const token = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
+                if (!token) return next(new Error('auth_error'));
+                jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+                    if (err) return next(new Error('auth_error'));
+                    socket.user = decoded;
+                    return next();
+                });
+            } catch (e) {
+                return next(new Error('auth_error'));
+            }
+        });
+
+        // Eventos básicos de socket
+        io.on('connection', (socket) => {
+            const uid = socket.user && socket.user.id;
+            console.log('Socket conectado, userId=', uid);
+            if (uid) socket.join(`user_${uid}`);
+
+            socket.on('join_chat', (chatId) => {
+                try { socket.join(`chat_${chatId}`); } catch (e) { }
+            });
+
+            socket.on('leave_chat', (chatId) => {
+                try { socket.leave(`chat_${chatId}`); } catch (e) { }
+            });
+
+            socket.on('typing', (data) => {
+                try {
+                    const chatId = data && data.chatId;
+                    if (chatId) socket.to(`chat_${chatId}`).emit('user_typing', { userId: uid, username: socket.user && socket.user.username });
+                } catch (e) { }
+            });
+
+            socket.on('stop_typing', (data) => {
+                try {
+                    const chatId = data && data.chatId;
+                    if (chatId) socket.to(`chat_${chatId}`).emit('stop_typing', { userId: uid });
+                } catch (e) { }
+            });
+
+            socket.on('disconnect', (reason) => {
+                console.log('Socket disconnected user=', uid, 'reason=', reason);
+            });
+        });
+
+        server.listen(PORT, () => {
             console.log(`Servidor Artícora corriendo en: http://localhost:${PORT}`);
         });
     }).catch(err => {

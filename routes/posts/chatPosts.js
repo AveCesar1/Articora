@@ -237,7 +237,29 @@ module.exports = function(app) {
             // Actualizar last_message_at
             req.db.prepare('UPDATE chats SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?').run(chatId);
 
-            // TODO: Emitir evento por socket a los otros participantes
+            // Emitir evento por socket a los otros participantes (si está inicializado)
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    const senderRow = req.db.prepare('SELECT id, username, full_name, profile_picture FROM users WHERE id = ?').get(userId) || {};
+                    const payload = {
+                        messageId: result.lastInsertRowid,
+                        chatId: parseInt(chatId, 10),
+                        userId: userId,
+                        username: senderRow.username || null,
+                        full_name: senderRow.full_name || null,
+                        profile_picture: senderRow.profile_picture || null,
+                        encrypted_content: encryptedContent,
+                        iv: iv,
+                        encrypted_key: encryptedKey,
+                        content_type: contentType || 'text',
+                        sent_at: new Date().toISOString()
+                    };
+                    io.to(`chat_${chatId}`).emit('new_message', payload);
+                }
+            } catch (e) {
+                console.error('Error emitiendo evento new_message:', e && e.message);
+            }
 
             // Try sending email notifications to other participants (best-effort)
             try {
@@ -452,6 +474,34 @@ module.exports = function(app) {
 
             // 6. Actualizar last_message_at del chat
             req.db.prepare('UPDATE chats SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?').run(chatId);
+
+            // Emitir evento por socket a los participantes indicando nuevo mensaje de archivo
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    const senderRow = req.db.prepare('SELECT id, username, full_name, profile_picture FROM users WHERE id = ?').get(userId) || {};
+                    const payload = {
+                        messageId: result.lastInsertRowid,
+                        chatId: chatId,
+                        userId: userId,
+                        username: senderRow.username || null,
+                        full_name: senderRow.full_name || null,
+                        profile_picture: senderRow.profile_picture || null,
+                        encrypted_content: finalName, // reference to file name stored
+                        iv: iv,
+                        encrypted_key: encryptedKey,
+                        content_type: 'file',
+                        file_name: originalName,
+                        file_path: `/uploads/chat_files/${finalName}`,
+                        file_type: mimeType || file.mimetype,
+                        file_size: file.size,
+                        sent_at: new Date().toISOString()
+                    };
+                    io.to(`chat_${chatId}`).emit('new_message', payload);
+                }
+            } catch (e) {
+                console.error('Error emitiendo evento new_message (file):', e && e.message);
+            }
 
             // 7. Incrementar contador semanal de archivos del usuario
             try {

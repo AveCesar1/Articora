@@ -1,5 +1,5 @@
 // Tools module: configuration and utility actions
-(function(){
+(function () {
     async function initializeSystemConfig() {
         const elements = window.elements || {};
         try {
@@ -40,7 +40,7 @@
             const rowsHtml = terms.map(t => `
                 <tr data-id="${t.id}">
                     <td>${t.id}</td>
-                    <td>${(t.term||'')}</td>
+                    <td>${(t.term || '')}</td>
                     <td>${t.is_active ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Inactivo</span>'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-danger remove-term" data-id="${t.id}">Eliminar</button>
@@ -103,7 +103,7 @@
                     tbody.innerHTML = terms2.map(t => `
                         <tr data-id="${t.id}">
                             <td>${t.id}</td>
-                            <td>${(t.term||'')}</td>
+                            <td>${(t.term || '')}</td>
                             <td>${t.is_active ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Inactivo</span>'}</td>
                             <td>
                                 <button class="btn btn-sm btn-outline-danger remove-term" data-id="${t.id}">Eliminar</button>
@@ -129,7 +129,7 @@
                 }
             });
 
-            modalEl.addEventListener('hidden.bs.modal', function () { try { modalEl.remove(); } catch (e) {} });
+            modalEl.addEventListener('hidden.bs.modal', function () { try { modalEl.remove(); } catch (e) { } });
         } catch (e) {
             console.error('manageOffensiveTerms error', e);
             window.showToast('Error cargando términos ofensivos', 'danger');
@@ -207,7 +207,7 @@
                 }
             });
 
-            modalEl.addEventListener('hidden.bs.modal', function () { try { modalEl.remove(); } catch (e) {} });
+            modalEl.addEventListener('hidden.bs.modal', function () { try { modalEl.remove(); } catch (e) { } });
         } catch (e) {
             console.error('manageEquivalentDomains error', e);
             window.showToast('Error cargando dominios equivalentes', 'danger');
@@ -274,7 +274,7 @@
                             <div class="modal-section">
                                 <h6 class="modal-section-title"><i class="fas fa-user-friends me-1"></i>Top reportantes</h6>
                                 <ul class="list-group list-group-flush">
-                                    ${(s.topReporters || []).map(r => `<li class="list-group-item py-2 px-0 border-0">${r.username || ('user#'+r.reporter_id)} <span class="badge bg-brown text-white float-end">${r.cnt}</span></li>`).join('')}
+                                    ${(s.topReporters || []).map(r => `<li class="list-group-item py-2 px-0 border-0">${r.username || ('user#' + r.reporter_id)} <span class="badge bg-brown text-white float-end">${r.cnt}</span></li>`).join('')}
                                 </ul>
                             </div>
                         </div>
@@ -282,7 +282,7 @@
                             <div class="modal-section">
                                 <h6 class="modal-section-title"><i class="fas fa-user-shield me-1"></i>Top reportados</h6>
                                 <ul class="list-group list-group-flush">
-                                    ${(s.topReported || []).map(r => `<li class="list-group-item py-2 px-0 border-0">${r.username || ('user#'+r.reported_user_id)} <span class="badge bg-secondary text-dark float-end">${r.cnt}</span></li>`).join('')}
+                                    ${(s.topReported || []).map(r => `<li class="list-group-item py-2 px-0 border-0">${r.username || ('user#' + r.reported_user_id)} <span class="badge bg-secondary text-dark float-end">${r.cnt}</span></li>`).join('')}
                                 </ul>
                             </div>
                         </div>

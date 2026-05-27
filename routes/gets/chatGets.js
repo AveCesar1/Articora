@@ -123,12 +123,33 @@ module.exports = function(app) {
                 ORDER BY m.sent_at DESC
                 LIMIT ? OFFSET ?
             `).all(chatId, limit, offset);
+            // Obtener ids de mensajes no leídos por este usuario para emitir eventos
+            const unreadRows = req.db.prepare(`
+                SELECT id FROM messages WHERE chat_id = ? AND user_id != ? AND read_at IS NULL
+            `).all(chatId, userId);
 
             // Marcar como leídos los mensajes de otros
             req.db.prepare(`
                 UPDATE messages SET read_at = CURRENT_TIMESTAMP
                 WHERE chat_id = ? AND user_id != ? AND read_at IS NULL
             `).run(chatId, userId);
+
+            // Emitir evento de lectura si hubo mensajes no leídos
+            try {
+                if (unreadRows && unreadRows.length > 0) {
+                    const io = req.app && req.app.get && req.app.get('io');
+                    if (io) {
+                        io.to(`chat_${chatId}`).emit('message_read', {
+                            messageIds: unreadRows.map(r => r.id),
+                            userId,
+                            chatId,
+                            read_at: new Date().toISOString()
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Error emitiendo message_read:', e && e.message);
+            }
 
             res.json(messages.reverse()); // orden ascendente
         } catch (err) {

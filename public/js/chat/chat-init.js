@@ -42,6 +42,17 @@ async function initChat() {
 
             // Cambiar al chat seleccionado, pasando el chatId
             await switchToChat(userId, chatId, chatType, isRequest);   // <-- await
+
+            // Unirse a la sala de socket correspondiente y salir de la anterior
+            try {
+                if (window.socket && chatId) {
+                    if (window._lastJoinedChatId && window._lastJoinedChatId !== chatId) {
+                        window.socket.emit('leave_chat', window._lastJoinedChatId);
+                    }
+                    window.socket.emit('join_chat', chatId);
+                    window._lastJoinedChatId = chatId;
+                }
+            } catch (e) { console.warn('Socket join_chat failed', e && e.message); }
         });
     });
 

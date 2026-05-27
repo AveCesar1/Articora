@@ -3,6 +3,8 @@
   const fragments = [
     '/js/chat/chat-setup.js',
     '/js/chat/chat-crypto.js',
+    '/js/chat/socket-init.js',
+    '/js/chat/socket-listeners.js',
     '/js/chat/chat-init.js',
     '/js/chat/chat-messages.js',
     '/js/chat/chat-ui.js',
