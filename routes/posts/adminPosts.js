@@ -181,6 +181,29 @@ module.exports = function(app) {
             // execute transaction
             tx();
 
+            // Emit real-time notifications to affected owners about the merge (if connected)
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    Object.keys(ownerMap).forEach(k => {
+                        const mergedId = Number(k);
+                        const owner = ownerMap[mergedId];
+                        if (!owner) return;
+                        const desc = `Su publicación #${mergedId} fue fusionada en la publicación #${baseId} por el equipo de Artícora. Razón: ${reason || 'Fusión administrativa'}`;
+                        const payload = {
+                            alertId: null,
+                            alert_type: 'merge_notification',
+                            severity: 'medium',
+                            description: desc,
+                            details: { mergedId, baseId, adminId, reason, recipient_user_id: owner },
+                            created_at: new Date().toISOString()
+                        };
+                        try { io.to(`user_${owner}`).emit('system_alert', payload); } catch (e) { }
+                        try { io.to(`user_${owner}`).emit('new_system_alert', payload); } catch (e) { }
+                    });
+                }
+            } catch (e) { console.warn('Emit merge_notification failed', e && e.message); }
+
             return res.json({ success: true, merged: mergeIds.length, mergedIds: mergeIds });
         } catch (err) {
             console.error('POST /api/admin/compare/merge error:', err && err.message);
@@ -262,10 +285,13 @@ module.exports = function(app) {
                             created_at: new Date().toISOString()
                         };
                         if (detailsObj && detailsObj.recipient_user_id) {
-                            io.to(`user_${detailsObj.recipient_user_id}`).emit('system_alert', payload);
+                            // Emit both a direct system_alert (toast) and a new_system_alert
+                            // so clients viewing the Artícora channel can refresh messages.
+                            try { io.to(`user_${detailsObj.recipient_user_id}`).emit('system_alert', payload); } catch (e) { }
+                            try { io.to(`user_${detailsObj.recipient_user_id}`).emit('new_system_alert', payload); } catch (e) { }
                         } else {
                             // If no specific recipient, emit to Artícora channel as a system alert
-                            try { io.to('chat_0').emit('new_system_alert', payload); } catch (e) { io.emit('system_alert', payload); }
+                            try { io.to('chat_0').emit('new_system_alert', payload); } catch (e) { try { io.emit('system_alert', payload); } catch (e2) { } }
                         }
                     }
                 }
@@ -322,7 +348,8 @@ module.exports = function(app) {
                         details: JSON.parse(details),
                         created_at: new Date().toISOString()
                     };
-                    io.to(`user_${reporterId}`).emit('system_alert', payload);
+                    try { io.to(`user_${reporterId}`).emit('system_alert', payload); } catch (e) { }
+                    try { io.to(`user_${reporterId}`).emit('new_system_alert', payload); } catch (e) { }
                 }
             } catch (e) { console.error('Error emitiendo system_alert (admin contact):', e && e.message); }
 
@@ -386,9 +413,25 @@ module.exports = function(app) {
                     recipient_user_id: report.reporter_id,
                     target: { type: 'user', info: targetId }
                 });
-                db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at)
-                            VALUES (?, ?, ?, ?, datetime('now'))`)
-                    .run('admin_response', 'medium', reporterDescription, reporterDetails);
+                const repIns = db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at)
+                            VALUES (?, ?, ?, ?, datetime('now'))`).run('admin_response', 'medium', reporterDescription, reporterDetails);
+
+                // Emit real-time notification to reporter (if connected)
+                try {
+                    const io = req.app && req.app.get && req.app.get('io');
+                    if (io && report.reporter_id) {
+                        const payload = {
+                            alertId: repIns && repIns.lastInsertRowid ? repIns.lastInsertRowid : null,
+                            alert_type: 'admin_response',
+                            severity: 'medium',
+                            description: reporterDescription,
+                            details: JSON.parse(reporterDetails),
+                            created_at: new Date().toISOString()
+                        };
+                        try { io.to(`user_${report.reporter_id}`).emit('system_alert', payload); } catch (e) { }
+                        try { io.to(`user_${report.reporter_id}`).emit('new_system_alert', payload); } catch (e) { }
+                    }
+                } catch (e) { console.warn('Emit reporter admin_response failed', e && e.message); }
 
                 // 2. Alerta para el USUARIO SUSPENDIDO (reportado)
                 const suspendedDescription = `Tu cuenta ha sido suspendida por 7 días debido a un reporte en tu contra. Motivo: ${adminMessage || note || 'Infracción de las normas.'}. La suspensión terminará el ${new Date(Date.now() + 7*24*3600*1000).toLocaleString('es-ES')}.`;
@@ -399,9 +442,25 @@ module.exports = function(app) {
                     reportId: report.id,
                     recipient_user_id: targetId
                 });
-                db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at)
-                            VALUES (?, ?, ?, ?, datetime('now'))`)
-                    .run('account_suspended', 'high', suspendedDescription, suspendedDetails);
+                const suspIns = db.prepare(`INSERT INTO system_alerts (alert_type, severity, description, details, created_at)
+                            VALUES (?, ?, ?, ?, datetime('now'))`).run('account_suspended', 'high', suspendedDescription, suspendedDetails);
+
+                // Emit real-time notification to suspended user (if connected)
+                try {
+                    const io = req.app && req.app.get && req.app.get('io');
+                    if (io && targetId) {
+                        const payload = {
+                            alertId: suspIns && suspIns.lastInsertRowid ? suspIns.lastInsertRowid : null,
+                            alert_type: 'account_suspended',
+                            severity: 'high',
+                            description: suspendedDescription,
+                            details: JSON.parse(suspendedDetails),
+                            created_at: new Date().toISOString()
+                        };
+                        try { io.to(`user_${targetId}`).emit('system_alert', payload); } catch (e) { }
+                        try { io.to(`user_${targetId}`).emit('new_system_alert', payload); } catch (e) { }
+                    }
+                } catch (e) { console.warn('Emit suspended user alert failed', e && e.message); }
 
                 // --- Envío de emails ---
                 (async () => {

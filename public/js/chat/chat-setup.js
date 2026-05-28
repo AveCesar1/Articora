@@ -61,6 +61,55 @@
                     window.chatData.user.currentGroups = prev + 1;
                     const el = document.getElementById('groupCount');
                     if (el) el.textContent = String(window.chatData.user.currentGroups);
+
+                    // Close the modal automatically
+                    try {
+                        const modalEl = document.getElementById('createGroupModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modalInstance.hide();
+                    } catch (e) { /* ignore modal hide errors */ }
+
+                    // Insert the newly created group into the groups list in the sidebar
+                    try {
+                        const groupsContainer = document.getElementById('groups-content');
+                        if (groupsContainer) {
+                            const newItem = document.createElement('div');
+                            newItem.className = 'chat-item';
+                            newItem.setAttribute('data-id', data.groupId);
+                            newItem.setAttribute('data-chat-id', data.groupId);
+                            newItem.setAttribute('data-type', 'group');
+                            newItem.innerHTML = `\n                                <div class="d-flex align-items-center">\n                                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=8B4513&color=fff&bold=true" alt="Avatar" class="avatar-sm rounded-circle me-3">\n                                    <div class="chat-info flex-grow-1">\n                                        <strong class="chat-name">${groupName}</strong>\n                                        <small class="text-muted d-block"><i class="fas fa-users me-1"></i>${selectedMembers.length + 1}/12 miembros</small>\n                                    </div>\n                                </div>`;
+
+                            // Insert after the "new group" button if present
+                            const btnContainer = groupsContainer.querySelector('.mb-3');
+                            if (btnContainer && btnContainer.parentNode === groupsContainer) groupsContainer.insertBefore(newItem, btnContainer.nextSibling);
+                            else groupsContainer.appendChild(newItem);
+
+                            // Attach click handler to open the new group chat
+                            newItem.addEventListener('click', async function (e) {
+                                e.stopPropagation();
+                                const userId = parseInt(this.dataset.id, 10);
+                                const chatId = parseInt(this.dataset.chatId, 10);
+                                const chatType = this.dataset.type;
+                                document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                                this.classList.add('active');
+                                try {
+                                    await switchToChat(userId, chatId, chatType, false);
+                                    if (window.socket && chatId) {
+                                        if (window._lastJoinedChatId && window._lastJoinedChatId !== chatId) window.socket.emit('leave_chat', window._lastJoinedChatId);
+                                        window.socket.emit('join_chat', chatId);
+                                        window._lastJoinedChatId = chatId;
+                                    }
+                                } catch (e) { console.warn('Could not open new group chat', e && e.message); }
+                            });
+
+                            // Keep an in-memory reference
+                            try { window.chatData.groups = window.chatData.groups || []; window.chatData.groups.push({ id: data.groupId, group_name: groupName }); } catch (e) {}
+                        }
+                    } catch (e) { console.warn('Could not insert new group into DOM', e && e.message); }
+
+                    // Reset the form
+                    try { createGroupForm.reset(); } catch (e) { }
                 } catch (e) { console.warn('Could not update group counter in DOM', e && e.message); }
             } catch (err) {
                 console.error(err);

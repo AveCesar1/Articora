@@ -448,6 +448,11 @@ module.exports = function(app) {
                 });
             }
 
+            // Update user's currentGroups counter so the template shows the correct value
+            try {
+                user.currentGroups = userGroups.length;
+            } catch (e) { user.currentGroups = user.currentGroups || 0; }
+
             // 6. Mensajes del canal (con datos del usuario)
             const now = new Date();
             const todayStr = now.toLocaleDateString('es-ES', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
