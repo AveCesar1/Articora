@@ -89,6 +89,86 @@
       } catch (e) { console.warn('user_offline handler error', e && e.message); }
     });
 
+    // Helper to show notifications (use existing showNotification if available)
+    function displayToast(message, type = 'info') {
+      try {
+        if (typeof showNotification === 'function') return showNotification(message, type);
+      } catch (e) { }
+      // Fallback simple toast
+      try {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 1050; min-width: 240px; max-width: 360px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+        notification.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(notification);
+        setTimeout(() => { if (notification.parentNode) notification.remove(); }, 5000);
+      } catch (e) { console.warn('displayToast fallback failed', e && e.message); }
+    }
+
+    // Contact requests
+    socket.on('contact_request', (payload) => {
+      try {
+        window.data = window.data || {};
+        window.data.incomingRequests = window.data.incomingRequests || [];
+        window.data.incomingRequests.unshift(payload);
+        // update simple counter if present
+        const el = document.querySelector('#requestsCount') || document.querySelector('.requests-count');
+        if (el) el.textContent = String((parseInt(el.textContent || '0', 10) || 0) + 1);
+        displayToast(`Nueva solicitud de ${payload.sender.full_name || payload.sender.username || 'usuario'}`, 'info');
+      } catch (e) { console.warn('contact_request handler error', e && e.message); }
+    });
+
+    socket.on('contact_request_accepted', async (payload) => {
+      try {
+        displayToast('Tu solicitud fue aceptada', 'success');
+        if (payload && payload.chatId) {
+          // Refresh chat list to include the new chat
+          try {
+            const resp = await fetch('/api/chats');
+            if (resp.ok) {
+              const chats = await resp.json();
+              window.chatData = window.chatData || {};
+              window.chatData.chats = chats;
+            }
+          } catch (e) { console.warn('Could not refresh chats after accept', e && e.message); }
+        }
+      } catch (e) { console.warn('contact_request_accepted handler error', e && e.message); }
+    });
+
+    socket.on('contact_request_rejected', (payload) => {
+      try { displayToast('Tu solicitud fue rechazada', 'info'); } catch (e) { }
+    });
+
+    // Group added
+    socket.on('group_added', (payload) => {
+      try {
+        window.chatData = window.chatData || {};
+        window.chatData.groups = window.chatData.groups || [];
+        window.chatData.groups.push({ id: payload.groupId, group_name: payload.groupName });
+        try {
+          window.chatData.user = window.chatData.user || {};
+          window.chatData.user.currentGroups = (parseInt(window.chatData.user.currentGroups || '0', 10) || 0) + 1;
+          const el = document.getElementById('groupCount'); if (el) el.textContent = String(window.chatData.user.currentGroups);
+        } catch (e) { }
+        displayToast(`Fuiste agregado al grupo '${payload.groupName}' por ${payload.createdBy && (payload.createdBy.full_name || payload.createdBy.username)}`, 'info');
+      } catch (e) { console.warn('group_added handler error', e && e.message); }
+    });
+
+    // Admin / system alerts
+    socket.on('system_alert', (payload) => {
+      try { displayToast(payload && payload.description ? payload.description : 'Alerta del sistema', 'warning'); } catch (e) { }
+    });
+
+    socket.on('new_system_alert', (payload) => {
+      try {
+        displayToast(payload && payload.description ? payload.description : 'Alerta en Artícora', 'warning');
+        // If user is viewing Artícora (chatId 0) optionally refresh
+        if (window.currentChat && window.currentChat.chatId === 0) {
+          try { fetch('/api/chats/0/messages').then(r => r.ok && r.json()).then(() => { /* client will handle new_message via socket if implemented */ }); } catch (e) { }
+        }
+      } catch (e) { console.warn('new_system_alert handler error', e && e.message); }
+    });
+
     socket.on('new_message', async (msg) => {
       try {
         // Si el mensaje pertenece al chat abierto, intentar descifrar y renderizar

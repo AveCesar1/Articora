@@ -79,7 +79,27 @@ module.exports = function(app) {
                 }
             } catch (e) { console.error('Failed to send contact request email (non-fatal)', e && e.message); }
 
-            // TODO: Emitir evento por socket al receptor
+            // Emitir evento por socket al receptor (metadata only)
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    const senderRow = req.db.prepare('SELECT id, username, full_name, profile_picture FROM users WHERE id = ?').get(senderId) || {};
+                    const payload = {
+                        requestId: result.lastInsertRowid,
+                        sender: {
+                            id: senderRow.id || senderId,
+                            username: senderRow.username || null,
+                            full_name: senderRow.full_name || null,
+                            profile_picture: senderRow.profile_picture || null
+                        },
+                        initialMessage: initialMessage || null,
+                        sent_at: new Date().toISOString()
+                    };
+                    io.to(`user_${receiverId}`).emit('contact_request', payload);
+                }
+            } catch (e) {
+                console.error('Error emitiendo contact_request:', e && e.message);
+            }
 
             res.status(201).json({ 
                 message: 'Solicitud enviada',
@@ -136,6 +156,27 @@ module.exports = function(app) {
                 VALUES (?, ?, 0), (?, ?, 0)
             `).run(chatId, request.sender_id, chatId, request.receiver_id);
 
+            // Emitir al remitente que su solicitud fue aceptada
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    const accepter = req.db.prepare('SELECT id, username, full_name, profile_picture FROM users WHERE id = ?').get(userId) || {};
+                    io.to(`user_${request.sender_id}`).emit('contact_request_accepted', {
+                        requestId: requestId,
+                        chatId,
+                        accepter: {
+                            id: accepter.id || userId,
+                            username: accepter.username || null,
+                            full_name: accepter.full_name || null,
+                            profile_picture: accepter.profile_picture || null
+                        },
+                        accepted_at: new Date().toISOString()
+                    });
+                }
+            } catch (e) {
+                console.error('Error emitiendo contact_request_accepted:', e && e.message);
+            }
+
             res.json({ 
                 message: 'Solicitud aceptada',
                 chatId
@@ -183,6 +224,26 @@ module.exports = function(app) {
             req.db.prepare(`
                 UPDATE contact_requests SET status = 'rejected', responded_at = CURRENT_TIMESTAMP WHERE id = ?
             `).run(requestId);
+
+            // Emitir al remitente que su solicitud fue rechazada
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    const rejecter = req.db.prepare('SELECT id, username, full_name, profile_picture FROM users WHERE id = ?').get(userId) || {};
+                    io.to(`user_${request.sender_id}`).emit('contact_request_rejected', {
+                        requestId: requestId,
+                        rejecter: {
+                            id: rejecter.id || userId,
+                            username: rejecter.username || null,
+                            full_name: rejecter.full_name || null,
+                            profile_picture: rejecter.profile_picture || null
+                        },
+                        rejected_at: new Date().toISOString()
+                    });
+                }
+            } catch (e) {
+                console.error('Error emitiendo contact_request_rejected:', e && e.message);
+            }
 
             res.json({ message: 'Solicitud rechazada' });
             // Notify original sender by email (best-effort)
@@ -391,6 +452,32 @@ module.exports = function(app) {
         for (const pid of participants) {
             const isAdmin = (pid === userId) ? 1 : 0;
             participantStmt.run(chatId, pid, isAdmin);
+        }
+
+        // Emitir notificaciones a los participantes añadidos (excepto creador)
+        try {
+            const io = req.app && req.app.get && req.app.get('io');
+            if (io) {
+                const creatorRow = req.db.prepare('SELECT id, username, full_name, profile_picture FROM users WHERE id = ?').get(userId) || {};
+                const payload = {
+                    groupId: chatId,
+                    groupName: groupName,
+                    createdBy: {
+                        id: creatorRow.id || userId,
+                        username: creatorRow.username || null,
+                        full_name: creatorRow.full_name || null,
+                        profile_picture: creatorRow.profile_picture || null
+                    },
+                    members: participants,
+                    created_at: new Date().toISOString()
+                };
+                for (const pid of participants) {
+                    if (pid === userId) continue; // no need to notify creator
+                    try { io.to(`user_${pid}`).emit('group_added', payload); } catch (e) { console.error('Error notifying group_added for', pid, e && e.message); }
+                }
+            }
+        } catch (e) {
+            console.error('Error emitiendo group_added:', e && e.message);
         }
 
         res.status(201).json({

@@ -212,7 +212,7 @@ module.exports = function(app) {
 
     // Helper: create a system alert describing the admin response to a report
     // Use the report's own `report_type` and IDs to avoid extra DB lookups and mislabeling.
-    function createAdminAlert(db, report, status, adminMessage, adminId) {
+    function createAdminAlert(db, report, status, adminMessage, adminId, app) {
         try {
             const type = (report.report_type || '').toString().toLowerCase();
             if (typeof global !== 'undefined' && global.debugging) console.log(`Tipo de reporte para alerta: ${type}`);
@@ -246,7 +246,30 @@ module.exports = function(app) {
             if (recipient) detailsObj.recipient_user_id = recipient;
             const details = JSON.stringify(detailsObj);
 
-            db.prepare("INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('admin_response', 'medium', description, details);
+            const ins = db.prepare("INSERT INTO system_alerts (alert_type, severity, description, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('admin_response', 'medium', description, details);
+
+            // Emitir evento por socket al destinatario si está conectado (metadata only)
+            try {
+                if (app && app.get) {
+                    const io = app.get('io');
+                    if (io) {
+                        const payload = {
+                            alertId: ins && ins.lastInsertRowid ? ins.lastInsertRowid : null,
+                            alert_type: 'admin_response',
+                            severity: 'medium',
+                            description,
+                            details: detailsObj,
+                            created_at: new Date().toISOString()
+                        };
+                        if (detailsObj && detailsObj.recipient_user_id) {
+                            io.to(`user_${detailsObj.recipient_user_id}`).emit('system_alert', payload);
+                        } else {
+                            // If no specific recipient, emit to Artícora channel as a system alert
+                            try { io.to('chat_0').emit('new_system_alert', payload); } catch (e) { io.emit('system_alert', payload); }
+                        }
+                    }
+                }
+            } catch (e) { console.error('Error emitiendo admin alert via socket:', e && e.message); }
         } catch (e) {
             console.error('createAdminAlert error', e && e.message);
         }
@@ -287,6 +310,22 @@ module.exports = function(app) {
                 } catch (e) { console.error('admin contact mail error', e && e.message); }
             })();
 
+            // Emitir alerta por socket al reportero (metadata only)
+            try {
+                const io = req.app && req.app.get && req.app.get('io');
+                if (io) {
+                    const payload = {
+                        alertId: ins && ins.lastInsertRowid ? ins.lastInsertRowid : null,
+                        alert_type: 'admin_contact',
+                        severity: 'medium',
+                        description,
+                        details: JSON.parse(details),
+                        created_at: new Date().toISOString()
+                    };
+                    io.to(`user_${reporterId}`).emit('system_alert', payload);
+                }
+            } catch (e) { console.error('Error emitiendo system_alert (admin contact):', e && e.message); }
+
             return res.json({ success: true, alertId: ins.lastInsertRowid });
         } catch (e) {
             console.error('POST /api/admin/reports/:id/contact error', e);
@@ -325,7 +364,7 @@ module.exports = function(app) {
                 // mark report resolved
                 db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'source_deleted: ' + (note || ''), adminId, reportId);
                 // Create admin alert for Artícora channel
-                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId, req.app);
                 return res.json({ success: true });
             } else if (action === 'suspend_user' && report.reported_user_id) {
                 // suspend 7 days (soft action + admin note + emails)
@@ -386,12 +425,12 @@ module.exports = function(app) {
             } else if (action === 'delete_comment' && report.comment_id) {
                 db.prepare("UPDATE ratings SET comment = NULL, updated_at = datetime('now') WHERE id = ?").run(report.comment_id);
                 db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'comment_deleted: ' + (note || ''), adminId, reportId);
-                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId, req.app);
                 return res.json({ success: true });
             } else if (action === 'delete_message' && report.message_id) {
                 db.prepare("UPDATE messages SET content_type = 'deleted', encrypted_content = NULL, iv = NULL, encrypted_key = NULL WHERE id = ?").run(report.message_id);
                 db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'message_deleted: ' + (note || ''), adminId, reportId);
-                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                createAdminAlert(db, report, 'resolved', adminMessage || note, adminId, req.app);
                 return res.json({ success: true });
             } else if (action === 'delete_user' && report.reported_user_id) {
                 // Soft-delete the reported user: deactivate account and mark deleted metadata; do not attempt hard delete to avoid FK errors.
@@ -405,7 +444,7 @@ module.exports = function(app) {
                     db.prepare("UPDATE users SET account_active = 0, is_deleted = 1, deleted_at = datetime('now'), account_admin_note = ? WHERE id = ?").run(note || adminMessage || 'Cuenta eliminada por administración', targetId);
                     db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('resolved', 'user_deleted_soft: ' + (note || ''), adminId, reportId);
                     // Notify reporter via Artícora (and target the alert to the reporter)
-                    createAdminAlert(db, report, 'resolved', adminMessage || note, adminId);
+                    createAdminAlert(db, report, 'resolved', adminMessage || note, adminId, req.app);
                 })();
 
                 // Send emails: reported user (only by email), and reporter (confirmation + Artícora message already created)
@@ -459,7 +498,7 @@ module.exports = function(app) {
             db.prepare("UPDATE reports SET status = ?, resolved_at = datetime('now'), action_taken = ?, admin_id = ? WHERE id = ?").run('rejected', note || 'rejected', adminId, reportId);
 
             // Create admin alert to notify via Artícora channel
-            createAdminAlert(db, report, 'rejected', adminMessage || note, adminId);
+            createAdminAlert(db, report, 'rejected', adminMessage || note, adminId, req.app);
 
             return res.json({ success: true });
         } catch (e) {
@@ -792,105 +831,105 @@ module.exports = function(app) {
         }
     });
 
-        // --- Offensive terms management (CRUD) ---
-        app.post('/api/admin/offensive_terms', soloAdmin, (req, res) => {
+    // --- Offensive terms management (CRUD) ---
+    app.post('/api/admin/offensive_terms', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const term = sanitizeText(String(req.body.term || '').trim(), { maxLength: 200 });
+            if (!term) return res.status(400).json({ success: false, message: 'empty_term' });
+            // normalized_term: remove diacritics and lowercase
+            let normalized = term;
+            try { normalized = term.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase(); } catch (e) { normalized = term.toLowerCase(); }
             try {
-                const db = req.db;
-                const term = sanitizeText(String(req.body.term || '').trim(), { maxLength: 200 });
-                if (!term) return res.status(400).json({ success: false, message: 'empty_term' });
-                // normalized_term: remove diacritics and lowercase
-                let normalized = term;
-                try { normalized = term.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase(); } catch (e) { normalized = term.toLowerCase(); }
-                try {
-                    const ins = db.prepare('INSERT INTO offensive_terms (term, normalized_term, is_active, created_at) VALUES (?, ?, 1, datetime(\'now\'))').run(term, normalized);
-                    return res.json({ success: true, id: ins.lastInsertRowid });
-                } catch (e) {
-                    // If unique constraint, reactivate existing
-                    if (e && /UNIQUE/i.test(e.message || '')) {
-                        const ex = db.prepare('SELECT id FROM offensive_terms WHERE term = ? OR normalized_term = ?').get(term, normalized);
-                        if (ex && ex.id) {
-                            db.prepare('UPDATE offensive_terms SET is_active = 1, term = ?, normalized_term = ? WHERE id = ?').run(term, normalized, ex.id);
-                            return res.json({ success: true, id: ex.id });
-                        }
+                const ins = db.prepare('INSERT INTO offensive_terms (term, normalized_term, is_active, created_at) VALUES (?, ?, 1, datetime(\'now\'))').run(term, normalized);
+                return res.json({ success: true, id: ins.lastInsertRowid });
+            } catch (e) {
+                // If unique constraint, reactivate existing
+                if (e && /UNIQUE/i.test(e.message || '')) {
+                    const ex = db.prepare('SELECT id FROM offensive_terms WHERE term = ? OR normalized_term = ?').get(term, normalized);
+                    if (ex && ex.id) {
+                        db.prepare('UPDATE offensive_terms SET is_active = 1, term = ?, normalized_term = ? WHERE id = ?').run(term, normalized, ex.id);
+                        return res.json({ success: true, id: ex.id });
                     }
-                    console.error('POST /api/admin/offensive_terms insert error', e && e.message);
-                    return res.status(500).json({ success: false, message: 'internal_error' });
                 }
-            } catch (e) {
-                console.error('POST /api/admin/offensive_terms error', e && e.message);
+                console.error('POST /api/admin/offensive_terms insert error', e && e.message);
                 return res.status(500).json({ success: false, message: 'internal_error' });
             }
-        });
+        } catch (e) {
+            console.error('POST /api/admin/offensive_terms error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
 
-        app.put('/api/admin/offensive_terms/:id', soloAdmin, (req, res) => {
-            try {
-                const db = req.db;
-                const id = Number(req.params.id);
-                if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
-                const term = sanitizeText(String(req.body.term || '').trim(), { maxLength: 200 });
-                const isActive = typeof req.body.is_active !== 'undefined' ? (!!req.body.is_active) : null;
-                let normalized = term;
-                try { normalized = term.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase(); } catch (e) { normalized = term.toLowerCase(); }
-                const updates = [];
-                const params = [];
-                if (term) { updates.push('term = ?'); params.push(term); updates.push('normalized_term = ?'); params.push(normalized); }
-                if (isActive !== null) { updates.push('is_active = ?'); params.push(isActive ? 1 : 0); }
-                if (!updates.length) return res.status(400).json({ success: false, message: 'nothing_to_update' });
-                params.push(id);
-                const sql = `UPDATE offensive_terms SET ${updates.join(', ')} WHERE id = ?`;
-                db.prepare(sql).run(...params);
-                return res.json({ success: true });
-            } catch (e) {
-                console.error('PUT /api/admin/offensive_terms/:id error', e && e.message);
-                return res.status(500).json({ success: false, message: 'internal_error' });
-            }
-        });
+    app.put('/api/admin/offensive_terms/:id', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+            const term = sanitizeText(String(req.body.term || '').trim(), { maxLength: 200 });
+            const isActive = typeof req.body.is_active !== 'undefined' ? (!!req.body.is_active) : null;
+            let normalized = term;
+            try { normalized = term.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase(); } catch (e) { normalized = term.toLowerCase(); }
+            const updates = [];
+            const params = [];
+            if (term) { updates.push('term = ?'); params.push(term); updates.push('normalized_term = ?'); params.push(normalized); }
+            if (isActive !== null) { updates.push('is_active = ?'); params.push(isActive ? 1 : 0); }
+            if (!updates.length) return res.status(400).json({ success: false, message: 'nothing_to_update' });
+            params.push(id);
+            const sql = `UPDATE offensive_terms SET ${updates.join(', ')} WHERE id = ?`;
+            db.prepare(sql).run(...params);
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('PUT /api/admin/offensive_terms/:id error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
 
-        app.delete('/api/admin/offensive_terms/:id', soloAdmin, (req, res) => {
-            try {
-                const db = req.db;
-                const id = Number(req.params.id);
-                if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
-                // Soft-delete: mark inactive
-                db.prepare('UPDATE offensive_terms SET is_active = 0 WHERE id = ?').run(id);
-                return res.json({ success: true });
-            } catch (e) {
-                console.error('DELETE /api/admin/offensive_terms/:id error', e && e.message);
-                return res.status(500).json({ success: false, message: 'internal_error' });
-            }
-        });
+    app.delete('/api/admin/offensive_terms/:id', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+            // Soft-delete: mark inactive
+            db.prepare('UPDATE offensive_terms SET is_active = 0 WHERE id = ?').run(id);
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('DELETE /api/admin/offensive_terms/:id error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
 
-        // --- Equivalent domains management ---
-        app.post('/api/admin/equivalent_domains', soloAdmin, (req, res) => {
+    // --- Equivalent domains management ---
+    app.post('/api/admin/equivalent_domains', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const base = sanitizeText(String(req.body.base_domain || '').trim(), { maxLength: 200 });
+            const equiv = sanitizeText(String(req.body.equivalent_domain || '').trim(), { maxLength: 200 });
+            if (!base || !equiv) return res.status(400).json({ success: false, message: 'missing_params' });
             try {
-                const db = req.db;
-                const base = sanitizeText(String(req.body.base_domain || '').trim(), { maxLength: 200 });
-                const equiv = sanitizeText(String(req.body.equivalent_domain || '').trim(), { maxLength: 200 });
-                if (!base || !equiv) return res.status(400).json({ success: false, message: 'missing_params' });
-                try {
-                    const ins = db.prepare('INSERT INTO equivalent_domains (base_domain, equivalent_domain) VALUES (?, ?)').run(base, equiv);
-                    return res.json({ success: true, id: ins.lastInsertRowid });
-                } catch (e) {
-                    if (e && /UNIQUE/i.test(e.message || '')) return res.status(409).json({ success: false, message: 'already_exists' });
-                    console.error('POST /api/admin/equivalent_domains error', e && e.message);
-                    return res.status(500).json({ success: false, message: 'internal_error' });
-                }
+                const ins = db.prepare('INSERT INTO equivalent_domains (base_domain, equivalent_domain) VALUES (?, ?)').run(base, equiv);
+                return res.json({ success: true, id: ins.lastInsertRowid });
             } catch (e) {
+                if (e && /UNIQUE/i.test(e.message || '')) return res.status(409).json({ success: false, message: 'already_exists' });
                 console.error('POST /api/admin/equivalent_domains error', e && e.message);
                 return res.status(500).json({ success: false, message: 'internal_error' });
             }
-        });
+        } catch (e) {
+            console.error('POST /api/admin/equivalent_domains error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
 
-        app.delete('/api/admin/equivalent_domains/:id', soloAdmin, (req, res) => {
-            try {
-                const db = req.db;
-                const id = Number(req.params.id);
-                if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
-                db.prepare('DELETE FROM equivalent_domains WHERE id = ?').run(id);
-                return res.json({ success: true });
-            } catch (e) {
-                console.error('DELETE /api/admin/equivalent_domains/:id error', e && e.message);
-                return res.status(500).json({ success: false, message: 'internal_error' });
-            }
-        });
+    app.delete('/api/admin/equivalent_domains/:id', soloAdmin, (req, res) => {
+        try {
+            const db = req.db;
+            const id = Number(req.params.id);
+            if (Number.isNaN(id)) return res.status(400).json({ success: false, message: 'invalid_id' });
+            db.prepare('DELETE FROM equivalent_domains WHERE id = ?').run(id);
+            return res.json({ success: true });
+        } catch (e) {
+            console.error('DELETE /api/admin/equivalent_domains/:id error', e && e.message);
+            return res.status(500).json({ success: false, message: 'internal_error' });
+        }
+    });
 };
