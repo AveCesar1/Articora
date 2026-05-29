@@ -53,7 +53,7 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error);
                 showNotification('Grupo creado exitosamente', 'success');
-                // Update group counter in header without reloading
+                // Update group counter in header without reloading and fetch full chat info
                 try {
                     window.chatData = window.chatData || {};
                     window.chatData.user = window.chatData.user || {};
@@ -69,16 +69,51 @@
                         modalInstance.hide();
                     } catch (e) { /* ignore modal hide errors */ }
 
+                    // Try to fetch full chat info so we have participants and public keys
+                    let groupInfo = null;
+                    const groupId = data.groupId;
+                    try {
+                        const infoResp = await fetch(`/api/chats/${groupId}/info`);
+                        if (infoResp.ok) {
+                            groupInfo = await infoResp.json();
+                        }
+                    } catch (e) { /* ignore fetch errors */ }
+
+                    // Build a canonical group object compatible with server-provided shape
+                    const membersList = [currentUser.id, ...selectedMembers];
+                    const participants = (groupInfo && groupInfo.participants) ? groupInfo.participants : membersList.map(id => {
+                        const c = (window.chatData && window.chatData.contacts) ? window.chatData.contacts.find(x => Number(x.id) === Number(id)) : null;
+                        return {
+                            user_id: id,
+                            username: c && (c.name || c.username) || null,
+                            full_name: c && c.full_name || null,
+                            profile_picture: c && c.avatar || null,
+                            public_key: c && (c.publicKey || c.public_key) || null
+                        };
+                    });
+
+                    const groupObj = {
+                        id: groupId,
+                        name: (groupInfo && groupInfo.name) ? groupInfo.name : groupName,
+                        description: (groupInfo && groupInfo.description) ? groupInfo.description : '',
+                        avatar: (groupInfo && groupInfo.avatar) ? groupInfo.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=8B4513&color=fff&bold=true`,
+                        members: participants.length,
+                        maxMembers: 12,
+                        isMember: true,
+                        lastMessage: null,
+                        participants: participants
+                    };
+
                     // Insert the newly created group into the groups list in the sidebar
                     try {
                         const groupsContainer = document.getElementById('groups-content');
                         if (groupsContainer) {
                             const newItem = document.createElement('div');
                             newItem.className = 'chat-item';
-                            newItem.setAttribute('data-id', data.groupId);
-                            newItem.setAttribute('data-chat-id', data.groupId);
+                            newItem.setAttribute('data-id', String(groupObj.id));
+                            newItem.setAttribute('data-chat-id', String(groupObj.id));
                             newItem.setAttribute('data-type', 'group');
-                            newItem.innerHTML = `\n                                <div class="d-flex align-items-center">\n                                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=8B4513&color=fff&bold=true" alt="Avatar" class="avatar-sm rounded-circle me-3">\n                                    <div class="chat-info flex-grow-1">\n                                        <strong class="chat-name">${groupName}</strong>\n                                        <small class="text-muted d-block"><i class="fas fa-users me-1"></i>${selectedMembers.length + 1}/12 miembros</small>\n                                    </div>\n                                </div>`;
+                            newItem.innerHTML = `\n                                <div class="d-flex align-items-center">\n                                    <img src="${groupObj.avatar}" alt="Avatar" class="avatar-sm rounded-circle me-3">\n                                    <div class="chat-info flex-grow-1">\n                                        <strong class="chat-name">${groupObj.name}</strong>\n                                        <small class="text-muted d-block"><i class="fas fa-users me-1"></i>${groupObj.members}/12 miembros</small>\n                                    </div>\n                                </div>`;
 
                             // Insert after the "new group" button if present
                             const btnContainer = groupsContainer.querySelector('.mb-3');
@@ -103,8 +138,28 @@
                                 } catch (e) { console.warn('Could not open new group chat', e && e.message); }
                             });
 
-                            // Keep an in-memory reference
-                            try { window.chatData.groups = window.chatData.groups || []; window.chatData.groups.push({ id: data.groupId, group_name: groupName }); } catch (e) {}
+                            // Keep an in-memory reference (make sure both window.chatData and window.data reflect it)
+                            try {
+                                window.chatData.groups = window.chatData.groups || [];
+                                window.chatData.groups.push(groupObj);
+                                if (window.data) {
+                                    window.data.groups = window.data.groups || [];
+                                    window.data.groups.push(groupObj);
+                                }
+                            } catch (e) {}
+
+                            // Open the newly created chat immediately for the creator
+                            try {
+                                // mark UI active
+                                document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                                newItem.classList.add('active');
+                                if (window.socket && groupObj.id) {
+                                    if (window._lastJoinedChatId && window._lastJoinedChatId !== groupObj.id) window.socket.emit('leave_chat', window._lastJoinedChatId);
+                                    window.socket.emit('join_chat', groupObj.id);
+                                    window._lastJoinedChatId = groupObj.id;
+                                }
+                                await switchToChat(groupObj.id, groupObj.id, 'group', false);
+                            } catch (e) { /* ignore open errors */ }
                         }
                     } catch (e) { console.warn('Could not insert new group into DOM', e && e.message); }
 

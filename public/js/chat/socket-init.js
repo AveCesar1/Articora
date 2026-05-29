@@ -52,6 +52,16 @@
       socket.on('connect', () => {
         console.log('Socket conectado:', socket.id);
         window.dispatchEvent(new Event('socketReady'));
+        try {
+          // Auto-join the active chat room (e.g., Artícora channel 0) so clients viewing it
+          // receive channel events without extra user interaction.
+          if (window.currentChat) {
+            const cid = (typeof window.currentChat.chatId !== 'undefined') ? window.currentChat.chatId : window.currentChat.id;
+            if (typeof cid !== 'undefined' && cid !== null) {
+              try { socket.emit('join_chat', cid); window._lastJoinedChatId = cid; } catch (e) { }
+            }
+          }
+        } catch (e) { }
       });
 
       socket.on('connect_error', (err) => {

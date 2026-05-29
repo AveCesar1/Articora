@@ -285,10 +285,12 @@ module.exports = function(app) {
                             created_at: new Date().toISOString()
                         };
                         if (detailsObj && detailsObj.recipient_user_id) {
+                            const rid = detailsObj.recipient_user_id;
+                            if (global && global.debugging) console.log('createAdminAlert: emitting to user_' + rid, payload && payload.alertId);
                             // Emit both a direct system_alert (toast) and a new_system_alert
-                            // so clients viewing the Artícora channel can refresh messages.
-                            try { io.to(`user_${detailsObj.recipient_user_id}`).emit('system_alert', payload); } catch (e) { }
-                            try { io.to(`user_${detailsObj.recipient_user_id}`).emit('new_system_alert', payload); } catch (e) { }
+                            // targeted to the recipient's user room.
+                            try { io.to(`user_${rid}`).emit('system_alert', payload); } catch (e) { }
+                            try { io.to(`user_${rid}`).emit('new_system_alert', payload); } catch (e) { }
                         } else {
                             // If no specific recipient, emit to Artícora channel as a system alert
                             try { io.to('chat_0').emit('new_system_alert', payload); } catch (e) { try { io.emit('system_alert', payload); } catch (e2) { } }

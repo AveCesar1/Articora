@@ -207,9 +207,10 @@ module.exports = function(app) {
 
             if (chatRow.chat_type === 'group') {
                 const participants = req.db.prepare(`
-                    SELECT u.id as user_id, u.username, u.full_name, u.profile_picture
+                    SELECT u.id as user_id, u.username, u.full_name, u.profile_picture, k.public_key
                     FROM chat_participants cp
                     JOIN users u ON cp.user_id = u.id
+                    LEFT JOIN user_keys k ON u.id = k.user_id
                     WHERE cp.chat_id = ?
                 `).all(chatId);
 
@@ -537,6 +538,7 @@ module.exports = function(app) {
             const activeChat = {
                 type: 'channel',
                 id: 0,
+                chatId: 0,
                 name: 'Artícora',
                 status: 'online',
                 avatar: 'https://ui-avatars.com/api/?name=Articora&background=DAA520&color=fff&bold=true',

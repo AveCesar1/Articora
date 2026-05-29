@@ -140,17 +140,89 @@
     });
 
     // Group added
-    socket.on('group_added', (payload) => {
+    socket.on('group_added', async (payload) => {
       try {
+        // Try to obtain full chat info (participants + public keys)
+        let groupObj = null;
+        try {
+          const resp = await fetch(`/api/chats/${payload.groupId}/info`);
+          if (resp.ok) {
+            const info = await resp.json();
+            if (info && info.type === 'group') {
+              groupObj = {
+                id: info.id,
+                name: info.name,
+                description: info.description || '',
+                avatar: info.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(info.name || payload.groupName)}&background=8B4513&color=fff&bold=true`,
+                members: info.participants ? info.participants.length : (payload.members ? payload.members.length : 1),
+                maxMembers: 12,
+                isMember: true,
+                lastMessage: null,
+                participants: info.participants || []
+              };
+            }
+          }
+        } catch (e) { /* ignore fetch errors */ }
+
+        if (!groupObj) {
+          // fallback minimal object
+          groupObj = {
+            id: payload.groupId,
+            name: payload.groupName || 'Grupo',
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.groupName || 'Grupo')}&background=8B4513&color=fff&bold=true`,
+            members: payload.members ? payload.members.length : 1,
+            participants: (payload.members || []).map(id => ({ user_id: id }))
+          };
+        }
+
+        // Add to in-memory structures
         window.chatData = window.chatData || {};
         window.chatData.groups = window.chatData.groups || [];
-        window.chatData.groups.push({ id: payload.groupId, group_name: payload.groupName });
+        window.chatData.groups.push(groupObj);
+        if (window.data) { window.data.groups = window.data.groups || []; window.data.groups.push(groupObj); }
+
+        // Update DOM sidebar (insert group item)
+        try {
+          const groupsContainer = document.getElementById('groups-content');
+          if (groupsContainer) {
+            const newItem = document.createElement('div');
+            newItem.className = 'chat-item';
+            newItem.setAttribute('data-id', String(groupObj.id));
+            newItem.setAttribute('data-chat-id', String(groupObj.id));
+            newItem.setAttribute('data-type', 'group');
+            newItem.innerHTML = `\n                                <div class="d-flex align-items-center">\n                                    <img src="${groupObj.avatar}" alt="Avatar" class="avatar-sm rounded-circle me-3">\n                                    <div class="chat-info flex-grow-1">\n                                        <strong class="chat-name">${groupObj.name}</strong>\n                                        <small class="text-muted d-block"><i class="fas fa-users me-1"></i>${groupObj.members}/12 miembros</small>\n                                    </div>\n                                </div>`;
+
+            const btnContainer = groupsContainer.querySelector('.mb-3');
+            if (btnContainer && btnContainer.parentNode === groupsContainer) groupsContainer.insertBefore(newItem, btnContainer.nextSibling);
+            else groupsContainer.appendChild(newItem);
+
+            newItem.addEventListener('click', async function (e) {
+              e.stopPropagation();
+              const userId = parseInt(this.dataset.id, 10);
+              const chatId = parseInt(this.dataset.chatId, 10);
+              const chatType = this.dataset.type;
+              document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+              this.classList.add('active');
+              try {
+                await switchToChat(userId, chatId, chatType, false);
+                if (window.socket && chatId) {
+                  if (window._lastJoinedChatId && window._lastJoinedChatId !== chatId) window.socket.emit('leave_chat', window._lastJoinedChatId);
+                  window.socket.emit('join_chat', chatId);
+                  window._lastJoinedChatId = chatId;
+                }
+              } catch (e) { console.warn('Could not open new group chat', e && e.message); }
+            });
+          }
+        } catch (e) { console.warn('group_added DOM insert failed', e && e.message); }
+
+        // Update group counter
         try {
           window.chatData.user = window.chatData.user || {};
           window.chatData.user.currentGroups = (parseInt(window.chatData.user.currentGroups || '0', 10) || 0) + 1;
           const el = document.getElementById('groupCount'); if (el) el.textContent = String(window.chatData.user.currentGroups);
         } catch (e) { }
-        displayToast(`Fuiste agregado al grupo '${payload.groupName}' por ${payload.createdBy && (payload.createdBy.full_name || payload.createdBy.username)}`, 'info');
+
+        displayToast(`Fuiste agregado al grupo '${groupObj.name}' por ${payload.createdBy && (payload.createdBy.full_name || payload.createdBy.username)}`, 'info');
       } catch (e) { console.warn('group_added handler error', e && e.message); }
     });
 
@@ -162,10 +234,48 @@
     socket.on('new_system_alert', (payload) => {
       try {
         displayToast(payload && payload.description ? payload.description : 'Alerta en Artícora', 'warning');
-        // If user is viewing Artícora (chatId 0) optionally refresh
-        if (window.currentChat && window.currentChat.chatId === 0) {
-          try { fetch('/api/chats/0/messages').then(r => r.ok && r.json()).then(() => { /* client will handle new_message via socket if implemented */ }); } catch (e) { }
-        }
+
+        // Update in-memory Artícora messages so UI can reflect the new alert
+        try {
+          window.chatData = window.chatData || {};
+          window.chatData.articoraMessages = window.chatData.articoraMessages || [];
+          const idVal = payload && payload.alertId ? (1000 + Number(payload.alertId)) : Date.now();
+          const newMsg = {
+            id: idVal,
+            sender: 'Administración',
+            text: payload && payload.description ? payload.description : '',
+            time: (payload && payload.created_at) ? new Date(payload.created_at).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            isAnnouncement: true
+          };
+          window.chatData.articoraMessages.unshift(newMsg);
+          if (window.data) { window.data.articoraMessages = window.data.articoraMessages || []; window.data.articoraMessages.unshift(newMsg); }
+
+          // If Artícora view is open, prepend and refresh
+          if (window.currentChat && (window.currentChat.chatId === 0 || window.currentChat.id === 0)) {
+            window.currentChat.messages = window.currentChat.messages || [];
+            window.currentChat.messages.unshift({ id: newMsg.id, sender: newMsg.sender, text: newMsg.text, time: newMsg.time, isOwn: false, status: 'read' });
+            try { if (typeof updateMessagesArea === 'function') updateMessagesArea(); } catch (e) {}
+            try { if (typeof scrollToBottom === 'function') scrollToBottom(); } catch (e) {}
+          } else {
+            // Update unread badge for Artícora in sidebar
+            try {
+              const item = document.querySelector('.chat-item[data-chat-id="0"]');
+              if (item) {
+                let badge = item.querySelector('.badge');
+                if (!badge) {
+                  badge = document.createElement('span');
+                  badge.className = 'badge bg-primary rounded-pill';
+                  badge.textContent = '1';
+                  const header = item.querySelector('.chat-info .d-flex');
+                  if (header) header.appendChild(badge); else item.appendChild(badge);
+                } else {
+                  const n = parseInt(badge.textContent || '0', 10) || 0;
+                  badge.textContent = String(n + 1);
+                }
+              }
+            } catch (e) { /* ignore badge update errors */ }
+          }
+        } catch (e) { console.warn('Could not update Artícora messages in-memory', e && e.message); }
       } catch (e) { console.warn('new_system_alert handler error', e && e.message); }
     });
 
