@@ -86,6 +86,25 @@ document.addEventListener('DOMContentLoaded', function() {
             goToSearchWithFilters(filters);
         });
     }
+
+    // Interceptar envíos del formulario de búsqueda para manejar queries que empiezan con '@'
+    document.addEventListener('submit', function(e) {
+        try {
+            const form = e.target;
+            if (!form || !form.querySelector) return;
+            const qInput = form.querySelector('input[name="q"]');
+            if (!qInput) return;
+            const action = (form.getAttribute('action') || '').toLowerCase();
+            if (action.includes('/search')) {
+                const q = String(qInput.value || '').trim();
+                if (q.startsWith('@')) {
+                    e.preventDefault();
+                    window.location.assign('/search-users?q=' + encodeURIComponent(q));
+                    return false;
+                }
+            }
+        } catch (err) { /* ignore form interception errors */ }
+    }, true);
     
     // Restablecer filtros
     const resetButtons = [resetFiltersBtn, resetFiltersEmptyBtn].filter(Boolean);
@@ -96,6 +115,42 @@ document.addEventListener('DOMContentLoaded', function() {
             goToSearchWithFilters({});
         });
     });
+
+    // Handlers for user-search filters on /search-users
+    const applyUserFiltersBtn = document.getElementById('applyUserFiltersBtn');
+    const resetUserFiltersBtn = document.getElementById('resetUserFiltersBtn');
+    if (applyUserFiltersBtn) {
+        applyUserFiltersBtn.addEventListener('click', function() {
+            const qInput = document.querySelector('input[name="q"]');
+            const q = qInput ? qInput.value.trim() : '';
+            const instEl = document.getElementById('filterInstitution');
+            const academicEl = document.getElementById('filterAcademic');
+            const onlyVerifiedEl = document.getElementById('onlyVerified');
+            const onlyHasPictureEl = document.getElementById('onlyHasPicture');
+            const inst = instEl ? instEl.value.trim() : '';
+            const academic = academicEl ? academicEl.value : '';
+            const verified = onlyVerifiedEl ? onlyVerifiedEl.checked : false;
+            const hasPicture = onlyHasPictureEl ? onlyHasPictureEl.checked : false;
+
+            const params = new URLSearchParams();
+            if (q) params.set('q', q);
+            if (inst) params.set('institution', inst);
+            if (academic) params.set('academic', academic);
+            if (verified) params.set('verified', '1');
+            if (hasPicture) params.set('hasPicture', '1');
+
+            window.location.assign('/search-users' + (params.toString() ? ('?' + params.toString()) : ''));
+        });
+    }
+    if (resetUserFiltersBtn) {
+        resetUserFiltersBtn.addEventListener('click', function() {
+            const qInput = document.querySelector('input[name="q"]');
+            const q = qInput ? qInput.value.trim() : '';
+            const params = new URLSearchParams();
+            if (q) params.set('q', q);
+            window.location.assign('/search-users' + (params.toString() ? ('?' + params.toString()) : ''));
+        });
+    }
     
     // No aplicar filtros automáticamente: el usuario hará click en "Aplicar Filtros"
     
@@ -306,6 +361,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Preserve current page param removed when applying new filters
 
         const qs = params.toString();
+        // If query starts with '@' redirect to the users search page
+        if (q && q.startsWith('@')) {
+            window.location.assign('/search-users' + (qs ? ('?' + qs) : ''));
+            return;
+        }
         // Use location.assign so back button behaves normally
         window.location.assign('/search' + (qs ? ('?' + qs) : ''));
     }

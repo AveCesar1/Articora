@@ -36,6 +36,13 @@ module.exports = function (app) {
 
         const db = req.db;
 
+        // Redirect queries that start with '@' to the dedicated user search page
+        try {
+            if (query && String(query).startsWith('@')) {
+                return res.redirect(302, '/search-users?q=' + encodeURIComponent(query));
+            }
+        } catch (e) { /* proceed normally on error */ }
+
         // Read filters from querystring (keeps compatibility with template)
         const selectedSourceType = req.query.sourceType || req.query.type || null; // e.g. 'book' (accept alias 'type')
         const selectedSort = req.query.sort || req.query.sortBy || null;
@@ -323,6 +330,72 @@ module.exports = function (app) {
         } catch (err) {
             console.error('Error in /search handler:', err);
             res.status(500).send('Internal server error');
+        }
+    });
+
+    // Search users page (renders EJS) - triggered from queries starting with '@'
+    app.get('/search-users', async (req, res) => {
+        const qRaw = req.query.q || '';
+        const page = parseInt(req.query.page) || 1;
+        const perPage = 20;
+        const db = req.db;
+
+        try {
+            const qStr = String(qRaw || '').trim();
+            const institutionFilter = req.query.institution ? String(req.query.institution).trim() : '';
+            const academicFilter = req.query.academic ? String(req.query.academic).trim() : '';
+            const verifiedFlag = (req.query.verified === '1' || req.query.verified === 'true' || req.query.verified === 'on');
+            const hasPictureFlag = (req.query.hasPicture === '1' || req.query.hasPicture === 'true' || req.query.hasPicture === 'on');
+
+            // Build dynamic WHERE clause
+            const whereParts = ['is_validated = 1'];
+            const params = [];
+
+            if (qStr && qStr !== '@') {
+                const qSearch = qStr.startsWith('@') ? qStr.slice(1) : qStr;
+                whereParts.push('(username LIKE ? OR full_name LIKE ? OR institution LIKE ?)');
+                params.push(`%${qSearch}%`, `%${qSearch}%`, `%${qSearch}%`);
+            }
+
+            if (institutionFilter) {
+                whereParts.push('institution LIKE ?');
+                params.push(`%${institutionFilter}%`);
+            }
+
+            if (academicFilter) {
+                whereParts.push('academic_level = ?');
+                params.push(academicFilter);
+            }
+
+            if (verifiedFlag) {
+                whereParts.push('is_verified = 1');
+            }
+
+            if (hasPictureFlag) {
+                whereParts.push("(profile_picture IS NOT NULL AND profile_picture != '')");
+            }
+
+            const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+            const rows = db.prepare(`SELECT id, username, full_name, profile_picture, institution, academic_level, is_verified FROM users ${whereClause} ORDER BY username LIMIT ? OFFSET ?`).all(...params, perPage, (page - 1) * perPage);
+            const countRow = db.prepare(`SELECT COUNT(1) as c FROM users ${whereClause}`).get(...params);
+            const totalResults = countRow ? (countRow.c || 0) : 0;
+
+            const results = rows.map(r => ({ id: r.id, username: r.username, full_name: r.full_name || r.username, profile_picture: r.profile_picture || null, institution: r.institution || '', academic_level: r.academic_level || '', is_verified: !!r.is_verified }));
+
+            return res.render('search-users', {
+                title: qStr ? `Usuarios: "${qStr}" - Artícora` : 'Buscar usuarios - Artícora',
+                currentPage: 'search',
+                cssFile: 'search.css',
+                jsFile: 'search.js',
+                query: qRaw,
+                results: results,
+                filters: { institution: institutionFilter, academic: academicFilter, verified: verifiedFlag, hasPicture: hasPictureFlag },
+                pagination: { currentPage: page, totalPages: Math.max(1, Math.ceil(totalResults / perPage)), totalResults }
+            });
+        } catch (err) {
+            console.error('Error in /search-users handler', err);
+            return res.status(500).send('Internal server error');
         }
     });
 
