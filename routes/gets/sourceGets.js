@@ -2,6 +2,7 @@ const { type } = require('os');
 const IsRegistered = require('../../middlewares/auth');
 const checkRoles = require('../../middlewares/checkrole');
 const { spawn } = require('child_process');
+const debugging = global.debugging;
 
 //Alias de middlewares
 const soloValidado = checkRoles(['validado', 'admin']);
@@ -300,6 +301,61 @@ module.exports = function (app) {
                         }
 
                         // Apply alternative sorting if requested (TF-IDF order preserved by default)
+                        // If user requested academic adjustment and is authenticated, re-rank top-N
+                        const currentUserId = req.session && req.session.userId ? req.session.userId : (res.locals.user && res.locals.user.id ? res.locals.user.id : null);
+                        // Allow a test override when debugging: ?testAcademic=Licenciatura
+                        const testAcademicOverride = debugging && req.query.testAcademic ? String(req.query.testAcademic).trim() : null;
+                        if (academicAdjustmentFlag && (currentUserId || testAcademicOverride) && (!selectedSort || selectedSort === '' || selectedSort === 'relevance')) {
+                            try {
+                                // Fetch the user's academic level
+                                const userRow = db.prepare('SELECT academic_level FROM users WHERE id = ? LIMIT 1').get(currentUserId);
+                                // Prefer override if provided, otherwise query DB for current user's academic level
+                                const userAcademic = testAcademicOverride || (userRow && userRow.academic_level ? String(userRow.academic_level) : null);
+
+                                if (userAcademic && ordered.length > 0) {
+                                    // Work only on top-N to limit cost
+                                    const TOP_N = Math.min(50, ordered.length);
+                                    const topIds = ordered.slice(0, TOP_N).map(o => o.id);
+
+                                    // Build placeholders and params
+                                    const placeholders = topIds.map(() => '?').join(',');
+                                    const statsSql = `SELECT source_id, COUNT(1) as total_evals, SUM(CASE WHEN academic_context = ? THEN 1 ELSE 0 END) as same_grade_count, AVG(technical_difficulty) as avg_technical_difficulty FROM ratings WHERE source_id IN (${placeholders}) GROUP BY source_id`;
+                                    const statsParams = [userAcademic, ...topIds];
+                                    const statsRows = db.prepare(statsSql).all(...statsParams);
+
+                                    const statsMap = new Map();
+                                    statsRows.forEach(r => {
+                                        statsMap.set(r.source_id, { total_evals: r.total_evals || 0, same_grade_count: r.same_grade_count || 0, avg_technical_difficulty: (typeof r.avg_technical_difficulty !== 'undefined' && r.avg_technical_difficulty !== null) ? r.avg_technical_difficulty : null });
+                                    });
+
+                                    const maxScore = Math.max(...ordered.map(o => (o.score || 0)), 0);
+
+                                    // Compute final score combining normalized TF-IDF and adequacy
+                                    ordered.forEach(o => {
+                                        const info = statsMap.get(o.id) || { total_evals: 0, same_grade_count: 0, avg_technical_difficulty: null };
+                                        const coincidencia_grado = info.total_evals > 0 ? (info.same_grade_count / info.total_evals) : 0;
+                                        const accesibilidad = (info.avg_technical_difficulty !== null && typeof info.avg_technical_difficulty !== 'undefined') ? Math.max(0, Math.min(1, (5 - info.avg_technical_difficulty) / 5)) : 1;
+                                        const adecuacion = 0.7 * coincidencia_grado + 0.3 * accesibilidad;
+                                        const tfidf_norm = (maxScore > 0) ? ((o.score || 0) / maxScore) : 0;
+                                        const finalScore = 0.6 * tfidf_norm + 0.4 * adecuacion;
+                                        o._academicFinalScore = finalScore;
+                                        o._academicDetails = { coincidencia_grado, accesibilidad, adecuacion, tfidf_norm };
+                                    });
+
+                                    // Sort by computed final score (desc)
+                                    ordered.sort((a, b) => (b._academicFinalScore || 0) - (a._academicFinalScore || 0));
+                                    if (debugging) {
+                                        try {
+                                            const topDbg = ordered.slice(0, 10).map(o => ({ id: o.id, tfidf: o.score || 0, final: o._academicFinalScore || 0, details: o._academicDetails || {} }));
+                                            console.log('Academic-adjusted top results:', JSON.stringify(topDbg));
+                                        } catch (e) { /* ignore logging errors */ }
+                                    }
+                                }
+                            } catch (e) {
+                                if (debugging) console.warn('Academic adjustment failed:', e && e.message);
+                            }
+                        }
+
                         if (selectedSort) {
                             if (selectedSort === 'rating') ordered.sort((a, b) => (b.rating.average || 0) - (a.rating.average || 0));
                             else if (selectedSort === 'recent') ordered.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));

@@ -169,9 +169,20 @@ document.addEventListener('DOMContentLoaded', function() {
         setupHandleEvents(minHandle, slider);
         setupHandleEvents(maxHandle, slider);
         
-        // Posiciones iniciales y sincronizar valor visual/atributos
-        minHandle.style.left = '0%';
-        maxHandle.style.left = '100%';
+        // Posiciones iniciales: si el servidor pasó valores en data-min/data-max, usarlos
+        const rawMin = parseFloat(slider.dataset.min);
+        const rawMax = parseFloat(slider.dataset.max);
+        const minVal = Number.isFinite(rawMin) ? rawMin : 0;
+        const maxVal = Number.isFinite(rawMax) ? rawMax : 5;
+        // Asegurar orden correcto
+        const finalMin = Math.min(minVal, maxVal);
+        const finalMax = Math.max(minVal, maxVal);
+
+        const minPercent = (finalMin / 5) * 100;
+        const maxPercent = (finalMax / 5) * 100;
+
+        minHandle.style.left = `${minPercent}%`;
+        maxHandle.style.left = `${maxPercent}%`;
         updateSliderValue(slider, minHandle);
     }
     

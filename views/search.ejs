@@ -5,6 +5,20 @@
     searchQuery: typeof query !== 'undefined' ? query : ''
 }) %>
 
+<%
+    const qQS = (typeof query !== 'undefined' && query) ? ('q=' + encodeURIComponent(query)) : '';
+    const typeParam = (typeof filters !== 'undefined' && filters.sourceType) ? ('sourceType=' + encodeURIComponent(filters.sourceType)) : '';
+    const catParam = (typeof filters !== 'undefined' && filters.categories && filters.categories.length) ? ('category=' + encodeURIComponent(filters.categories.join(','))) : '';
+    const subcatParam = (typeof filters !== 'undefined' && filters.subcategories && filters.subcategories.length) ? ('subcategory=' + encodeURIComponent(filters.subcategories.join(','))) : '';
+    const yearFromParam = (typeof filters !== 'undefined' && filters.yearFrom) ? ('yearFrom=' + encodeURIComponent(filters.yearFrom)) : '';
+    const yearToParam = (typeof filters !== 'undefined' && filters.yearTo) ? ('yearTo=' + encodeURIComponent(filters.yearTo)) : '';
+    const ratingMinParam = (typeof filters !== 'undefined' && typeof filters.ratingMin !== 'undefined' && filters.ratingMin !== null) ? ('ratingMin=' + encodeURIComponent(filters.ratingMin)) : '';
+    const ratingMaxParam = (typeof filters !== 'undefined' && typeof filters.ratingMax !== 'undefined' && filters.ratingMax !== null) ? ('ratingMax=' + encodeURIComponent(filters.ratingMax)) : '';
+    const sortParam = (typeof filters !== 'undefined' && (filters.sort || filters.sortBy)) ? ('sort=' + encodeURIComponent(filters.sort || filters.sortBy)) : '';
+    const academicParam = (typeof filters !== 'undefined' && filters.academicAdjustment) ? 'academicAdjustment=1' : '';
+    const extraParams = [typeParam, catParam, subcatParam, yearFromParam, yearToParam, ratingMinParam, ratingMaxParam, sortParam, academicParam].filter(Boolean).join('&');
+    const baseParams = [qQS, extraParams].filter(Boolean).join('&');
+%>
 <div class="container py-4">
     <!-- Encabezado de búsqueda -->
     <div class="row mb-4">
@@ -93,7 +107,8 @@
                         </div>
                         
                         <div class="card-body">
-                            <!-- Modo Ajuste a Grado Académico -->
+                            <!-- Modo Ajuste a Grado Académico (solo para usuarios autenticados) -->
+                            <% if (typeof loggedIn !== 'undefined' && loggedIn) { %>
                             <div class="mb-4">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" 
@@ -108,6 +123,7 @@
                                     Prioriza fuentes evaluadas por usuarios de tu nivel académico.
                                 </div>
                             </div>
+                            <% } %>
 
                             <hr class="my-4">
 
@@ -172,7 +188,7 @@
                                             </span>
                                             <span class="text-muted">0-5</span>
                                         </div>
-                                        <div class="range-slider" id="avgRatingSlider"></div>
+                                        <div class="range-slider" id="avgRatingSlider" data-min="<%= typeof filters !== 'undefined' && typeof filters.ratingMin !== 'undefined' && filters.ratingMin !== null ? filters.ratingMin : 0 %>" data-max="<%= typeof filters !== 'undefined' && typeof filters.ratingMax !== 'undefined' && filters.ratingMax !== null ? filters.ratingMax : 5 %>"></div>
                                     </div>
                                 </div>
 
@@ -191,7 +207,7 @@
                                                     </span>
                                                     <span class="text-muted">0-5</span>
                                                 </div>
-                                                <div class="range-slider" id="<%= criterion.id %>Slider"></div>
+                                                <div class="range-slider" id="<%= criterion.id %>Slider" data-min="<%= typeof filters !== 'undefined' && typeof filters[criterion.id + 'Min'] !== 'undefined' && filters[criterion.id + 'Min'] !== null ? filters[criterion.id + 'Min'] : 0 %>" data-max="<%= typeof filters !== 'undefined' && typeof filters[criterion.id + 'Max'] !== 'undefined' && filters[criterion.id + 'Max'] !== null ? filters[criterion.id + 'Max'] : 5 %>"></div>
                                             </div>
                                         </div>
                                     <% }) %>
@@ -470,7 +486,7 @@
                         <nav aria-label="Paginación de resultados">
                             <ul class="pagination justify-content-center">
                                 <li class="page-item <%= pagination.currentPage === 1 ? 'disabled' : '' %>">
-                                    <a class="page-link" href="?page=<%= pagination.currentPage - 1 %>">
+                                    <a class="page-link" href="?page=<%= pagination.currentPage - 1 %><%= baseParams ? '&' + baseParams : '' %>">
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
                                 </li>
@@ -486,7 +502,7 @@
                                         (i >= pagination.currentPage - 2 && i <= pagination.currentPage + 2)
                                     ) { %>
                                         <li class="page-item">
-                                            <a class="page-link" href="?page=<%= i %>"><%= i %></a>
+                                            <a class="page-link" href="?page=<%= i %><%= baseParams ? '&' + baseParams : '' %>"><%= i %></a>
                                         </li>
                                     <% } else if (
                                         i === pagination.currentPage - 3 || 
@@ -499,7 +515,7 @@
                                 <% } %>
                                 
                                 <li class="page-item <%= pagination.currentPage === pagination.totalPages ? 'disabled' : '' %>">
-                                    <a class="page-link" href="?page=<%= pagination.currentPage + 1 %>">
+                                    <a class="page-link" href="?page=<%= pagination.currentPage + 1 %><%= baseParams ? '&' + baseParams : '' %>">
                                         <i class="fas fa-chevron-right"></i>
                                     </a>
                                 </li>
