@@ -23,7 +23,18 @@ const redirectModalEl = document.getElementById('redirectModal');
 let duplicateModal, redirectModal;
 
 if (duplicateModalEl) duplicateModal = new bootstrap.Modal(duplicateModalEl);
-if (redirectModalEl) redirectModal = new bootstrap.Modal(redirectModalEl);
+if (redirectModalEl) {
+    redirectModal = new bootstrap.Modal(redirectModalEl);
+    // limpiar timers al cerrar manualmente el modal de redirección
+    redirectModalEl.addEventListener('hidden.bs.modal', () => {
+        try {
+            if (redirectInterval) { clearTimeout(redirectInterval); redirectInterval = null; }
+            if (redirectModalEl._safetyRedirect) { clearTimeout(redirectModalEl._safetyRedirect); delete redirectModalEl._safetyRedirect; }
+        } catch (e) {
+            console.error('Error clearing redirect timers:', e);
+        }
+    });
+}
 
 // ----------------------------------------------------------------------
 // Verificación al salir del campo Título (RQF56)
@@ -40,22 +51,18 @@ async function checkTitleDuplicates(title) {
         const data = await response.json();
 
         if (data.duplicado && data.fuentes?.length > 0) {
-            showDuplicateModal(
-                '¿Es su fuente alguna de estas?',
-                data.fuentes,
-                (sourceId) => {
-                    // Usuario confirma que SÍ es duplicado
-                    duplicateCheckState = 'duplicate';
-                    currentDuplicateSource = sourceId;
-                    updateDuplicateStatus();
-                    redirectToSource(sourceId, 'duplicado');
-                },
-                () => {
-                    // Usuario dice que NO es duplicado
-                    titleCheckPassed = true;
-                    updateOverallState();
-                }
-            );
+            const result = await showDuplicateModal('¿Es su fuente alguna de estas?', data.fuentes);
+            if (result && result.confirmed) {
+                // Usuario confirma que SÍ es duplicado
+                duplicateCheckState = 'duplicate';
+                currentDuplicateSource = result.sourceId;
+                updateDuplicateStatus();
+                redirectToSource(result.sourceId, 'duplicado');
+            } else {
+                // Usuario dice que NO es duplicado (o modal no disponible)
+                titleCheckPassed = true;
+                updateOverallState();
+            }
         } else {
             // No hay duplicados por título
             titleCheckPassed = true;
@@ -81,20 +88,19 @@ async function checkTitleAuthorDuplicatesWithString(authorsString) {
         const data = await response.json();
 
         if (data.duplicado && data.fuentes?.length > 0) {
-            showDuplicateModal(
+            const result = await showDuplicateModal(
                 data.mensaje || `Ya existen registros titulados "${title}" del autor(es) ${authorsString}. ¿Corresponde a alguna de estas ediciones?`,
-                data.fuentes,
-                (sourceId) => {
-                    duplicateCheckState = 'duplicate';
-                    currentDuplicateSource = sourceId;
-                    updateDuplicateStatus();
-                    redirectToSource(sourceId, 'duplicado');
-                },
-                () => {
-                    authorsCheckPassed = true;
-                    updateOverallState();
-                }
+                data.fuentes
             );
+            if (result && result.confirmed) {
+                duplicateCheckState = 'duplicate';
+                currentDuplicateSource = result.sourceId;
+                updateDuplicateStatus();
+                redirectToSource(result.sourceId, 'duplicado');
+            } else {
+                authorsCheckPassed = true;
+                updateOverallState();
+            }
         } else {
             authorsCheckPassed = true;
             updateOverallState();
@@ -253,10 +259,10 @@ function updateOverallState() {
 // ----------------------------------------------------------------------
 // Mostrar modal de duplicados con lista de fuentes
 // ----------------------------------------------------------------------
-function showDuplicateModal(message, fuentes, onConfirm, onDeny) {
+function showDuplicateModal(message, fuentes) {
     const modalTitle = document.getElementById('duplicateModalTitle');
     const modalContent = document.getElementById('duplicateModalContent');
-    if (!modalTitle || !modalContent) return;
+    if (!modalTitle || !modalContent || !duplicateModalEl) return Promise.resolve({ confirmed: false });
 
     modalTitle.innerHTML = `<i class="fas fa-exclamation-triangle me-2 text-warning"></i> ${message}`;
 
@@ -282,39 +288,57 @@ function showDuplicateModal(message, fuentes, onConfirm, onDeny) {
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     duplicateBtn.parentNode.replaceChild(newDuplicateBtn, duplicateBtn);
 
-    newConfirmBtn.addEventListener('click', () => {
-        duplicateModal.hide();
-        onDeny();
-    });
+    return new Promise(resolve => {
+        let resolved = false;
+        const safeResolve = (payload) => {
+            if (resolved) return;
+            resolved = true;
+            try { duplicateModal.hide(); } catch (e) {}
+            resolve(payload || { confirmed: false });
+        };
 
-    newDuplicateBtn.addEventListener('click', () => {
-        const firstSourceId = fuentes[0]?.id;
-        if (firstSourceId) {
-            duplicateModal.hide();
-            onConfirm(firstSourceId);
-        } else {
-            duplicateModal.hide();
-        }
-    });
-
-    modalContent.querySelectorAll('.select-duplicate').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const sourceId = e.target.getAttribute('data-id');
-            duplicateModal.hide();
-            onConfirm(sourceId);
+        newConfirmBtn.addEventListener('click', () => {
+            safeResolve({ confirmed: false });
         });
-    });
 
-    duplicateModal.show();
+        newDuplicateBtn.addEventListener('click', () => {
+            const firstSourceId = fuentes[0]?.id;
+            if (firstSourceId) {
+                safeResolve({ confirmed: true, sourceId: firstSourceId });
+            } else {
+                safeResolve({ confirmed: false });
+            }
+        });
+
+        modalContent.querySelectorAll('.select-duplicate').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const sourceId = e.target.getAttribute('data-id');
+                safeResolve({ confirmed: true, sourceId });
+            });
+        });
+
+        // Cancel (dismiss) button: treat as denial
+        const cancelBtn = duplicateModalEl.querySelector('[data-bs-dismiss="modal"]');
+        const cancelHandler = () => safeResolve({ confirmed: false });
+        if (cancelBtn) cancelBtn.addEventListener('click', cancelHandler);
+
+        // If modal is closed by backdrop/ESC, resolve as denial once hidden
+        const hiddenHandler = () => safeResolve({ confirmed: false });
+        duplicateModalEl.addEventListener('hidden.bs.modal', hiddenHandler, { once: true });
+
+        duplicateModal.show();
+    });
 }
 
 // ----------------------------------------------------------------------
 // Mostrar modal de redirección con cuenta regresiva (RQF64-66)
 // ----------------------------------------------------------------------
 function redirectToSource(sourceId, tipo) {
-    // Limpiar intervalo anterior si existe
+    console.debug('redirectToSource called', { sourceId, tipo });
+    // Limpiar timeout/intervalo anterior si existe
     if (redirectInterval) {
-        clearInterval(redirectInterval);
+        try { clearTimeout(redirectInterval); } catch (e) {}
+        try { clearInterval(redirectInterval); } catch (e) {}
         redirectInterval = null;
     }
 
@@ -330,6 +354,7 @@ function redirectToSource(sourceId, tipo) {
     } else if (tipo === 'url_nueva') {
         mensaje = 'Se ha añadido un nuevo enlace a esta fuente. Será redirigido en 5 segundos.';
     }
+
     // Si no tenemos elementos del modal o el propio modal, hacer la navegación inmediata
     if (!redirectModal || !messageElement || !countdownElement || !progressBar) {
         window.location.href = `/post/${sourceId}`;
@@ -337,34 +362,50 @@ function redirectToSource(sourceId, tipo) {
     }
 
     messageElement.textContent = mensaje;
-
-    let countdown = 5;
-    countdownElement.textContent = countdown;
+    countdownElement.textContent = '5';
     progressBar.style.width = '100%';
     progressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger'); // opcional
 
     // Mostrar modal
-    redirectModal.show();
+    try { redirectModal.show(); } catch (e) {}
 
-    const startTime = Date.now();
     const duration = 5000; // 5 segundos
+    const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    let rafId = null;
 
-    redirectInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
+    // Backup navigation (timeout) - almacenamos id en redirectInterval para poder cancelarlo
+    const navTimeout = setTimeout(() => {
+        if (rafId) try { cancelAnimationFrame(rafId); } catch (e) {}
+        try { redirectModal.hide(); } catch (e) {}
+        window.location.href = `/post/${sourceId}`;
+    }, duration + 50);
+    redirectInterval = navTimeout;
+
+    function tick() {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const elapsed = now - start;
         const remaining = Math.max(0, duration - elapsed);
         const secondsRemaining = Math.ceil(remaining / 1000);
-        countdownElement.textContent = secondsRemaining;
 
-        const percent = (remaining / duration) * 100;
-        progressBar.style.width = percent + '%';
+        try {
+            countdownElement.textContent = secondsRemaining;
+            const percent = (remaining / duration) * 100;
+            progressBar.style.width = percent + '%';
+        } catch (e) {
+            // ignore DOM errors
+        }
 
-        if (remaining <= 0) {
-            clearInterval(redirectInterval);
+        if (remaining > 0) {
+            try { rafId = requestAnimationFrame(tick); } catch (e) { /* ignore */ }
+        } else {
+            try { clearTimeout(redirectInterval); } catch (e) {}
             redirectInterval = null;
-            redirectModal.hide();
+            try { redirectModal.hide(); } catch (e) {}
             window.location.href = `/post/${sourceId}`;
         }
-    }, 100);
+    }
+
+    try { rafId = requestAnimationFrame(tick); } catch (e) { /* ignore */ }
 }
 
 // ----------------------------------------------------------------------

@@ -94,7 +94,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         editionRequiredSpan.classList.add('d-none');
         publisherRequiredSpan.classList.add('d-none');
-        keywordsRequiredSpan.classList.add('d-none');
+        // Hacer palabras clave obligatorias siempre
+        keywordsRequiredSpan.classList.remove('d-none');
 
         publisherHelp.innerHTML = 'Nombre de la revista (para artículos) o editorial (para libros). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
         editionInput.placeholder = 'Ej: 1';
@@ -109,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
             publisherInput.placeholder = 'Obligatorio';
         } else if (type === 'paper' || type === 'preprint' || type === 'proceedings') {
             publisherRequiredSpan.classList.remove('d-none');
-            keywordsRequiredSpan.classList.remove('d-none');
             publisherHelp.innerHTML = 'Revista (obligatorio para artículos). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
             publisherInput.placeholder = 'Obligatorio';
             keywordsInput.placeholder = 'Mínimo 3 palabras clave';
@@ -308,32 +308,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const keywordsInput = document.getElementById('keywords');
         const errorElement = document.getElementById('keywordsError');
         const value = keywordsInput.value.trim();
-        const type = sourceType.value;
-        
-        const requiresKeywords = ['paper', 'preprint', 'proceedings'].includes(type);
-        
-        if (requiresKeywords) {
-            if (!value) {
-                showError(keywordsInput, errorElement, 'Se requieren palabras clave para este tipo de fuente.');
-                return false;
-            }
-            const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
-            if (keywords.length < 3) {
-                showError(keywordsInput, errorElement, 'Mínimo 3 palabras clave requeridas.');
-                return false;
-            }
-            if (keywords.length > 10) {
-                showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
-                return false;
-            }
-        } else {
-            if (value) {
-                const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
-                if (keywords.length > 10) {
-                    showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
-                    return false;
-                }
-            }
+        // Palabras clave obligatorias para todos los tipos: mínimo 3, máximo 10
+        if (!value) {
+            showError(keywordsInput, errorElement, 'Se requieren al menos 3 palabras clave.');
+            return false;
+        }
+        const keywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+        if (keywords.length < 3) {
+            showError(keywordsInput, errorElement, 'Mínimo 3 palabras clave requeridas.');
+            return false;
+        }
+        if (keywords.length > 10) {
+            showError(keywordsInput, errorElement, 'Máximo 10 palabras clave permitidas.');
+            return false;
         }
         showSuccess(keywordsInput, errorElement);
         return true;
