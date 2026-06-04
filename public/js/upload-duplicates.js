@@ -37,7 +37,7 @@ if (redirectModalEl) {
 }
 
 // ----------------------------------------------------------------------
-// Verificación al salir del campo Título (RQF56)
+// Verificación al salir del campo Título
 // ----------------------------------------------------------------------
 async function checkTitleDuplicates(title) {
     if (!title || title.length < 3) return;
@@ -67,6 +67,8 @@ async function checkTitleDuplicates(title) {
             // No hay duplicados por título
             titleCheckPassed = true;
             updateOverallState();
+            if (window.updateValidationSummary)
+                window.updateValidationSummary('title', true, 'Sin duplicados');
         }
     } catch (error) {
         console.error('Error en checkTitleDuplicates:', error);
@@ -76,7 +78,7 @@ async function checkTitleDuplicates(title) {
 }
 
 // ----------------------------------------------------------------------
-// Verificación al salir del campo Autores con debounce (RQF59)
+// Verificación al salir del campo Autores con debounce
 // ----------------------------------------------------------------------
 async function checkTitleAuthorDuplicatesWithString(authorsString) {
     const title = document.getElementById('title')?.value.trim();
@@ -104,6 +106,9 @@ async function checkTitleAuthorDuplicatesWithString(authorsString) {
         } else {
             authorsCheckPassed = true;
             updateOverallState();
+
+            if (window.updateValidationSummary)
+                window.updateValidationSummary('authors', true, 'Sin duplicados');
         }
     } catch (error) {
         console.error('Error en checkTitleAuthorDuplicates:', error);
@@ -153,7 +158,7 @@ function setupAuthorsDuplicateCheck() {
 }
 
 // ----------------------------------------------------------------------
-// Verificación al salir del campo Edición (RQF60) – duplicado exacto
+// Verificación al salir del campo Edición – duplicado exacto
 // ----------------------------------------------------------------------
 async function checkExactDuplicate() {
     const title = document.getElementById('title')?.value.trim();
@@ -167,10 +172,14 @@ async function checkExactDuplicate() {
         const data = await response.json();
 
         if (data.duplicado && data.exacto) {
-            // Coincidencia exacta: se bloquea la creación y se redirige (RQF60)
+            // Coincidencia exacta: se bloquea la creación y se redirige
             duplicateCheckState = 'duplicate';
             updateDuplicateStatus();
             redirectToSource(data.fuente.id, 'exacto');
+
+            authorsCheckPassed = false;
+            if (window.updateValidationSummary)
+                window.updateValidationSummary('authors', false, 'Posible duplicado');
         } else {
             editionCheckPassed = true;
             updateOverallState();
@@ -331,7 +340,7 @@ function showDuplicateModal(message, fuentes) {
 }
 
 // ----------------------------------------------------------------------
-// Mostrar modal de redirección con cuenta regresiva (RQF64-66)
+// Mostrar modal de redirección con cuenta regresiva
 // ----------------------------------------------------------------------
 function redirectToSource(sourceId, tipo) {
     console.debug('redirectToSource called', { sourceId, tipo });

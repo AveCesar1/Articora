@@ -383,7 +383,15 @@ module.exports = function (app) {
           if (existingRead && existingRead.id) {
             db.prepare('UPDATE user_readings SET read_date = ?, added_at = datetime(\'now\') WHERE id = ?').run(normalized, existingRead.id);
           } else {
-            db.prepare('INSERT INTO user_readings (user_id, source_id, status, read_date, added_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, sourceId, 'read', normalized);
+            const ins = db.prepare('INSERT INTO user_readings (user_id, source_id, status, read_date, added_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, sourceId, 'read', normalized);
+            // Si insertó, incrementar contador en sources (evitar inconsistencias usando COALESCE)
+            try {
+              if (ins && ins.changes) {
+                db.prepare('UPDATE sources SET total_reads = COALESCE(total_reads, 0) + 1 WHERE id = ?').run(sourceId);
+              }
+            } catch (e) {
+              if (debugging) console.warn('Could not increment sources.total_reads after insert', e && e.message);
+            }
           }
         } catch (e) {
           if (debugging) console.warn('Could not insert/update user_readings', e && e.message);
@@ -851,7 +859,14 @@ module.exports = function (app) {
       if (existingRead && existingRead.id) {
         db.prepare('UPDATE user_readings SET read_date = ?, added_at = datetime(\'now\') WHERE id = ?').run(normalized, existingRead.id);
       } else {
-        db.prepare('INSERT INTO user_readings (user_id, source_id, status, read_date, added_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, sourceId, 'read', normalized);
+        const ins = db.prepare('INSERT INTO user_readings (user_id, source_id, status, read_date, added_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(userId, sourceId, 'read', normalized);
+        try {
+          if (ins && ins.changes) {
+            db.prepare('UPDATE sources SET total_reads = COALESCE(total_reads, 0) + 1 WHERE id = ?').run(sourceId);
+          }
+        } catch (e) {
+          if (debugging) console.warn('Could not increment sources.total_reads after insert', e && e.message);
+        }
       }
 
       // remove from pending list if present
@@ -901,7 +916,17 @@ module.exports = function (app) {
       const sourceId = parseInt(req.params.sourceId, 10);
       if (Number.isNaN(sourceId)) return res.status(400).json({ success: false, message: 'invalid_source_id' });
 
-      db.prepare('DELETE FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ?').run(userId, sourceId, 'read');
+      const del = db.prepare('DELETE FROM user_readings WHERE user_id = ? AND source_id = ? AND status = ?').run(userId, sourceId, 'read');
+      try {
+        // Si borró alguna fila, recalcular total_reads para la fuente para evitar inconsistencias
+        if (del && del.changes) {
+          const readsRow = db.prepare('SELECT COUNT(DISTINCT user_id) as c FROM user_readings WHERE source_id = ? AND status = ?').get(sourceId, 'read');
+          const newCount = readsRow && readsRow.c ? readsRow.c : 0;
+          db.prepare('UPDATE sources SET total_reads = ? WHERE id = ?').run(newCount, sourceId);
+        }
+      } catch (e) {
+        if (debugging) console.warn('Could not update sources.total_reads after delete', e && e.message);
+      }
       try { updateReadingStats(db, userId); } catch (e) { }
       return res.json({ success: true });
     } catch (err) {

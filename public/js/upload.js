@@ -1,22 +1,22 @@
 // upload.js - Lógica principal del formulario de subida (validación, autocompletado, categorías, etc.)
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Elementos del DOM
     const form = document.getElementById('uploadForm');
     const validateBtn = document.getElementById('validateBtn');
     const submitBtn = document.getElementById('submitBtn');
     const formProgress = document.getElementById('formProgress');
     const sourceType = document.getElementById('sourceType');
-    
+
     // Contadores
     const titleCounter = document.getElementById('titleCounter');
     const publisherCounter = document.getElementById('publisherCounter');
-    
+
     // Estados de validación (los flags de duplicados están en upload-duplicates.js)
     let isTitleChecked = false;
     let isAuthorsChecked = false;
     let isEditionChecked = false;
-    
+
     // Diccionarios para autocompletado (simulados)
     const dictionaries = {
         title: [
@@ -65,18 +65,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function initForm() {
         document.getElementById('title').addEventListener('input', updateTitleCounter);
         document.getElementById('publisher').addEventListener('input', updatePublisherCounter);
-        
+
         setupRealTimeValidation();
         setupAutocomplete();
-        
+
         sourceType.addEventListener('change', handleSourceTypeChange);
-        
+
         validateBtn.addEventListener('click', performDuplicateCheck); // función global desde upload-duplicates.js
         form.addEventListener('submit', handleFormSubmit);
-        
+
         handleSourceTypeChange();
         setupCategorySelection();
-        
+
         updateFormProgress();
     }
 
@@ -102,23 +102,33 @@ document.addEventListener('DOMContentLoaded', function() {
         publisherInput.placeholder = 'Nombre de la revista o editorial';
         keywordsInput.placeholder = 'Separadas por comas, ej: cognición, memoria, aprendizaje';
 
-        if (type === 'book') {
+        if (type === 'libro') {
             editionRequiredSpan.classList.remove('d-none');
             publisherRequiredSpan.classList.remove('d-none');
-            publisherHelp.innerHTML = 'Editorial (obligatorio para libros). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
-            editionInput.placeholder = 'Obligatorio';
-            publisherInput.placeholder = 'Obligatorio';
         } else if (type === 'paper' || type === 'preprint' || type === 'proceedings') {
             publisherRequiredSpan.classList.remove('d-none');
-            publisherHelp.innerHTML = 'Revista (obligatorio para artículos). <div class="autocomplete-hint" id="publisherAutocomplete"></div>';
-            publisherInput.placeholder = 'Obligatorio';
-            keywordsInput.placeholder = 'Mínimo 3 palabras clave';
+        } else if (type === 'artículo de revista') {
+            publisherRequiredSpan.classList.remove('d-none');
         }
 
         if (type) {
             validatePublisher();
             validateEdition();
             validateKeywords();
+
+            const editionInput = document.getElementById('edition');
+            const publisherInput = document.getElementById('publisher');
+            const editionError = document.getElementById('editionError');
+            const publisherError = document.getElementById('publisherError');
+
+            if (type !== 'libro') {
+                isEditionChecked = false;
+                clearValidation(editionInput, editionError);
+            }
+            if (!/^(artículo de revista|artículo en línea|preprint)$/i.test(type)) {
+                isPublisherChecked = false;
+                clearValidation(publisherInput, publisherError);
+            }
         }
         updateFormProgress();
     }
@@ -148,16 +158,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupRealTimeValidation() {
         const titleInput = document.getElementById('title');
         titleInput.addEventListener('blur', validateTitle);
-        titleInput.addEventListener('input', function() {
+        titleInput.addEventListener('input', function () {
             isTitleChecked = false;
             // Reiniciar estado de duplicados al modificar el título
             duplicateCheckState = 'pending';
             titleCheckPassed = false;
             updateDuplicateStatus();
         });
-        
+
         setupAuthorsValidation();
-        
+
         document.getElementById('year').addEventListener('blur', validateYear);
         document.getElementById('publisher').addEventListener('blur', validatePublisher);
         document.getElementById('edition').addEventListener('blur', validateEdition);
@@ -171,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const titleInput = document.getElementById('title');
         const errorElement = document.getElementById('titleError');
         const value = titleInput.value.trim();
-        
+
         if (!value) {
             showError(titleInput, errorElement, 'El título es obligatorio.');
             return false;
@@ -183,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showSuccess(titleInput, errorElement);
         isTitleChecked = true;
         updateFormProgress();
-        
+
         if (isTitleChecked && value.length > 3) {
             checkTitleDuplicates(value); // función global desde upload-duplicates.js
         }
@@ -195,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorElement = document.getElementById('yearError');
         const value = parseInt(yearInput.value);
         const currentYear = new Date().getFullYear();
-        
+
         if (!yearInput.value || isNaN(value)) {
             showError(yearInput, errorElement, 'El año es obligatorio.');
             return false;
@@ -214,17 +224,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorElement = document.getElementById('publisherError');
         const value = publisherInput.value.trim();
         const type = sourceType.value;
-        
-        const required = (type === 'book' || type === 'paper' || type === 'preprint' || type === 'proceedings');
-        
+
+        const required = /^(libro|capítulo de libro|artículo de revista|preprint|actas de conferencia)$/i.test(type);
+
         if (required && !value) {
-            showError(publisherInput, errorElement, 'Este campo es obligatorio para el tipo de fuente seleccionado.');
+            showError(publisherInput, errorElement, 'Debe indicar una editorial o revista.');
             return false;
         }
+
         if (value && value.length > 300) {
             showError(publisherInput, errorElement, 'Máximo 300 caracteres.');
             return false;
         }
+
+        if (!required && !value) {
+            clearValidation(publisherInput, errorElement);
+            return true;
+        }
+
+        // Si llega aquí, el valor es válido
         showSuccess(publisherInput, errorElement);
         return true;
     }
@@ -234,29 +252,34 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorElement = document.getElementById('editionError');
         const value = editionInput.value.trim();
         const type = sourceType.value;
-        
-        const required = (type === 'book');
-        
+
+        const required = (type === 'libro');
+
         if (required && !value) {
-            showError(editionInput, errorElement, 'La edición es obligatoria para libros.');
+            showError(editionInput, errorElement,
+                'El campo Edición es obligatorio para libros.');
             return false;
         }
         if (value) {
-            const numValue = parseInt(value);
+            const numValue = parseInt(value, 10);
             if (isNaN(numValue) || numValue < 1) {
-                showError(editionInput, errorElement, 'La edición debe ser un número entero positivo.');
+                showError(editionInput, errorElement,
+                    'La edición debe ser un número entero positivo.');
                 return false;
             }
-            
-            if (isTitleChecked && isAuthorsChecked && value) {
-                checkExactDuplicate(isTitleChecked, isAuthorsChecked); // función global con flags
-            }
-            
+            // Si el título y autores ya se valieron, comprobamos duplicado exacto
+            if (isTitleChecked && isAuthorsChecked) checkExactDuplicate();
             showSuccess(editionInput, errorElement);
             isEditionChecked = true;
         } else {
             clearValidation(editionInput, errorElement);
         }
+
+        /* activar/desactivar el asterisco “*” */
+        const editionStar = document.getElementById('editionRequired');
+        if (required) editionStar.classList.remove('d-none');
+        else editionStar.classList.add('d-none');
+
         updateFormProgress();
         return true;
     }
@@ -265,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pagesInput = document.getElementById('pages');
         const errorElement = document.getElementById('pagesError');
         const value = pagesInput.value.trim();
-        
+
         if (!value) {
             clearValidation(pagesInput, errorElement);
             return true;
@@ -290,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const doiInput = document.getElementById('doi');
         const errorElement = document.getElementById('doiError');
         const value = doiInput.value.trim();
-        
+
         if (!value) {
             clearValidation(doiInput, errorElement);
             return true;
@@ -327,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==================== AUTORES DINÁMICOS ====================
-    window.addAuthorField = function() {
+    window.addAuthorField = function () {
         const container = document.getElementById('authorsContainer');
         const authorFields = container.querySelectorAll('.author-field');
         if (authorFields.length >= 10) {
@@ -351,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFormProgress();
     };
 
-    window.removeAuthorField = function(button) {
+    window.removeAuthorField = function (button) {
         const field = button.closest('.author-field');
         const container = document.getElementById('authorsContainer');
         const fields = container.querySelectorAll('.author-field');
@@ -366,12 +389,12 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function setupAuthorsValidation() {
-        document.getElementById('authorsContainer').addEventListener('input', function() {
+        document.getElementById('authorsContainer').addEventListener('input', function () {
             isAuthorsChecked = false;
             duplicateCheckState = 'pending';
             updateDuplicateStatus();
         });
-        document.addEventListener('blur', function(e) {
+        document.addEventListener('blur', function (e) {
             if (e.target.classList.contains('author-input')) {
                 validateAuthors();
             }
@@ -383,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorElement = document.getElementById('authorsError');
         let isValid = true;
         let hasAtLeastOne = false;
-        
+
         authorInputs.forEach(input => {
             const value = input.value.trim();
             if (value) {
@@ -398,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearValidation(input, '');
             }
         });
-        
+
         if (!hasAtLeastOne) {
             showError(document.querySelector('.author-input'), errorElement, 'Debe ingresar al menos un autor.');
             return false;
@@ -410,15 +433,15 @@ document.addEventListener('DOMContentLoaded', function() {
         showSuccess(document.querySelector('.author-input'), errorElement);
         isAuthorsChecked = true;
         updateFormProgress();
-        
+
         // if (isTitleChecked && isAuthorsChecked) {
-            // checkTitleAuthorDuplicates(); // función global desde upload-duplicates.js
+        // checkTitleAuthorDuplicates(); // función global desde upload-duplicates.js
         // }
         return true;
     }
 
     // ==================== URLs DINÁMICAS ====================
-    window.addUrlField = function() {
+    window.addUrlField = function () {
         const container = document.getElementById('urlsContainer');
         const newField = document.createElement('div');
         newField.className = 'input-group mb-2 url-field';
@@ -435,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFormProgress();
     };
 
-    window.removeUrlField = function(button) {
+    window.removeUrlField = function (button) {
         const field = button.closest('.url-field');
         if (field.querySelector('.input-group-text').textContent !== 'Primaria') {
             field.remove();
@@ -450,48 +473,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateUrls() {
         const urlInputs = document.querySelectorAll('.url-input');
-        const errorElement = document.getElementById('urlsError');
-        let hasValidUrl = false;
+        const pkUrl = urlInputs[0];
+        const errorEl = document.getElementById('urlsError');
+        let hasPrimary = false;
         const urls = [];
-        
-        urlInputs.forEach(input => {
-            const value = input.value.trim();
-            if (value) {
+        let isValid = true;
+
+        urlInputs.forEach((input) => {
+            const v = input.value.trim();
+            if (v) {
                 try {
-                    new URL(value);
-                    if (value.startsWith('http://') || value.startsWith('https://')) {
-                        showSuccess(input, '');
-                        hasValidUrl = true;
-                        urls.push(value);
+                    const u = new URL(v);
+                    if (v.startsWith('http://') || v.startsWith('https://')) {
+                        showSuccess(input, errorEl);
+                        hasPrimary = true;
+                        urls.push(v);
                     } else {
-                        showError(input, '');
+                        isValid = false;
+                        showError(input, errorEl, 'La URL debe comenzar por http:// ó https://');
                     }
-                } catch {
-                    showError(input, '');
+                } catch (_) {
+                    isValid = false;
+                    showError(input, errorEl, 'Formato de URL inválido');
                 }
             } else {
-                clearValidation(input, '');
+                clearValidation(input, errorEl);
             }
         });
-        
-        const uniqueUrls = [...new Set(urls)];
-        if (uniqueUrls.length !== urls.length) {
-            showError(document.querySelector('.url-input'), errorElement, 'Las URLs deben ser únicas.');
-            return false;
+
+        /* 1‑Primaria vacía  → error */
+        if (!hasPrimary) {
+            isValid = false;
+            showError(pkUrl, errorEl, 'Debes indicar al menos una URL válida.');
         }
-        if (!hasValidUrl && urlInputs[0].value.trim()) {
-            showError(document.querySelector('.url-input'), errorElement, 'La URL debe ser válida (http:// o https://).');
-            return false;
+
+        /* 2‑Duplicados prohibidos */
+        if (urls.length !== new Set(urls).size) {
+            isValid = false;
+            const dupIndex = urlInputs.findIndex(el =>
+                urls.filter(u => u === el.value.trim()).length > 1
+            );
+            showError(urlInputs[dupIndex], errorEl, 'Las URLs deben ser únicas.');
         }
-        clearValidation(document.querySelector('.url-input'), errorElement);
-        return true;
+
+        if (isValid) clearValidation(pkUrl, errorEl);
+        return isValid;
     }
 
     // ==================== CATEGORÍAS ====================
     function setupCategorySelection() {
         const categoryCheckboxes = document.querySelectorAll('.category-checkbox');
         categoryCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 const categoryId = this.value;
                 const subcatContainer = document.getElementById(`subcat_${categoryId}`);
                 if (this.checked) {
@@ -507,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         document.querySelectorAll('.subcategory-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 validateCategories();
                 updateFormProgress();
             });
@@ -518,7 +551,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorElement = document.getElementById('categoriesError');
         const selectedCategories = document.querySelectorAll('.category-checkbox:checked');
         const selectedSubcategories = document.querySelectorAll('.subcategory-checkbox:checked');
-        
+
         if (selectedCategories.length === 0) {
             showError(document.querySelector('.categories-container'), errorElement, 'Seleccione al menos una categoría.');
             updateValidationSummary('categories', false, 'Sin categorías');
@@ -550,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hint = document.getElementById(hintId);
         if (!field || !hint) return;
         let currentSuggestion = '';
-        field.addEventListener('input', function() {
+        field.addEventListener('input', function () {
             const value = this.value.toLowerCase();
             const suggestions = dictionaries[fieldId];
             if (value.length < 2 || !suggestions) {
@@ -568,7 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 hint.classList.remove('active');
             }
         });
-        field.addEventListener('keydown', function(e) {
+        field.addEventListener('keydown', function (e) {
             if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
                 this.value = currentSuggestion;
@@ -577,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
-        field.addEventListener('blur', function() {
+        field.addEventListener('blur', function () {
             setTimeout(() => hint.classList.remove('active'), 150);
         });
     }
@@ -586,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hint = document.getElementById('authorAutocomplete');
         if (!input || !hint) return;
         let currentSuggestion = '';
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
             const value = this.value.toLowerCase();
             const suggestions = dictionaries.author;
             if (value.length < 2) {
@@ -605,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 hint.classList.remove('active');
             }
         });
-        input.addEventListener('keydown', function(e) {
+        input.addEventListener('keydown', function (e) {
             if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
                 this.value = currentSuggestion;
@@ -614,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
-        input.addEventListener('blur', function() {
+        input.addEventListener('blur', function () {
             setTimeout(() => hint.classList.remove('active'), 150);
         });
     }
@@ -624,7 +657,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hint = document.getElementById('keywordsAutocomplete');
         if (!field || !hint) return;
         let currentSuggestion = '';
-        field.addEventListener('input', function() {
+        field.addEventListener('input', function () {
             const value = this.value.toLowerCase();
             const lastComma = value.lastIndexOf(',');
             const currentWord = lastComma === -1 ? value.trim() : value.substring(lastComma + 1).trim();
@@ -643,7 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 hint.classList.remove('active');
             }
         });
-        field.addEventListener('keydown', function(e) {
+        field.addEventListener('keydown', function (e) {
             if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestion) {
                 e.preventDefault();
                 const value = this.value;
@@ -658,7 +691,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dispatchEvent(new Event('input'));
             }
         });
-        field.addEventListener('blur', function() {
+        field.addEventListener('blur', function () {
             setTimeout(() => hint.classList.remove('active'), 150);
         });
         function matchCaseAppend(current, suggestion) {
@@ -800,7 +833,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Exponer función para que el gestor de duplicados pueda actualizar el botón
-    window.updateSubmitButtonFromDuplicate = function() {
+    window.updateSubmitButtonFromDuplicate = function () {
         updateSubmitButton();
     };
 
@@ -810,8 +843,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateValidationSummary(field, isValid, message) {
         const statusElement = document.getElementById(`${field}Status`);
         const summaryElement = document.getElementById(`${field}Summary`);
-        statusElement.className = isValid ? 
-            'fas fa-check-circle text-success me-2' : 
+        statusElement.className = isValid ?
+            'fas fa-check-circle text-success me-2' :
             'fas fa-times-circle text-danger me-2';
         summaryElement.textContent = message;
     }
@@ -853,4 +886,6 @@ document.addEventListener('DOMContentLoaded', function() {
     updateValidationSummary('authors', false, 'No validado');
     updateValidationSummary('categories', false, 'No validado');
     updateDuplicateStatus(); // función global desde upload-duplicates.js
+
+    window.updateValidationSummary = updateValidationSummary;
 });
