@@ -343,7 +343,15 @@ module.exports = function (app) {
         res.render('terms', {
             title: 'Términos y Políticas - Artícora',
             currentPage: 'terms',
-            cssFile: 'terms.css'
+            cssFile: 'legal.css'
+        });
+    });
+
+    app.get('/privacy', (req, res) => {
+        res.render('privacy', {
+            title: 'Aviso de Privacidad - Artícora',
+            currentPage: 'privacy',
+            cssFile: 'legal.css'
         });
     });
 

@@ -54,6 +54,7 @@ La aplicación expone tanto vistas EJS como APIs JSON. La mayoría de las petici
 - `POST /api/lists/:id/sources` – añade fuentes.
 - `POST /api/lists/:id/invite` – invita colaboradores.
 - `POST /api/lists/:id/collaborators/respond` – acepta o rechaza una invitación.
+- Las estadísticas de vistas de una lista se calculan desde `list_views` para contar visitas únicas por usuario y obtener el desglose mensual de los últimos 12 meses.
 
 ### Lecturas y listas personales
 

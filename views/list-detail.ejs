@@ -125,17 +125,21 @@
                                 <% if (data.list.monthlyVisits) { %>
                                     <div class="mb-3">
                                         <small class="text-muted d-block mb-2">Visitas últimos 12 meses:</small>
-                                        <div class="progress" style="height: 20px;">
-                                            <% const maxVisits=Math.max(...data.list.monthlyVisits);
-                                                data.list.monthlyVisits.slice(-6).forEach(visits=> {
-                                                const width = (visits / maxVisits) * 100;
-                                                %>
-                                                <div class="progress-bar"
-                                                    style="<%= 'width: ' + Math.round(width) + '%' %>"
-                                                    title="<%= visits %> visitas"></div>
-                                                <% }) %>
+                                        <% const maxVisits = Math.max(1, ...data.list.monthlyVisits); %>
+                                        <% const visitLabels = data.list.monthlyVisitLabels || []; %>
+                                        <div class="d-grid gap-2">
+                                            <% data.list.monthlyVisits.forEach((visits, idx) => { %>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="small text-muted" style="min-width: 64px;">
+                                                        <%= visitLabels[idx] || `Mes ${idx + 1}` %>
+                                                    </span>
+                                                    <div class="progress flex-grow-1" style="height: 14px;">
+                                                        <div class="progress-bar" style="width: <%= Math.round((visits / maxVisits) * 100) %>%" title="<%= visits %> visitas"></div>
+                                                    </div>
+                                                    <span class="small fw-bold" style="min-width: 28px; text-align: right;"><%= visits %></span>
+                                                </div>
+                                            <% }) %>
                                         </div>
-                                        <small class="text-muted d-block text-center mt-1">Últimos 6 meses</small>
                                     </div>
                                     <% } %>
                             </div>

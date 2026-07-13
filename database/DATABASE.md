@@ -14,7 +14,7 @@ Tablas principales (qué guardan)
 - `ratings`: valoraciones por fuente (guardan desgloses por criterio y permiten agregación por fuente/usuario).
 - `source_urls`: URLs asociados a una fuente (múltiples mirrors / orígenes) y flags de verificación.
 - `tfidf_vectors`, `global_idf`, `source_norms`: estructura sencilla para almacenar vectores TF‑IDF por término por fuente y la idf global (usado por los scripts en `tf-idf/`).
-- `curatorial_lists`, `list_sources`: colecciones de fuentes creadas por usuarios.
+- `curatorial_lists`, `list_sources`, `list_views`: colecciones de fuentes creadas por usuarios y su historial de visualizaciones únicas.
 
 Índices mantenidos (por qué)
 Se decidió mantener un conjunto mínimo que cubre autenticación, filtros por categoría, lookups por DOI/uploader, consultas TF‑IDF y consultas de ratings/URLs:

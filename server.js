@@ -17,6 +17,7 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const http = require('http');
 const { Server } = require('socket.io');
+const axios = require('axios');
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -32,6 +33,7 @@ global.debugging = debugging;
 
 // Create application
 const app = express();
+app.set('trust proxy', true);
 app.locals.transporter = transporter;
 
 // Configuración de EJS
@@ -43,6 +45,62 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+const blockedCountryCodes = new Set(['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO', 'CH', 'GB', 'UK']);
+const geoLookupCache = new Map();
+
+function normalizeRequestIp(req) {
+    const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const raw = forwarded || req.ip || (req.connection && req.connection.remoteAddress) || (req.socket && req.socket.remoteAddress) || '';
+    return String(raw).replace(/^::ffff:/, '').trim();
+}
+
+function isLocalOrPrivateIp(ip) {
+    return /^(127\.0\.0\.1|::1|localhost)$/i.test(ip)
+        || /^10\./.test(ip)
+        || /^192\.168\./.test(ip)
+        || /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+        || /^fc00:/i.test(ip)
+        || /^fe80:/i.test(ip);
+}
+
+async function lookupCountryCode(ip) {
+    if (geoLookupCache.has(ip)) return geoLookupCache.get(ip);
+    try {
+        const resp = await axios.get(`https://ipwho.is/${encodeURIComponent(ip)}`, { timeout: 1800 });
+        const data = resp && resp.data ? resp.data : null;
+        const code = data && data.success ? String(data.country_code || '').toUpperCase() : '';
+        geoLookupCache.set(ip, code);
+        return code;
+    } catch (err) {
+        console.warn('[geo-block] lookup failed for ip', ip, err && err.message);
+        geoLookupCache.set(ip, null);
+        return null;
+    }
+}
+
+app.use(async (req, res, next) => {
+    const ip = normalizeRequestIp(req);
+    if (!ip || isLocalOrPrivateIp(ip)) return next();
+
+    try {
+        const countryCode = await lookupCountryCode(ip);
+        if (countryCode && blockedCountryCodes.has(countryCode)) {
+            console.warn('[geo-block] blocked request from', ip, 'country=', countryCode, 'path=', req.path);
+            return res.status(403).send('Access denied');
+        }
+
+        if (countryCode === null) {
+            console.warn('[geo-block] unable to verify IP country, denying access for', ip, 'path=', req.path);
+            return res.status(403).send('Access denied');
+        }
+    } catch (err) {
+        console.error('[geo-block] unexpected error for ip', ip, err && err.message);
+        return res.status(403).send('Access denied');
+    }
+
+    return next();
+});
 
 // Shared category color map available to routes and templates
 app.locals.categoryColorMap = {

@@ -1,19 +1,22 @@
 <%- include('partials/header', { 
-    title: 'Términos y Políticas - Artícora', 
+    title: 'Términos y Condiciones - Artícora', 
     currentPage: 'terms',
-    cssFile: 'terms.css'
+    cssFile: 'legal.css'
 }) %>
 
-<div class="container py-5">
+<div class="container py-5 legal-page">
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <!-- Encabezado -->
             <div class="text-center mb-5">
                 <h1 class="page-title mb-3">
-                    <i class="fas fa-file-contract me-3"></i>Términos de Servicio y Políticas
+                    <i class="fas fa-file-contract me-3"></i>Términos y Condiciones de Servicio
                 </h1>
                 <p class="lead text-muted">
                     Última actualización: <%= new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) %>
+                </p>
+                <p class="text-muted small">
+                    Al utilizar Artícora, acepta estos términos. Léalos detenidamente.
                 </p>
             </div>
 
@@ -24,207 +27,182 @@
                         <i class="fas fa-bookmark me-2"></i> Navegación rápida
                     </h5>
                     <div class="d-flex flex-wrap gap-2">
-                        <a href="#terminos" class="btn btn-sm btn-outline-primary">Términos de Servicio</a>
-                        <a href="#privacidad" class="btn btn-sm btn-outline-primary">Política de Privacidad</a>
-                        <a href="#cookies" class="btn btn-sm btn-outline-primary">Política de Cookies</a>
-                        <a href="#contenido" class="btn btn-sm btn-outline-primary">Política de Contenido</a>
-                        <a href="#derechos" class="btn btn-sm btn-outline-primary">Derechos de Autor</a>
+                        <a href="#aceptacion" class="btn btn-sm btn-outline-primary">Aceptación</a>
+                        <a href="#modificaciones" class="btn btn-sm btn-outline-primary">Modificaciones</a>
+                        <a href="#cuentas" class="btn btn-sm btn-outline-primary">Cuentas</a>
+                        <a href="#uso-aceptable" class="btn btn-sm btn-outline-primary">Uso aceptable</a>
+                        <a href="#propiedad" class="btn btn-sm btn-outline-primary">Propiedad intelectual</a>
+                        <a href="#enlaces" class="btn btn-sm btn-outline-primary">Enlaces y DMCA</a>
+                        <a href="#cifrado" class="btn btn-sm btn-outline-primary">Cifrado</a>
+                        <a href="#moderacion" class="btn btn-sm btn-outline-primary">Moderación</a>
+                        <a href="#terminacion" class="btn btn-sm btn-outline-primary">Terminación</a>
+                        <a href="#responsabilidad" class="btn btn-sm btn-outline-primary">Responsabilidad</a>
+                        <a href="#indemnizacion" class="btn btn-sm btn-outline-primary">Indemnización</a>
+                        <a href="#jurisdiccion" class="btn btn-sm btn-outline-primary">Jurisdicción</a>
+                        <a href="#geografico" class="btn btn-sm btn-outline-primary">Restricciones</a>
+                        <a href="#contacto" class="btn btn-sm btn-outline-primary">Contacto</a>
                     </div>
                 </div>
             </div>
 
-            <!-- Términos de Servicio -->
-            <div class="mb-5" id="terminos">
+            <!-- Sección 1: Aceptación -->
+            <div class="mb-5" id="aceptacion">
                 <h2 class="mb-4 border-bottom pb-2">
-                    <i class="fas fa-balance-scale me-2 text-primary"></i> Términos de Servicio
+                    <i class="fas fa-check-circle me-2 text-success"></i> 1. Aceptación de los Términos
                 </h2>
-                
-                <div class="mb-4">
-                    <h4>1. Aceptación de los Términos</h4>
-                    <p>Al acceder y utilizar Artícora, usted acepta cumplir con estos Términos de Servicio y todas las leyes y regulaciones aplicables. Si no está de acuerdo con alguno de estos términos, tiene prohibido usar o acceder a este sitio.</p>
-                </div>
-
-                <div class="mb-4">
-                    <h4>2. Modificaciones</h4>
-                    <p>Nos reservamos el derecho de revisar y actualizar estos Términos de Servicio en cualquier momento. Su uso continuado del sitio después de tales cambios constituye su aceptación de los nuevos términos.</p>
-                </div>
-
-                <div class="mb-4">
-                    <h4>3. Uso Aceptable</h4>
-                    <p>Usted se compromete a usar Artícora solo para fines legales y de acuerdo con estos términos. Está prohibido:</p>
-                    <ul>
-                        <li>Utilizar el sitio de manera fraudulenta o engañosa</li>
-                        <li>Violar derechos de propiedad intelectual</li>
-                        <li>Subir contenido malicioso o spam</li>
-                        <li>Interferir con la seguridad del sitio</li>
-                        <li>Realizar actividades ilegales o no autorizadas</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>4. Cuentas de Usuario</h4>
-                    <p>Para acceder a ciertas funcionalidades, debe crear una cuenta. Usted es responsable de:</p>
-                    <ul>
-                        <li>Mantener la confidencialidad de su contraseña</li>
-                        <li>Toda la actividad bajo su cuenta</li>
-                        <li>Proporcionar información precisa y actualizada</li>
-                    </ul>
-                </div>
+                <p>
+                    Al acceder, registrarse o utilizar la plataforma Artícora (en adelante "el Servicio"), usted acepta quedar vinculado por estos Términos y Condiciones, así como por todas las leyes y regulaciones aplicables. Si no está de acuerdo con alguno de estos términos, queda prohibido el uso del Servicio.
+                </p>
             </div>
 
-            <!-- Política de Privacidad -->
-            <div class="mb-5" id="privacidad">
+            <!-- Sección 2: Modificaciones -->
+            <div class="mb-5" id="modificaciones">
                 <h2 class="mb-4 border-bottom pb-2">
-                    <i class="fas fa-user-shield me-2 text-success"></i> Política de Privacidad
+                    <i class="fas fa-edit me-2 text-warning"></i> 2. Modificaciones
                 </h2>
-                
-                <div class="mb-4">
-                    <h4>1. Información que Recopilamos</h4>
-                    <p>Recopilamos información que usted nos proporciona directamente, incluyendo:</p>
-                    <ul>
-                        <li>Información de registro (nombre, email, institución)</li>
-                        <li>Información de perfil (biografía, intereses, grado académico)</li>
-                        <li>Contenido que sube (fuentes, comentarios, calificaciones)</li>
-                        <li>Comunicaciones con nosotros</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>2. Información Recopilada Automáticamente</h4>
-                    <p>Cuando utiliza Artícora, recopilamos automáticamente:</p>
-                    <ul>
-                        <li>Información del dispositivo y navegador</li>
-                        <li>Dirección IP y ubicación aproximada</li>
-                        <li>Actividad en el sitio (páginas visitadas, búsquedas)</li>
-                        <li>Cookies y tecnologías similares</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>3. Uso de la Información</h4>
-                    <p>Utilizamos su información para:</p>
-                    <ul>
-                        <li>Proveer y mejorar nuestros servicios</li>
-                        <li>Personalizar su experiencia</li>
-                        <li>Comunicarnos con usted</li>
-                        <li>Garantizar la seguridad del sitio</li>
-                        <li>Cumplir con obligaciones legales</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>4. Compartición de Información</h4>
-                    <p>No vendemos su información personal. Podemos compartir información:</p>
-                    <ul>
-                        <li>Con proveedores de servicios que nos ayudan a operar</li>
-                        <li>Para cumplir con requerimientos legales</li>
-                        <li>Para proteger derechos, propiedad o seguridad</li>
-                        <li>Con su consentimiento explícito</li>
-                    </ul>
-                </div>
+                <p>
+                    Artícora se reserva el derecho de revisar y actualizar estos Términos en cualquier momento. La versión vigente será siempre la publicada en esta página. El uso continuado del Servicio tras la publicación de cambios constituye su aceptación de los nuevos términos. En caso de modificaciones sustanciales, notificaremos a los usuarios mediante un aviso en la plataforma o por correo electrónico.
+                </p>
             </div>
 
-            <!-- Política de Cookies -->
-            <div class="mb-5" id="cookies">
+            <!-- Sección 3: Cuentas -->
+            <div class="mb-5" id="cuentas">
                 <h2 class="mb-4 border-bottom pb-2">
-                    <i class="fas fa-cookie-bite me-2 text-warning"></i> Política de Cookies
+                    <i class="fas fa-user me-2 text-primary"></i> 3. Cuentas de Usuario y Registro
                 </h2>
-                
-                <div class="mb-4">
-                    <h4>1. ¿Qué son las Cookies?</h4>
-                    <p>Las cookies son pequeños archivos de texto que se almacenan en su dispositivo cuando visita nuestro sitio. Nos ayudan a recordar sus preferencias y mejorar su experiencia.</p>
-                </div>
-
-                <div class="mb-4">
-                    <h4>2. Tipos de Cookies que Utilizamos</h4>
-                    <p><strong>Cookies Esenciales:</strong> Necesarias para el funcionamiento básico del sitio.</p>
-                    <p><strong>Cookies de Funcionalidad:</strong> Recuerdan sus preferencias y configuraciones.</p>
-                    <p><strong>Cookies de Análisis:</strong> Nos ayudan a entender cómo usa el sitio.</p>
-                    <p><strong>Cookies de Publicidad:</strong> Muestran anuncios relevantes (Artícora no usa publicidad actualmente).</p>
-                </div>
-
-                <div class="mb-4">
-                    <h4>3. Control de Cookies</h4>
-                    <p>Puede controlar y/o eliminar cookies según desee. Puede eliminar todas las cookies ya almacenadas en su equipo y configurar la mayoría de los navegadores para impedir que se almacenen. Sin embargo, si lo hace, es posible que deba ajustar manualmente algunas preferencias cada vez que visite el sitio.</p>
-                </div>
+                <p><strong>3.1.</strong> Para acceder a funcionalidades básicas, debe crear una cuenta proporcionando información veraz y completa (nombre, correo electrónico, institución).</p>
+                <p><strong>3.2.</strong> Usted es el único responsable de mantener la confidencialidad de su contraseña y de todas las actividades que ocurran bajo su cuenta. Notifique inmediatamente a <a href="mailto:soporte@articora.com">soporte@articora.com</a> si sospecha de un uso no autorizado.</p>
+                <p><strong>3.3.</strong> La verificación de identidad (mediante documento oficial) es opcional y habilita funciones avanzadas (subir fuentes, moderar listas). Los documentos se cifran con AES-256 y se destruyen en un plazo máximo de 72 horas tras la verificación.</p>
+                <p><strong>3.4.</strong> Artícora se reserva el derecho de suspender o cancelar cuentas que proporcionen información falsa o que violen estos términos.</p>
             </div>
 
-            <!-- Política de Contenido -->
-            <div class="mb-5" id="contenido">
+            <!-- Sección 4: Uso aceptable -->
+            <div class="mb-5" id="uso-aceptable">
                 <h2 class="mb-4 border-bottom pb-2">
-                    <i class="fas fa-file-alt me-2 text-info"></i> Política de Contenido
+                    <i class="fas fa-gavel me-2 text-danger"></i> 4. Uso Aceptable
                 </h2>
-                
-                <div class="mb-4">
-                    <h4>1. Contenido Aceptable</h4>
-                    <p>Artícora está dedicado al contenido académico y científico. Aceptamos:</p>
-                    <ul>
-                        <li>Fuentes bibliográficas académicas</li>
-                        <li>Comentarios y discusiones académicas</li>
-                        <li>Reseñas y evaluaciones constructivas</li>
-                        <li>Listas curatoriales temáticas</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>2. Contenido Prohibido</h4>
-                    <p>No permitimos:</p>
-                    <ul>
-                        <li>Contenido plagiado o que viole derechos de autor</li>
-                        <li>Información falsa o engañosa</li>
-                        <li>Contenido ofensivo, discriminatorio o de odio</li>
-                        <li>Spam o autopromoción excesiva</li>
-                        <li>Contenido no académico o pseudocientífico</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>3. Moderación</h4>
-                    <p>Todo el contenido es moderado por la comunidad y nuestro equipo. Los usuarios pueden reportar contenido inapropiado. Nos reservamos el derecho de eliminar cualquier contenido que viole estas políticas.</p>
-                </div>
+                <p>Usted se compromete a utilizar el Servicio únicamente para fines académicos y lícitos. Queda estrictamente prohibido:</p>
+                <ul class="list-unstyled ps-3">
+                    <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i> <strong>a)</strong> Subir enlaces a contenido que infrinja derechos de autor, marcas registradas o cualquier propiedad intelectual de terceros.</li>
+                    <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i> <strong>b)</strong> Compartir enlaces a malware, phishing, virus o cualquier otro código malicioso.</li>
+                    <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i> <strong>c)</strong> Publicar contenido difamatorio, discriminatorio, ofensivo o que promueva violencia.</li>
+                    <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i> <strong>d)</strong> Suplantar la identidad de otra persona o institución.</li>
+                    <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i> <strong>e)</strong> Realizar actividades que interfieran o degraden el funcionamiento de la plataforma (ataques DDoS, scraping masivo no autorizado, etc.).</li>
+                    <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i> <strong>f)</strong> Utilizar el Servicio para fines comerciales sin autorización expresa de Artícora.</li>
+                </ul>
             </div>
 
-            <!-- Derechos de Autor -->
-            <div class="mb-5" id="derechos">
+            <!-- Sección 5: Propiedad intelectual -->
+            <div class="mb-5" id="propiedad">
                 <h2 class="mb-4 border-bottom pb-2">
-                    <i class="fas fa-copyright me-2 text-secondary"></i> Derechos de Autor
+                    <i class="fas fa-copyright me-2 text-secondary"></i> 5. Propiedad Intelectual y Contenido Subido
                 </h2>
-                
-                <div class="mb-4">
-                    <h4>1. Derechos del Usuario</h4>
-                    <p>Usted conserva todos los derechos de propiedad intelectual sobre el contenido que sube a Artícora. Al subir contenido, nos otorga una licencia mundial, no exclusiva y gratuita para:</p>
-                    <ul>
-                        <li>Almacenar, mostrar y distribuir su contenido en Artícora</li>
-                        <li>Adaptar el contenido para fines de accesibilidad</li>
-                        <li>Incluir el contenido en índices y bases de datos del sitio</li>
-                    </ul>
-                </div>
-
-                <div class="mb-4">
-                    <h4>2. Derechos de Terceros</h4>
-                    <p>Es su responsabilidad asegurarse de que tiene derecho a subir cualquier contenido. No suba contenido que infrinja derechos de autor, marcas registradas u otros derechos de propiedad intelectual.</p>
-                </div>
-
-                <div class="mb-4">
-                    <h4>3. DMCA y Reportes</h4>
-                    <p>Respetamos los derechos de propiedad intelectual. Si cree que su trabajo ha sido copiado de manera que constituye una infracción de derechos de autor, contáctenos en <strong>copyright@articora.com</strong> con:</p>
-                    <ul>
-                        <li>Su información de contacto</li>
-                        <li>Descripción del trabajo protegido</li>
-                        <li>Ubicación del material infringente</li>
-                        <li>Declaración de buena fe</li>
-                    </ul>
-                </div>
+                <p><strong>5.1.</strong> Usted conserva todos los derechos de propiedad intelectual sobre el contenido que sube a Artícora (comentarios, listas, metadatos de fuentes).</p>
+                <p><strong>5.2.</strong> Al subir contenido, otorga a Artícora una licencia mundial, no exclusiva, gratuita y transferible para almacenar, mostrar, distribuir y adaptar dicho contenido dentro de la plataforma, exclusivamente para la operación del Servicio.</p>
+                <p><strong>5.3.</strong> Usted declara y garantiza que tiene todos los derechos necesarios para conceder esta licencia y que su contenido no infringe derechos de terceros.</p>
             </div>
 
-            <!-- Contacto y Aceptación -->
+            <!-- Sección 6: Enlaces y DMCA -->
+            <div class="mb-5" id="enlaces">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-link me-2 text-info"></i> 6. Enlaces a Fuentes y Responsabilidad por Terceros
+                </h2>
+                <p><strong>6.1.</strong> Artícora es un índice y curador de enlaces (hipervínculos) a fuentes académicas. <strong>NO almacenamos archivos</strong>, documentos PDF, libros completos ni ningún otro contenido protegido por derechos de autor. Toda la información que mostramos son metadatos (título, autor, resumen, palabras clave).</p>
+                <p><strong>6.2.</strong> La responsabilidad por el contenido al que redirigen los enlaces es exclusiva de sus titulares o de los sitios web externos. Artícora no se responsabiliza por la disponibilidad, exactitud o legalidad de dichos recursos.</p>
+                <p><strong>6.3.</strong> Si un enlace apunta a material que infringe derechos de autor, el titular afectado puede notificarnos a <a href="mailto:copyright@articora.com">copyright@articora.com</a>. Retiraremos el enlace en un plazo máximo de 24-48 horas hábiles, siempre que la notificación cumpla con los requisitos de la política DMCA (identificación de la obra, ubicación del enlace, declaración de buena fe y firma electrónica).</p>
+            </div>
+
+            <!-- Sección 7: Cifrado -->
+            <div class="mb-5" id="cifrado">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-lock me-2 text-dark"></i> 7. Mensajería y Cifrado (Chat)
+                </h2>
+                <p><strong>7.1.</strong> Los mensajes enviados a través de nuestros servicios de chat (individual y grupal) se cifran de extremo a extremo. Las claves privadas de los usuarios están protegidas por su contraseña, por lo que Artícora <strong>NO</strong> tiene acceso técnico al contenido de las conversaciones.</p>
+                <p><strong>7.2.</strong> No obstante, Artícora colaborará con las autoridades competentes en el marco de una investigación judicial formal, dentro de los límites técnicos de su infraestructura. El usuario acepta que las comunicaciones en la plataforma pueden estar sujetas a requerimientos legales.</p>
+            </div>
+
+            <!-- Sección 8: Moderación -->
+            <div class="mb-5" id="moderacion">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-robot me-2 text-warning"></i> 8. Moderación Automática y Apelaciones
+                </h2>
+                <p><strong>8.1.</strong> Para mantener un ambiente académico respetuoso, Artícora utiliza sistemas automatizados que detectan lenguaje ofensivo, spam o contenido duplicado. Estos sistemas pueden eliminar o marcar contenido sin revisión humana previa.</p>
+                <p><strong>8.2.</strong> Si su comentario o fuente fue bloqueada por error, puede apelar enviando un correo a <a href="mailto:moderacion@articora.com">moderacion@articora.com</a>. Un equipo humano revisará el caso y, si procede, restaurará el contenido y ajustará los filtros para futuras ocasiones. Las apelaciones se atienden en un plazo de 5 días hábiles.</p>
+            </div>
+
+            <!-- Sección 9: Terminación -->
+            <div class="mb-5" id="terminacion">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-user-times me-2 text-danger"></i> 9. Terminación y Suspensión de Cuentas
+                </h2>
+                <p>Artícora podrá suspender o cancelar definitivamente su cuenta y su acceso al Servicio, sin previo aviso, en los siguientes casos:</p>
+                <ul>
+                    <li>Violación reiterada de estos Términos.</li>
+                    <li>Actividades ilegales o fraudulentas.</li>
+                    <li>Solicitud expresa de una autoridad competente.</li>
+                    <li>Inactividad prolongada (más de 12 meses) en cuentas no verificadas.</li>
+                </ul>
+                <p>Usted puede eliminar su cuenta en cualquier momento desde la configuración de perfil. Esta acción es irreversible y su información personal será anonimizada.</p>
+            </div>
+
+            <!-- Sección 10: Limitación de responsabilidad -->
+            <div class="mb-5" id="responsabilidad">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-shield-alt me-2 text-muted"></i> 10. Limitación de Responsabilidad
+                </h2>
+                <p><strong>10.1.</strong> El Servicio se proporciona "tal cual" y "según disponibilidad". Artícora no garantiza que el Servicio sea ininterrumpido, libre de errores o seguro al 100%.</p>
+                <p><strong>10.2.</strong> En ningún caso Artícora, sus fundadores, empleados o colaboradores serán responsables por daños directos, indirectos, incidentales, especiales o consecuentes derivados del uso o la imposibilidad de uso del Servicio.</p>
+                <p><strong>10.3.</strong> La responsabilidad total de Artícora hacia usted por cualquier reclamación relacionada con estos Términos se limitará al monto que usted haya pagado por el Servicio (que es cero, dado que es gratuito).</p>
+            </div>
+
+            <!-- Sección 11: Indemnización -->
+            <div class="mb-5" id="indemnizacion">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-handshake me-2 text-primary"></i> 11. Indemnización
+                </h2>
+                <p>
+                    Usted acepta indemnizar y eximir de responsabilidad a Artícora, sus afiliados y colaboradores contra cualquier reclamación, demanda, pérdida o gasto (incluyendo honorarios legales razonables) que surja de su uso del Servicio, su incumplimiento de estos Términos o su violación de derechos de terceros.
+                </p>
+            </div>
+
+            <!-- Sección 12: Jurisdicción -->
+            <div class="mb-5" id="jurisdiccion">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-gavel me-2 text-secondary"></i> 12. Ley Aplicable y Jurisdicción
+                </h2>
+                <p>
+                    Estos Términos se regirán e interpretarán de acuerdo con las leyes de los Estados Unidos Mexicanos. Cualquier disputa relacionada con estos Términos será resuelta exclusivamente por los tribunales competentes de la Ciudad de México, renunciando a cualquier otro fuero que pudiera corresponder.
+                </p>
+            </div>
+
+            <!-- Sección 13: Restricciones geográficas -->
+            <div class="mb-5" id="geografico">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-globe me-2 text-danger"></i> 13. Restricciones Geográficas (RGPD)
+                </h2>
+                <p>
+                    Artícora es un proyecto enfocado en la comunidad académica de América Latina. Por razones de cumplimiento normativo, el Servicio no está destinado a residentes de la Unión Europea. Si accede desde un país miembro de la UE, es posible que se le restrinja el acceso.
+                </p>
+            </div>
+
+            <!-- Sección 14: Contacto -->
+            <div class="mb-5" id="contacto">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-envelope me-2 text-primary"></i> 14. Contacto
+                </h2>
+                <p>
+                    Para preguntas sobre estos Términos, escríbanos a: <a href="mailto:legal@articora.com">legal@articora.com</a>.
+                </p>
+            </div>
+
+            <!-- Cierre con tarjeta de aceptación -->
             <div class="card shadow-sm">
                 <div class="card-body text-center">
                     <h4 class="card-title mb-3">
-                        <i class="fas fa-handshake me-2"></i> Aceptación de Términos
+                        <i class="fas fa-check-circle me-2 text-success"></i> Aceptación de Términos
                     </h4>
                     <p class="card-text mb-4">
-                        Al utilizar Artícora, usted acepta estos términos y políticas. Si tiene preguntas o inquietudes, no dude en contactarnos.
+                        Al continuar usando Artícora, usted confirma que ha leído, entendido y aceptado estos Términos y Condiciones.
                     </p>
                     <div class="d-flex justify-content-center gap-3 flex-wrap">
                         <a href="mailto:legal@articora.com" class="btn btn-primary">
@@ -243,4 +221,4 @@
     </div>
 </div>
 
-<%- include('partials/footer', { jsFile: 'terms.js' }) %>
+<%- include('partials/footer', { jsFile: 'legal.js' }) %>

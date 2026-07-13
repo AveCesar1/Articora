@@ -1,0 +1,283 @@
+/* legal.css — Estilos exclusivos para páginas legales */
+
+/* Fuente elegante solo para el contenido legal */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+
+/* Variables propias */
+.legal-page {
+    --primary: #1E2A38;
+    --secondary: #2C3E50;
+    --accent: #C9A05C;
+    --accent-light: #F0E3CD;
+    --accent-glow: rgba(201, 160, 92, 0.25);
+    --bg-legal: #F7F4EE;
+    --white: #FFFFFF;
+    --gray: #6B7A8A;
+    --border-legal: #E2DCD0;
+    --shadow: 0 8px 30px rgba(30, 42, 56, 0.08);
+    --shadow-hover: 0 20px 40px rgba(30, 42, 56, 0.16);
+    --radius: 20px;
+    --transition: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Contenedor principal */
+.legal-page {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--primary);
+    background: var(--bg-legal);
+    padding: 2rem 1.5rem;
+}
+
+/* Título principal con gradiente */
+.legal-page .page-title {
+    font-weight: 700;
+    font-size: 3rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.legal-page .page-title i {
+    background: var(--accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.4rem;
+    margin-right: 0.75rem;
+}
+.legal-page .lead {
+    font-weight: 400;
+    color: var(--gray);
+    font-size: 1.2rem;
+    border-bottom: 2px solid var(--accent-light);
+    padding-bottom: 0.5rem;
+    display: inline-block;
+}
+
+/* Tarjetas con vidrio esmerilado */
+.legal-page .card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    transition: all var(--transition);
+    margin-bottom: 2rem;
+}
+.legal-page .card:hover {
+    transform: translateY(-6px) scale(1.002);
+    box-shadow: var(--shadow-hover);
+    background: rgba(255, 255, 255, 0.9);
+}
+.legal-page .card-title {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Navegación en píldoras */
+.legal-page .d-flex.flex-wrap.gap-2 .btn {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    border-radius: 50px;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(2px);
+    border: 1px solid var(--border-legal);
+    color: var(--secondary);
+    transition: all var(--transition);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+.legal-page .d-flex.flex-wrap.gap-2 .btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    transform: translateY(-4px) scale(1.04);
+    box-shadow: 0 12px 24px var(--accent-glow);
+}
+.legal-page .d-flex.flex-wrap.gap-2 .btn:active { transform: scale(0.94); }
+.legal-page .d-flex.flex-wrap.gap-2 .btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+/* Secciones */
+.legal-page h2 {
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--primary);
+    margin-top: 3rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 4px solid var(--accent-light);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+}
+.legal-page h2 i {
+    color: var(--accent);
+    font-size: 1.8rem;
+    width: 2.4rem;
+    text-align: center;
+    background: var(--accent-light);
+    border-radius: 50%;
+    padding: 0.4rem;
+}
+.legal-page h2::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 4px;
+}
+.legal-page h4 {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--secondary);
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+}
+.legal-page h4 i { color: var(--accent); margin-right: 0.6rem; }
+
+/* Texto y listas */
+.legal-page p {
+    margin-bottom: 1.2rem;
+    color: var(--secondary);
+    line-height: 1.9;
+}
+.legal-page ul, .legal-page ol {
+    padding-left: 2rem;
+    margin-bottom: 1.5rem;
+}
+.legal-page li {
+    margin-bottom: 0.6rem;
+    line-height: 1.8;
+    position: relative;
+}
+.legal-page li::marker { color: var(--accent); }
+.legal-page strong { color: var(--accent); font-weight: 600; }
+
+/* Enlaces dentro del contenido */
+.legal-page a:not(.btn) {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: all var(--transition);
+    font-weight: 500;
+}
+.legal-page a:not(.btn):hover {
+    border-bottom-color: var(--accent);
+    color: #b08a4a;
+}
+
+/* Tarjeta final con gradiente */
+.legal-page .card:last-of-type {
+    background: linear-gradient(145deg, #ffffff, #f8f5ef);
+    border: 1px solid var(--accent-light);
+}
+.legal-page .card:last-of-type .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #b08a4a);
+    border: none;
+    color: white;
+    box-shadow: 0 8px 20px var(--accent-glow);
+}
+.legal-page .card:last-of-type .btn-primary:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 14px 30px var(--accent-glow);
+}
+.legal-page .card .btn {
+    min-width: 180px;
+    border-radius: 50px;
+    padding: 0.7rem 2rem;
+    font-weight: 500;
+    transition: all var(--transition);
+}
+.legal-page .card .btn-outline-primary {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.legal-page .card .btn-outline-primary:hover {
+    background: var(--accent);
+    color: white;
+    transform: translateY(-3px);
+}
+.legal-page .card .btn-outline-secondary {
+    border-color: var(--border-legal);
+    color: var(--gray);
+}
+.legal-page .card .btn-outline-secondary:hover {
+    background: var(--border-legal);
+    color: var(--primary);
+    transform: translateY(-3px);
+}
+
+/* Botón volver arriba (fuera del scope .legal-page, pero controlado) */
+.back-to-top {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent, #C9A05C), #b08a4a);
+    color: white;
+    border: none;
+    box-shadow: 0 8px 24px rgba(201, 160, 92, 0.4);
+    font-size: 1.4rem;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 999;
+}
+.back-to-top:hover {
+    transform: translateY(-6px) scale(1.08);
+    box-shadow: 0 16px 40px rgba(201, 160, 92, 0.5);
+}
+.back-to-top:active { transform: scale(0.92); }
+
+/* Animaciones dentro del contenido legal */
+.legal-page .fade-section {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.legal-page .fade-section.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.legal-page :target {
+    animation: highlight 1s ease;
+}
+@keyframes highlight {
+    0% { background-color: transparent; }
+    40% { background-color: rgba(201, 160, 92, 0.15); }
+    100% { background-color: transparent; }
+}
+
+/* Responsive dentro del contenido legal */
+@media (max-width: 768px) {
+    .legal-page .page-title { font-size: 2.2rem; }
+    .legal-page .page-title i { font-size: 1.8rem; }
+    .legal-page h2 { font-size: 1.6rem; }
+    .legal-page h4 { font-size: 1.1rem; }
+    .legal-page .lead { font-size: 1rem; }
+    .legal-page .d-flex.flex-wrap.gap-2 .btn {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.9rem;
+    }
+    .legal-page .card .btn { min-width: 100%; margin-bottom: 0.5rem; }
+    .back-to-top { width: 48px; height: 48px; font-size: 1.1rem; bottom: 16px; right: 16px; }
+    .legal-page { padding: 1rem; }
+}
+@media (max-width: 576px) {
+    .legal-page .page-title { font-size: 1.8rem; }
+    .legal-page h2 { font-size: 1.3rem; }
+    .legal-page .card { padding: 0.5rem; }
+}

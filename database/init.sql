@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(15) UNIQUE NOT NULL CHECK(LENGTH(username) BETWEEN 5 AND 15),
     email VARCHAR(255) UNIQUE NOT NULL,
+    email_index INTEGER NOT NULL,
     password TEXT NOT NULL,
     profile_picture TEXT,
     first_name VARCHAR(50),
@@ -253,6 +254,16 @@ CREATE TABLE IF NOT EXISTS curatorial_lists (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (dominant_category_id) REFERENCES categories(id)
+);
+
+CREATE TABLE IF NOT EXISTS list_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    list_id INTEGER NOT NULL,
+    viewer_user_id INTEGER NOT NULL,
+    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (list_id) REFERENCES curatorial_lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (viewer_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(list_id, viewer_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS list_sources (

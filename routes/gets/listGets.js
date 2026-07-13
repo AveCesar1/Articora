@@ -29,6 +29,78 @@ module.exports = function (app) {
         // Fallback: prepend slash
         return '/' + s;
     }
+
+    function getViewerId(req, res) {
+        return (req.user && req.user.id) || (res.locals && res.locals.user && res.locals.user.id) || null;
+    }
+
+    function buildMonthlyVisitWindow(monthsBack = 12) {
+        const keys = [];
+        const labels = [];
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('es-ES', { month: 'short', year: '2-digit' });
+
+        for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
+            const monthDate = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+            keys.push(`${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`);
+            labels.push(formatter.format(monthDate).replace('.', ''));
+        }
+
+        return { keys, labels };
+    }
+
+    function getListViewStats(db, listId) {
+        const { keys, labels } = buildMonthlyVisitWindow(12);
+        const rows = db.prepare(`
+            SELECT strftime('%Y-%m', viewed_at) AS ym, COUNT(*) AS cnt
+            FROM list_views
+            WHERE list_id = ?
+              AND viewed_at >= date('now', '-11 months', 'start of month')
+            GROUP BY ym
+        `).all(listId);
+
+        const map = new Map(rows.map(row => [row.ym, row.cnt]));
+        return {
+            monthlyVisits: keys.map(key => map.get(key) || 0),
+            monthlyVisitLabels: labels
+        };
+    }
+
+    function recordListView(db, listId, viewerId, ownerId) {
+        if (!viewerId || viewerId === ownerId) return false;
+
+        const insert = db.prepare(`
+            INSERT OR IGNORE INTO list_views (list_id, viewer_user_id, viewed_at)
+            VALUES (?, ?, datetime('now'))
+        `);
+        const bump = db.prepare(`
+            UPDATE curatorial_lists
+            SET total_views = COALESCE(total_views, 0) + 1
+            WHERE id = ?
+        `);
+
+        const txn = db.transaction((lid, uid) => {
+            const info = insert.run(lid, uid);
+            if (info.changes > 0) bump.run(lid);
+            return info.changes > 0;
+        });
+
+        try {
+            return txn(listId, viewerId);
+        } catch (err) {
+            console.error('Error registrando vista única de lista:', err && err.message);
+            return false;
+        }
+    }
+
+    function attachListStats(db, listId, legacyTotalViews) {
+        const stats = getListViewStats(db, listId);
+        return {
+            totalVisits: legacyTotalViews || 0,
+            monthlyVisits: stats.monthlyVisits,
+            monthlyVisitLabels: stats.monthlyVisitLabels
+        };
+    }
     
     // Página: Listas (lista del usuario + públicas)
     app.get('/lists', IsRegistered, noAdmin, (req, res) => {
@@ -164,7 +236,10 @@ module.exports = function (app) {
                     collaborators,
                     collaboratorStatus
                 };
-            });
+            }).map(list => ({
+                ...list,
+                ...attachListStats(req.db, list.id, list.totalVisits || 0)
+            }));
 
             // Public lists
             const publicRows = req.db.prepare('SELECT cl.*, u.full_name as creatorName FROM curatorial_lists cl JOIN users u ON cl.user_id = u.id WHERE cl.is_public = 1 ORDER BY cl.created_at DESC LIMIT 30').all();
@@ -202,7 +277,10 @@ module.exports = function (app) {
                     coverType: list.cover_type || 'auto',
                     coverImage
                 };
-            });
+            }).map(list => ({
+                ...list,
+                ...attachListStats(req.db, list.id, list.totalVisits || 0)
+            }));
 
             const availableSourcesRows = req.db.prepare(`
                 SELECT s.id, s.title, s.publication_year as year, s.cover_image_url as cover, s.overall_rating as rating, c.name as category
@@ -257,6 +335,9 @@ module.exports = function (app) {
 
             // If list is not public, let the original protected route handle authentication/authorization
             if (!listRow.is_public) return next();
+
+            const viewerId = getViewerId(req, res);
+            recordListView(req.db, listId, viewerId, listRow.user_id);
 
             // Build the same view model as the protected route, but allow req.user to be undefined
             const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
@@ -330,6 +411,9 @@ module.exports = function (app) {
                 }
             }
 
+            const publicViewerId = (req.user && req.user.id) || (res.locals && res.locals.user && res.locals.user.id) || null;
+            const publicViewRecorded = recordListView(db, listId, publicViewerId, listRow.user_id);
+
             const list = {
                 id: listRow.id,
                 title: listRow.title,
@@ -338,8 +422,7 @@ module.exports = function (app) {
                 isCollaborative: !!listRow.is_collaborative,
                 isPublic: !!listRow.is_public,
                 totalSources,
-                totalVisits: listRow.total_views || 0,
-                monthlyVisits: Array(12).fill(0),
+                ...attachListStats(db, listId, (listRow.total_views || 0) + (publicViewRecorded ? 1 : 0)),
                 categoriesDistribution,
                 collaborators,
                 sources,
@@ -414,6 +497,7 @@ module.exports = function (app) {
                 totalSources: 0,
                 totalVisits: 0,
                 monthlyVisits: Array(12).fill(0),
+                monthlyVisitLabels: [],
                 categoriesDistribution: {},
                 collaborators: [],
                 sources: [],
@@ -433,6 +517,8 @@ module.exports = function (app) {
                     if (!coll) return res.render('list-detail', { title: 'Lista no encontrada - Artícora', currentPage: 'lists', cssFile: 'lists.css', data: { user: fallbackUser, list: fallbackList, knowledgeCategories: [] } });
                 }
             }
+
+            const protectedViewRecorded = recordListView(req.db, listId, userId, listRow.user_id);
 
             const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
 
@@ -515,8 +601,7 @@ module.exports = function (app) {
                 isCollaborative: !!listRow.is_collaborative,
                 isPublic: !!listRow.is_public,
                 totalSources,
-                totalVisits: listRow.total_views || 0,
-                monthlyVisits: Array(12).fill(0),
+                ...attachListStats(req.db, listId, (listRow.total_views || 0) + (protectedViewRecorded ? 1 : 0)),
                 categoriesDistribution,
                 collaborators,
                 sources,
@@ -563,6 +648,8 @@ module.exports = function (app) {
                 totalSources: 0,
                 totalVisits: 0,
                 monthlyVisits: Array(12).fill(0),
+                monthlyVisitLabels: [],
+                monthlyVisitLabels: [],
                 categoriesDistribution: {},
                 collaborators: [],
                 sources: [],
@@ -851,8 +938,7 @@ module.exports = function (app) {
                 isCollaborative: !!listRow.is_collaborative,
                 isPublic: !!listRow.is_public,
                 totalSources,
-                totalVisits: listRow.total_views || 0,
-                monthlyVisits: Array(12).fill(0),
+                ...attachListStats(db, listId, listRow.total_views || 0),
                 categoriesDistribution,
                 collaborators,
                 sources,

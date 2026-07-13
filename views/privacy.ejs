@@ -1,0 +1,184 @@
+<%- include('partials/header', { 
+    title: 'Aviso de Privacidad - Artícora', 
+    currentPage: 'privacy',
+    cssFile: 'legal.css'
+}) %>
+
+<div class="container py-5 legal-page">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Encabezado -->
+            <div class="text-center mb-5">
+                <h1 class="page-title mb-3">
+                    <i class="fas fa-user-shield me-3"></i>Aviso de Privacidad Integral
+                </h1>
+                <p class="lead text-muted">
+                    Última actualización: <%= new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) %>
+                </p>
+            </div>
+
+            <!-- Navegación rápida -->
+            <div class="card shadow-sm mb-5">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-bookmark me-2"></i> Navegación rápida
+                    </h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="#identidad" class="btn btn-sm btn-outline-primary">Identidad</a>
+                        <a href="#datos" class="btn btn-sm btn-outline-primary">Datos recabados</a>
+                        <a href="#finalidades" class="btn btn-sm btn-outline-primary">Finalidades</a>
+                        <a href="#seguridad" class="btn btn-sm btn-outline-primary">Seguridad</a>
+                        <a href="#arco" class="btn btn-sm btn-outline-primary">Derechos ARCO</a>
+                        <a href="#transferencias" class="btn btn-sm btn-outline-primary">Transferencias</a>
+                        <a href="#cookies" class="btn btn-sm btn-outline-primary">Cookies</a>
+                        <a href="#cambios" class="btn btn-sm btn-outline-primary">Cambios</a>
+                        <a href="#contacto" class="btn btn-sm btn-outline-primary">Contacto</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 1: Identidad -->
+            <div class="mb-5" id="identidad">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-building me-2 text-primary"></i> Identidad y domicilio del responsable
+                </h2>
+                <p>
+                    <strong>Artícora Labs</strong> (en adelante "Artícora"), con domicilio en Calle de la Academia #123, Colonia Universidad, Ciudad de México, C.P. 01000, México, es el responsable del tratamiento de sus datos personales, de conformidad con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).
+                </p>
+            </div>
+
+            <!-- Sección 2: Datos recabados -->
+            <div class="mb-5" id="datos">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-database me-2 text-success"></i> Datos personales que recabamos
+                </h2>
+                <p>Para ofrecerle nuestros servicios, recopilamos las siguientes categorías de datos:</p>
+                <h5 class="mt-4">a) Datos de registro</h5>
+                <p>Nombre completo, dirección de correo electrónico, institución de adscripción, grado académico y área de conocimiento.</p>
+
+                <h5 class="mt-4">b) Datos de verificación (opcionales)</h5>
+                <p>Cuando usted solicita acceder a funciones avanzadas (subir fuentes, crear listas curatoriales, moderar grupos), podemos solicitarle un documento oficial (cédula profesional, identificación oficial o certificado institucional). Dichos documentos se cifran con AES-256 y se almacenan temporalmente (máximo 72 horas) únicamente para fines de verificación, siendo destruidos inmediatamente después.</p>
+
+                <h5 class="mt-4">c) Datos de navegación y uso</h5>
+                <p>Dirección IP, tipo de navegador, sistema operativo, páginas visitadas, búsquedas realizadas, interacciones con contenidos y metadatos de actividad (clics, tiempo de sesión).</p>
+            </div>
+
+            <!-- Sección 3: Finalidades -->
+            <div class="mb-5" id="finalidades">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-bullseye me-2 text-warning"></i> Finalidades del tratamiento
+                </h2>
+                <p>Sus datos serán utilizados para las siguientes finalidades:</p>
+
+                <h5 class="mt-4">Primarias (necesarias para la prestación del servicio)</h5>
+                <ul>
+                    <li>Gestionar su cuenta de usuario y autenticación.</li>
+                    <li>Permitir la publicación de fuentes, comentarios y calificaciones.</li>
+                    <li>Facilitar la creación y gestión de listas curatoriales colaborativas.</li>
+                    <li>Brindar funcionalidades de mensajería cifrada (individual y grupal).</li>
+                    <li>Mostrar recomendaciones personalizadas basadas en sus intereses y actividad.</li>
+                    <li>Garantizar la seguridad y estabilidad de la plataforma.</li>
+                </ul>
+
+                <h5 class="mt-4">Secundarias (requieren su consentimiento expreso)</h5>
+                <ul>
+                    <li>Enviarle comunicaciones periódicas con novedades, eventos o investigaciones relevantes en su área de interés.</li>
+                    <li>Realizar análisis estadísticos y estudios de uso para mejorar la experiencia.</li>
+                    <li>Compartir información con instituciones académicas aliadas con fines de investigación, previa anonimización de los datos.</li>
+                </ul>
+                <p>Usted puede revocar su consentimiento para las finalidades secundarias en cualquier momento a través de su perfil o contactándonos.</p>
+            </div>
+
+            <!-- Sección 4: Seguridad -->
+            <div class="mb-5" id="seguridad">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-lock me-2 text-danger"></i> Cifrado y medidas de seguridad
+                </h2>
+                <p>Artícora implementa medidas técnicas y organizativas para proteger su información:</p>
+                <ul>
+                    <li>Los mensajes en el chat se cifran de extremo a extremo mediante un sistema de clave pública/privada. La clave privada se almacena en la base de datos cifrada con su contraseña (hasheada), por lo que ni Artícora ni terceros pueden acceder al contenido de sus conversaciones.</li>
+                    <li>Los documentos de verificación se cifran con AES-256 y solo personal autorizado tiene acceso durante el proceso de verificación.</li>
+                    <li>Las copias de seguridad de la base de datos se cifran y rotan automáticamente.</li>
+                    <li>La plataforma utiliza HTTPS/TLS para todas las comunicaciones.</li>
+                </ul>
+                <p>No obstante, ningún sistema es 100% infalible, por lo que recomendamos a los usuarios adoptar buenas prácticas de seguridad en sus dispositivos.</p>
+            </div>
+
+            <!-- Sección 5: Derechos ARCO -->
+            <div class="mb-5" id="arco">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-user-edit me-2 text-info"></i> Derechos ARCO y su ejercicio
+                </h2>
+                <p>Usted tiene derecho a acceder, rectificar, cancelar u oponerse al tratamiento de sus datos personales (derechos ARCO). Para ejercerlos, deberá enviar una solicitud al correo electrónico: <a href="mailto:privacidad@articora.com">privacidad@articora.com</a>, indicando:</p>
+                <ul>
+                    <li>Su nombre completo y correo electrónico registrado.</li>
+                    <li>Una descripción clara de los datos que desea modificar, eliminar o sobre los cuales desea oponerse.</li>
+                    <li>En caso de rectificación, deberá anexar la documentación que acredite la modificación.</li>
+                </ul>
+                <p>Atenderemos su solicitud en un plazo máximo de 20 días hábiles, conforme a la LFPDPPP.</p>
+            </div>
+
+            <!-- Sección 6: Transferencias -->
+            <div class="mb-5" id="transferencias">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-exchange-alt me-2 text-secondary"></i> Transferencias de datos
+                </h2>
+                <p>Artícora no vende ni comercializa sus datos personales. Únicamente podremos compartir información con terceros en los siguientes casos:</p>
+                <ul>
+                    <li>Con proveedores de servicios que nos asistan en la operación técnica (hosting, analítica), siempre bajo contratos que garanticen la confidencialidad y el uso exclusivo para las finalidades acordadas.</li>
+                    <li>Por requerimiento de autoridad competente, dentro del marco legal aplicable, y solo cuando dicha solicitud cumpla con los requisitos legales.</li>
+                    <li>Con su consentimiento explícito para participar en estudios o colaboraciones con instituciones académicas, previa anonimización de los datos.</li>
+                </ul>
+            </div>
+
+            <!-- Sección 7: Cookies -->
+            <div class="mb-5" id="cookies">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-cookie-bite me-2 text-warning"></i> Uso de cookies
+                </h2>
+                <p>Utilizamos cookies y tecnologías similares para recordar sus preferencias, analizar el tráfico y mejorar la funcionalidad. Para más información, consulte nuestra <a href="/cookies">Política de Cookies</a>.</p>
+            </div>
+
+            <!-- Sección 8: Cambios -->
+            <div class="mb-5" id="cambios">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-history me-2 text-muted"></i> Cambios al Aviso de Privacidad
+                </h2>
+                <p>Nos reservamos el derecho de actualizar este aviso. Cualquier modificación será publicada en esta misma página con la fecha de actualización. Si los cambios son sustanciales, le notificaremos mediante un aviso visible en la plataforma o por correo electrónico.</p>
+            </div>
+
+            <!-- Sección 9: Contacto y aceptación -->
+            <div class="mb-5" id="contacto">
+                <h2 class="mb-4 border-bottom pb-2">
+                    <i class="fas fa-envelope me-2 text-primary"></i> Aceptación y contacto
+                </h2>
+                <p>Al utilizar Artícora, usted manifiesta su conformidad con este Aviso de Privacidad. Si tiene dudas o comentarios, contáctenos a través de <a href="mailto:legal@articora.com">legal@articora.com</a>.</p>
+            </div>
+
+            <!-- Cierre con tarjeta de contacto -->
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h4 class="card-title mb-3">
+                        <i class="fas fa-handshake me-2"></i> Compromiso con su privacidad
+                    </h4>
+                    <p class="card-text mb-4">
+                        En Artícora, la protección de sus datos es parte esencial de nuestro proyecto.
+                    </p>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <a href="mailto:privacidad@articora.com" class="btn btn-primary">
+                            <i class="fas fa-user-shield me-2"></i> Ejercer derechos ARCO
+                        </a>
+                        <a href="/faq" class="btn btn-outline-primary">
+                            <i class="fas fa-question-circle me-2"></i> Preguntas Frecuentes
+                        </a>
+                        <a href="/" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i> Volver al inicio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: 'legal.js' }) %>
