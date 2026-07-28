@@ -247,29 +247,25 @@ document.addEventListener('DOMContentLoaded', function () {
     const citationFormat = document.getElementById('citationFormat');
     const citationText = document.getElementById('citationText');
     const copyCitationBtn = document.getElementById('copyCitationBtn');
-
-    // Datos de ejemplo (en una aplicación real, esto vendría del servidor)
-    const citationFormats = {
-        apa: `Russell, S., & Norvig, P. (2020). Inteligencia Artificial: Un Enfoque Moderno (4ta ed.). Pearson.`,
-        chicago: `Russell, Stuart, and Peter Norvig. 2020. Inteligencia Artificial: Un Enfoque Moderno. 4th ed. Pearson.`,
-        harvard: `Russell, S. & Norvig, P., 2020. Inteligencia Artificial: Un Enfoque Moderno. 4ta ed. Pearson.`,
-        mla: `Russell, Stuart, and Peter Norvig. Inteligencia Artificial: Un Enfoque Moderno. 4ta ed., Pearson, 2020.`,
-        ieee: `S. Russell and P. Norvig, Inteligencia Artificial: Un Enfoque Moderno, 4ta ed. Pearson, 2020.`,
-        vancouver: `Russell S, Norvig P. Inteligencia Artificial: Un Enfoque Moderno. 4ta ed. Pearson; 2020.`,
-        bibtex: `@book{russell2020inteligencia,
-    title={Inteligencia Artificial: Un Enfoque Moderno},
-    author={Russell, Stuart and Norvig, Peter},
-    year={2020},
-    edition={4ta},
-    publisher={Pearson}
-}`
-    };
+    const postCitationDataEl = document.getElementById('postCitationData');
+    const postCitationData = window.ArticoraCitations && postCitationDataEl
+        ? window.ArticoraCitations.parseCitationSourceFromElement(postCitationDataEl)
+        : null;
+    const postCitationFormats = (window.ArticoraCitations && postCitationData)
+        ? window.ArticoraCitations.buildCitationFormats(postCitationData)
+        : {};
 
     if (citationFormat && citationText) {
-        citationFormat.addEventListener('change', function () {
-            const format = this.value;
-            citationText.value = citationFormats[format] || '';
-        });
+        const updateCitationText = () => {
+            const format = citationFormat.value || 'apa';
+            citationText.value = postCitationFormats[format] || citationText.value || '';
+        };
+
+        citationFormat.addEventListener('change', updateCitationText);
+        if (postCitationFormats.apa) {
+            citationFormat.value = 'apa';
+            citationText.value = postCitationFormats.apa;
+        }
     }
 
     if (copyCitationBtn) {

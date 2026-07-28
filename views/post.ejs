@@ -6,6 +6,23 @@
 }) %>
 
 <div class="container py-4" data-source-id="<%= post.id %>">
+    <script id="postCitationData" type="application/json"><%- JSON.stringify({
+        id: post.id,
+        title: post.title,
+        authors: post.authors,
+        year: post.year,
+        type: post.type,
+        journal: post.journal,
+        publisher: post.publisher,
+        journal_publisher: post.publisher,
+        volume: post.volume,
+        edition: post.edition,
+        pages: post.pages,
+        doi: post.doi,
+        url: post.url,
+        uploader: post.uploadedBy,
+        primaryUrl: post.url
+    }) %></script>
     <!-- Ruta de navegación -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
@@ -391,7 +408,7 @@
                             <% }) %>
                             <div class="mb-3">
                                 <label class="form-label">Fecha de lectura (opcional)</label>
-                                <input type="month" id="ratingReadDate" class="form-control">
+                                <input type="date" id="ratingReadDate" class="form-control">
                                 <small class="text-muted">Por defecto se usa la fecha actual si no seleccionas ninguna.</small>
                             </div>
                             <button type="button" class="btn btn-primary w-100" id="submitRatingBtn">Enviar calificación</button>
@@ -424,7 +441,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="citationText" class="form-label">Cita generada</label>
-                        <textarea class="form-control" id="citationText" rows="5" readonly><%= citationFormats.apa %></textarea>
+                        <textarea class="form-control" id="citationText" rows="5" readonly></textarea>
                     </div>
                     <button class="btn btn-primary w-100" id="copyCitationBtn">
                         <i class="fas fa-copy me-2"></i>Copiar al portapapeles
@@ -577,14 +594,17 @@ document.addEventListener('DOMContentLoaded', function(){
         const commentId = document.getElementById('report_comment_id').value || null;
         const reportedUserId = document.getElementById('report_reported_user_id').value || null;
         const reason = document.getElementById('reportReason').value || '';
-        const description = document.getElementById('reportDetails').value || '';
+        const description = (document.getElementById('reportDetails').value || '').trim();
+
+        const payload = { type: type === 'post' ? 'source' : type, source_id: sourceId ? Number(sourceId) : null, comment_id: commentId ? Number(commentId) : null, reported_user_id: reportedUserId ? Number(reportedUserId) : null, reason };
+        if (description) payload.description = description;
 
         try {
             const resp = await fetch('/api/reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ type: type === 'post' ? 'source' : type, source_id: sourceId ? Number(sourceId) : null, comment_id: commentId ? Number(commentId) : null, reported_user_id: reportedUserId ? Number(reportedUserId) : null, reason, description })
+                body: JSON.stringify(payload)
             });
             const data = await resp.json();
             if (resp.ok && data && data.success) {

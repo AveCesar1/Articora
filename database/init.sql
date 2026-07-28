@@ -402,7 +402,7 @@ CREATE TABLE IF NOT EXISTS reports (
     comment_id INTEGER,
     message_id INTEGER,
     reason VARCHAR(100) NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT,
     status VARCHAR(20) DEFAULT 'pending',
     admin_id INTEGER,
     reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

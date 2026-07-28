@@ -447,17 +447,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const card = btn.closest('.card');
                 if (!card) return;
                 const tpl = card.querySelector('.citation-templates');
-                if (!tpl) return;
-
-                const formats = {
-                    apa: (tpl.querySelector('.citation-apa') || { innerText: '' }).innerText.trim(),
-                    chicago: (tpl.querySelector('.citation-chicago') || { innerText: '' }).innerText.trim(),
-                    harvard: (tpl.querySelector('.citation-harvard') || { innerText: '' }).innerText.trim(),
-                    mla: (tpl.querySelector('.citation-mla') || { innerText: '' }).innerText.trim(),
-                    ieee: (tpl.querySelector('.citation-ieee') || { innerText: '' }).innerText.trim(),
-                    vancouver: (tpl.querySelector('.citation-vancouver') || { innerText: '' }).innerText.trim(),
-                    bibtex: (tpl.querySelector('.citation-bibtex') || { innerText: '' }).innerText.trim()
-                };
+                const dataEl = tpl ? tpl.querySelector('.citation-source-data') : null;
+                const citationSource = (window.ArticoraCitations && dataEl)
+                    ? window.ArticoraCitations.parseCitationSourceFromElement(dataEl)
+                    : null;
+                if (!citationSource) return;
+                const formats = window.ArticoraCitations ? window.ArticoraCitations.buildCitationFormats(citationSource) : {};
 
                 if (citeSelect) citeSelect.value = 'apa';
                 if (citeText) citeText.value = formats.apa || '';

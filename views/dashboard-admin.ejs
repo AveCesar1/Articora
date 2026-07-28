@@ -1,0 +1,135 @@
+<%- include('partials/header', {
+    title: title,
+    currentPage: currentPage,
+    cssFile: cssFile
+}) %>
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="page-title mb-2">
+                        <i class="fas fa-shield-alt me-3"></i>Panel de Administración
+                    </h1>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-user-shield me-1"></i> Bienvenido/a, <strong><%= user.username %></strong>
+                        | Última actualización: <span id="lastUpdate"><%= new Date().toLocaleTimeString('es-ES') %></span>
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary" id="refreshDashboard">
+                        <i class="fas fa-sync-alt me-2"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-flag fa-2x text-danger"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.stats.totalPending %></h3>
+                    <p class="stat-label">Reportes pendientes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.stats.highPriority %></h3>
+                    <p class="stat-label">Prioridad alta</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.stats.resolvedToday %></h3>
+                    <p class="stat-label">Resueltos hoy</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-clock fa-2x text-info"></i>
+                    </div>
+                    <h3 class="stat-number"><%= data.stats.avgResolutionTime %></h3>
+                    <p class="stat-label">Tiempo promedio</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-flag me-2"></i>Reportes pendientes</h5>
+                    <span class="badge bg-danger"><%= data.manualReports.length %></span>
+                </div>
+                <div class="card-body">
+                    <% if (data.manualReports.length > 0) { %>
+                        <div class="list-group list-group-flush">
+                            <% data.manualReports.forEach(report => { %>
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">
+                                                <span class="badge bg-light text-dark me-2">#<%= report.id %></span>
+                                                <%= report.title || (report.type === 'user' ? 'Usuario reportado' : 'Contenido reportado') %>
+                                            </div>
+                                            <div class="text-muted small mt-1"><%= report.reason %></div>
+                                            <div class="text-muted small">Reportado por <%= report.reportedBy %></div>
+                                        </div>
+                                        <a href="/admin" class="btn btn-sm btn-outline-primary">Abrir panel</a>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } else { %>
+                        <p class="text-muted mb-0">No hay reportes manuales pendientes.</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-robot me-2"></i>Alertas del sistema</h5>
+                    <span class="badge bg-warning text-dark"><%= data.systemReports.length %></span>
+                </div>
+                <div class="card-body">
+                    <% if (data.systemReports.length > 0) { %>
+                        <div class="list-group list-group-flush">
+                            <% data.systemReports.forEach(alert => { %>
+                                <div class="list-group-item px-0">
+                                    <div class="fw-bold"><%= alert.type %></div>
+                                    <div class="text-muted small"><%= alert.description || 'Sin descripción' %></div>
+                                    <div class="text-muted small"><%= alert.detectedDate || '' %></div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } else { %>
+                        <p class="text-muted mb-0">No hay alertas automáticas pendientes.</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer', { jsFile: jsFile }) %>

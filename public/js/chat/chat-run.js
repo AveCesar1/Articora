@@ -112,7 +112,9 @@ initChat();
             const ttype = (document.getElementById('report_target_type') || {}).value || '';
             const tid = (document.getElementById('report_target_id') || {}).value || '';
 
-            let body = { type: 'user', source_id: null, reported_user_id: null, comment_id: null, reason, description };
+            let body = { type: 'user', source_id: null, reported_user_id: null, comment_id: null, reason };
+            const trimmedDescription = description.trim();
+            if (trimmedDescription) body.description = trimmedDescription;
             if (ttype === 'user') {
                 body.type = 'user';
                 body.reported_user_id = Number(tid) || null;

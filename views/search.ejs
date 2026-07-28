@@ -467,13 +467,20 @@
                                             </button>
                                         </div>
                                         <div class="d-none citation-templates">
-                                            <pre class="citation-apa"><%= source.citationFormats && source.citationFormats.apa ? source.citationFormats.apa : '' %></pre>
-                                            <pre class="citation-chicago"><%= source.citationFormats && source.citationFormats.chicago ? source.citationFormats.chicago : '' %></pre>
-                                            <pre class="citation-harvard"><%= source.citationFormats && source.citationFormats.harvard ? source.citationFormats.harvard : '' %></pre>
-                                            <pre class="citation-mla"><%= source.citationFormats && source.citationFormats.mla ? source.citationFormats.mla : '' %></pre>
-                                            <pre class="citation-ieee"><%= source.citationFormats && source.citationFormats.ieee ? source.citationFormats.ieee : '' %></pre>
-                                            <pre class="citation-vancouver"><%= source.citationFormats && source.citationFormats.vancouver ? source.citationFormats.vancouver : '' %></pre>
-                                            <pre class="citation-bibtex"><%= source.citationFormats && source.citationFormats.bibtex ? source.citationFormats.bibtex : '' %></pre>
+                                            <script type="application/json" class="citation-source-data"><%- JSON.stringify({
+                                                id: source.id,
+                                                title: source.title,
+                                                authors: source.authors,
+                                                year: source.year,
+                                                type: source.type,
+                                                pages: source.pages,
+                                                doi: source.doi,
+                                                url: source.primaryUrl || '',
+                                                uploader: source.uploader ? source.uploader.name : '',
+                                                journal: source.journal || '',
+                                                publisher: source.publisher || '',
+                                                journal_publisher: source.publisher || ''
+                                            }) %></script>
                                         </div>
                                     </div>
                                 </div>

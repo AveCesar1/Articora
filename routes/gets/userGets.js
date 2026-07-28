@@ -11,6 +11,110 @@ module.exports = function (app) {
             const userId = req.session.userId;
             if (!userId) return res.redirect('/login');
 
+            const userRow = db.prepare('SELECT username, is_admin FROM users WHERE id = ? LIMIT 1').get(userId) || {};
+            const username = req.session.username || userRow.username || 'usuario';
+            const isAdmin = !!(req.session.is_admin || userRow.is_admin);
+
+            if (isAdmin) {
+                let manualRows = [];
+                try {
+                    manualRows = db.prepare(`
+                        SELECT r.id,
+                               r.report_type,
+                               r.reporter_id,
+                               ru.username AS reporter_username,
+                               r.source_id,
+                               rt.source_id AS comment_source_id,
+                               COALESCE(s.title, s2.title) AS source_title,
+                               r.reported_user_id,
+                               ru2.username AS reported_username,
+                               r.comment_id,
+                               r.reason,
+                               r.description,
+                               r.reported_at,
+                               r.status
+                        FROM reports r
+                        LEFT JOIN users ru ON r.reporter_id = ru.id
+                        LEFT JOIN users ru2 ON r.reported_user_id = ru2.id
+                        LEFT JOIN ratings rt ON r.comment_id = rt.id
+                        LEFT JOIN sources s ON r.source_id = s.id
+                        LEFT JOIN sources s2 ON rt.source_id = s2.id
+                        WHERE r.status = 'pending'
+                        ORDER BY r.reported_at ASC
+                    `).all();
+                } catch (e) {
+                    console.error('Error fetching admin dashboard manual reports:', e && e.message);
+                    manualRows = [];
+                }
+
+                const manualReports = manualRows.slice(0, 6).map(r => ({
+                    id: r.id,
+                    type: r.report_type || (r.comment_id ? 'comment' : (r.reported_user_id ? 'user' : 'source')),
+                    sourceId: r.source_id || r.comment_source_id || null,
+                    title: r.source_title || null,
+                    reason: r.reason || 'otro',
+                    description: r.description || '',
+                    reportedBy: r.reporter_username || ('#' + (r.reporter_id || '')),
+                    reportDate: r.reported_at || null,
+                    status: r.status || 'pending'
+                }));
+
+                let systemReports = [];
+                try {
+                    const alerts = db.prepare("SELECT id, alert_type, severity, description, details, created_at FROM system_alerts WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT 6").all();
+                    systemReports = alerts.map(a => {
+                        let details = {};
+                        try { details = a.details ? JSON.parse(a.details) : {}; } catch (e) { details = {}; }
+                        return {
+                            id: a.id,
+                            type: a.alert_type || 'system',
+                            description: a.description || '',
+                            severity: a.severity || 'media',
+                            detectedDate: a.created_at,
+                            details
+                        };
+                    });
+                } catch (e) {
+                    console.error('Error fetching admin dashboard system reports:', e && e.message);
+                    systemReports = [];
+                }
+
+                let resolvedToday = 0;
+                let avgResolutionTime = 'N/A';
+                try {
+                    const resolvedManualToday = db.prepare("SELECT COUNT(*) as c FROM reports WHERE resolved_at IS NOT NULL AND DATE(resolved_at) = DATE('now')").get().c || 0;
+                    const resolvedSystemToday = db.prepare("SELECT COUNT(*) as c FROM system_alerts WHERE resolved_at IS NOT NULL AND DATE(resolved_at) = DATE('now')").get().c || 0;
+                    resolvedToday = (resolvedManualToday || 0) + (resolvedSystemToday || 0);
+
+                    const manualAgg = db.prepare("SELECT COUNT(*) as cnt, SUM(strftime('%s', resolved_at) - strftime('%s', reported_at)) as total_seconds FROM reports WHERE resolved_at IS NOT NULL AND reported_at IS NOT NULL").get() || { cnt: 0, total_seconds: 0 };
+                    const systemAgg = db.prepare("SELECT COUNT(*) as cnt, SUM(strftime('%s', resolved_at) - strftime('%s', created_at)) as total_seconds FROM system_alerts WHERE resolved_at IS NOT NULL AND created_at IS NOT NULL").get() || { cnt: 0, total_seconds: 0 };
+                    const totalCount = (manualAgg.cnt || 0) + (systemAgg.cnt || 0);
+                    const totalSeconds = (manualAgg.total_seconds || 0) + (systemAgg.total_seconds || 0);
+                    if (totalCount > 0 && totalSeconds > 0) {
+                        const avgSeconds = totalSeconds / totalCount;
+                        avgResolutionTime = avgSeconds >= 86400 ? `${(avgSeconds / 86400).toFixed(1)} días` : avgSeconds >= 3600 ? `${(avgSeconds / 3600).toFixed(1)} horas` : `${Math.max(1, Math.round(avgSeconds / 60))} minutos`;
+                    }
+                } catch (e) {
+                    console.error('Error computing admin dashboard stats:', e && e.message);
+                }
+
+                const stats = {
+                    totalPending: manualRows.length + systemReports.length,
+                    highPriority: manualRows.filter(r => /ofensivo|violento|sexual|ilegal|abuso|ataque/i.test((r.reason || '') + ' ' + (r.description || ''))).length,
+                    resolvedToday,
+                    avgResolutionTime
+                };
+
+                return res.render('dashboard-admin', {
+                    title: 'Dashboard de Administración - Artícora',
+                    currentPage: 'dashboard',
+                    cssFile: 'dashboard.css',
+                    jsFile: 'dashboard.js',
+                    data: { stats, manualReports, systemReports },
+                    user: { id: userId, username }
+                });
+            }
+
             // Basic user stats
             const totalReadings = db.prepare('SELECT COUNT(1) as c FROM user_readings WHERE user_id = ? AND status = ?').get(userId, 'read').c || 0;
             const uploadedSources = db.prepare('SELECT COUNT(1) as c FROM sources WHERE uploaded_by = ?').get(userId).c || 0;
@@ -179,8 +283,6 @@ module.exports = function (app) {
                 readingHistory: { last30Days, categories: [], categoryDistribution: [] },
                 dashboardSettings
             };
-
-            const username = req.session.username || 'usuario';
 
             res.render('dashboard', {
                 title: 'Dashboard - Artícora',

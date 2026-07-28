@@ -18,6 +18,7 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const { Server } = require('socket.io');
 const axios = require('axios');
+const { startCronJobs } = require('./cron');
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -214,6 +215,12 @@ const upload = multer({
 // Import routes
 require('./routes/postRoutes')(app);
 require('./routes/getRoutes')(app);
+startCronJobs({
+    db: dbModule.db,
+    debugging: global.debugging,
+    encryptionKey: process.env.ENCRYPTION_KEY,
+    appRoot: __dirname
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -359,167 +366,6 @@ if (require.main === module) {
         process.exit(1);
     });
 }
-
-const cron = require('node-cron');
-cron.schedule('0 2 * * *', () => {
-  console.log('Recalculando IDF...');
-  const python = spawn('python3', ['tf-idf/recalc_idf.py']);
-  python.stdout.on('data', (data) => console.log(data.toString()));
-  python.stderr.on('data', (data) => console.error(data.toString()));
-});
-
-// Daily URL verification (persistent broken URLs detection)
-const { runDailyUrlChecks } = require('./lib/url_checker');
-const { runCommentChecks } = require('./lib/offensive_checker');
-cron.schedule('0 3 * * *', () => {
-    try {
-        console.log('Ejecutando verificación diaria de URLs...');
-        // dbModule.db is the shared better-sqlite3 connection
-        runDailyUrlChecks(dbModule.db).then((r) => {
-            if (global && global.debugging) console.log('runDailyUrlChecks result', r);
-        }).catch(e => console.error('runDailyUrlChecks failed', e && e.message));
-    } catch (e) {
-        console.error('Error programando verificación de URLs:', e && e.message);
-    }
-});
-
-// Daily offensive-language checks on comments (run at 04:00)
-cron.schedule('0 4 * * *', () => {
-    try {
-        console.log('Ejecutando verificación diaria de lenguaje ofensivo en comentarios...');
-        runCommentChecks(dbModule.db).then(r => {
-            if (global && global.debugging) console.log('runCommentChecks result', r);
-        }).catch(e => console.error('runCommentChecks failed', e && e.message));
-    } catch (e) {
-        console.error('Error programando verificación de lenguaje ofensivo:', e && e.message);
-    }
-});
-
-// Reset semanal de contadores de archivos (cada domingo 00:00)
-cron.schedule('0 0 * * 0', () => {
-    try {
-        console.log('Ejecutando reset semanal de weekly_file_uploads...');
-        dbModule.db.prepare('UPDATE users SET weekly_file_uploads = 0').run();
-        console.log('Reset semanal completado: weekly_file_uploads = 0 para todos los usuarios');
-    } catch (e) {
-        console.error('Error al resetear weekly_file_uploads:', e && e.message);
-    }
-});
-
-// Backup of the database file (/database/articora.db):
-function createBackupDB(sourceDbPath, backupDir, encryptionKeyHex) {
-    return new Promise((resolve, reject) => {
-        // Ensure backup directory exists
-        if (!fs.existsSync(backupDir)) {
-            fs.mkdirSync(backupDir, { recursive: true });
-        }
-
-        // Month-based filename
-        const monthName = new Date().toISOString().slice(0, 7); // "2026-05"
-        const tempDbPath = path.join(backupDir, `articora-${monthName}.db.tmp`);
-        const encryptedPath = path.join(backupDir, `articora-${monthName}.db.enc`);
-
-        console.log(`Creando backup para: ${monthName}...`);
-
-        // Step 1: Copy database to temp file
-        try {
-            fs.copyFileSync(sourceDbPath, tempDbPath);
-            console.log(`Copiando base de datos a: ${tempDbPath}`);
-        } catch (err) {
-            return reject(`Falló al copiar la base de datos: ${err.message}`);
-        }
-
-        // Step 2: Encrypt temp file to .enc with random IV
-        const key = Buffer.from(encryptionKeyHex, 'hex'); // Convert hex key to Buffer
-        const iv = crypto.randomBytes(16); // AES block size = 16 bytes
-
-
-        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-        const input = fs.createReadStream(tempDbPath);
-        const output = fs.createWriteStream(encryptedPath);
-
-        // Write the IV first (16 bytes)
-        output.write(iv);
-
-        input.pipe(cipher).pipe(output);
-
-        output.on('finish', () => {
-            // Delete temp file after successful encryption
-            fs.unlink(tempDbPath, (err) => {
-                if (err) console.warn(`No se pudo eliminar el archivo temporal: ${err.message}`);
-                else console.log(`Archivo temporal eliminado: ${tempDbPath}`);
-            });
-            console.log(`Backup encriptado creado: ${encryptedPath}`);
-            resolve(encryptedPath);
-        });
-
-        output.on('error', (err) => {
-            console.error(`Output stream error: ${err.message}`);
-            reject(err);
-        });
-
-        cipher.on('error', (err) => {
-            console.error(`Cipher error: ${err.message}`);
-            reject(err);
-        });
-
-        input.on('error', (err) => {
-            console.error(`Input stream error: ${err.message}`);
-            reject(err);
-        });
-    });
-}
-
-cron.schedule('0 0 1 * *', async () => {
-    try {
-        const backupDir = path.join(__dirname, 'database', 'backups');
-        const sourceDb = path.join(__dirname, 'database', 'articora.db');
-        const key = process.env.ENCRYPTION_KEY;
-
-        if (!key) {
-            console.warn('ENCRYPTION_KEY faltante – backup omitido');
-            return;
-        }
-
-        await createBackupDB(sourceDb, backupDir, key);
-
-        // Cleanup old backups (only keep 3 most recent by month name)
-        const files = fs.readdirSync(backupDir)
-            .filter(f => f.startsWith('articora-') && f.endsWith('.db.enc'))
-            .sort(); // YYYY-MM order
-        const toDelete = files.slice(0, -3); // keep last 3
-        for (const file of toDelete) {
-            fs.unlinkSync(path.join(backupDir, file));
-            console.log(`Eliminando backup antiguo: ${file}`);
-        }
-    } catch (err) {
-        console.error('Falló el backup mensual:', err);
-    }
-});
-
-(async () => {
-    try {
-        const backupDir = path.join(__dirname, 'database', 'backups');
-        const sourceDb = path.join(__dirname, 'database', 'articora.db');
-        const key = process.env.ENCRYPTION_KEY;
-
-        if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-
-        const existingBackups = fs.readdirSync(backupDir)
-            .filter(f => f.startsWith('articora-') && f.endsWith('.db.enc'));
-
-        if (existingBackups.length === 0 && key) {
-            console.log('No se encontraron backups – creando backup inicial...');
-            await createBackupDB(sourceDb, backupDir, key);
-        } else if (!key) {
-            console.warn('ENCRYPTION_KEY faltante – no se puede crear backup encriptado');
-        } else {
-            console.log(`${existingBackups.length} backup(s) existente(s) encontrado(s).`);
-        }
-    } catch (err) {
-        console.error('Falló la verificación de backup al iniciar:', err);
-    }
-})();
 
 // Cerrar la base de datos correctamente al salir
 process.on('SIGINT', () => {

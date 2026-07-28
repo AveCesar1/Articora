@@ -175,16 +175,6 @@ module.exports = function (app) {
                     const cat = categoryMap.get(r.category_id) || { name: '', color: categoryColorMap[''] || '#6c757d' };
                     const subcatName = subcategoryMap.get(r.subcategory_id) || '';
 
-                    const citationFormats = {
-                        apa: `${authors.join(', ')} (${r.year || ''}). ${r.title}. ${r.journal || r.publisher || ''}${r.primary_url ? ' ' + htmlUnescape(r.primary_url) : ''}`,
-                        chicago: `${authors.join('. ')}. ${r.title}. ${r.journal || r.publisher || ''} ${r.year || ''}. ${htmlUnescape(r.primary_url || '')}`,
-                        harvard: `${authors.join(', ')} (${r.year || ''}) ${r.title}. ${r.journal || r.publisher || ''}. Available at: ${htmlUnescape(r.primary_url || '')}`,
-                        mla: `${authors.join(', ')}. "${r.title}." ${r.journal || r.publisher || ''}, ${r.year || ''}. ${htmlUnescape(r.primary_url || '')}`,
-                        ieee: `${authors.join(', ')} \"${r.title},\" ${r.journal || r.publisher || ''}, ${r.year || ''}. [Online]. Available: ${htmlUnescape(r.primary_url || '')}`,
-                        vancouver: `${authors.join(', ')}. ${r.title}. ${r.journal || r.publisher || ''}. ${r.year || ''}. Available from: ${htmlUnescape(r.primary_url || '')}`,
-                        bibtex: `@article{source${r.id}, title={${r.title}}, author={${authors.join(' and ')}}, year={${r.year}}${r.primary_url ? `, url={${htmlUnescape(r.primary_url)}}` : ''} }`
-                    };
-
                     return {
                         id: r.id,
                         title: r.title,
@@ -193,6 +183,7 @@ module.exports = function (app) {
                         type: r.type || 'Book',
                         pages: pagesDisplay,
                         doi: r.doi,
+                        primaryUrl: htmlUnescape(r.primary_url || ''),
                         keywords,
                         excerpt: '',
                         rating: { average: ratingAvg, count: ratingCount, criteria: [], avgDifficulty: r.avg_technical_difficulty || 0 },
@@ -200,8 +191,7 @@ module.exports = function (app) {
                         subcategory: { id: r.subcategory_id, name: subcatName },
                         stats: { views: (typeof r.total_reads !== 'undefined' && r.total_reads !== null && r.total_reads > 0) ? r.total_reads : 'N/A', bookmarks: 'N/A' },
                         uploadDate: r.created_at || null,
-                        uploader: uploader,
-                        citationFormats: citationFormats
+                        uploader: uploader
                     };
                 });
             } else {
@@ -269,16 +259,6 @@ module.exports = function (app) {
                             const cat = categoryMap.get(row.category_id) || { name: '', color: categoryColorMap[''] || '#6c757d' };
                             const subcatName = subcategoryMap.get(row.subcategory_id) || '';
 
-                            const citationFormats = {
-                                apa: `${authors.join(', ')} (${row.year || ''}). ${row.title}. ${row.journal || row.publisher || ''}${row.primary_url ? ' ' + htmlUnescape(row.primary_url) : ''}`,
-                                chicago: `${authors.join('. ')}. ${row.title}. ${row.journal || row.publisher || ''} ${row.year || ''}. ${htmlUnescape(row.primary_url || '')}`,
-                                harvard: `${authors.join(', ')} (${row.year || ''}) ${row.title}. ${row.journal || row.publisher || ''}. Available at: ${htmlUnescape(row.primary_url || '')}`,
-                                mla: `${authors.join(', ')}. "${row.title}." ${row.journal || row.publisher || ''}, ${row.year || ''}. ${htmlUnescape(row.primary_url || '')}`,
-                                ieee: `${authors.join(', ')} \"${row.title},\" ${row.journal || row.publisher || ''}, ${row.year || ''}. [Online]. Available: ${htmlUnescape(row.primary_url || '')}`,
-                                vancouver: `${authors.join(', ')}. ${row.title}. ${row.journal || row.publisher || ''}. ${row.year || ''}. Available from: ${htmlUnescape(row.primary_url || '')}`,
-                                bibtex: `@article{source${row.id}, title={${row.title}}, author={${authors.join(' and ')}}, year={${row.year}}${row.primary_url ? `, url={${htmlUnescape(row.primary_url)}}` : ''} }`
-                            };
-
                             ordered.push({
                                 id: row.id,
                                 title: row.title,
@@ -287,6 +267,7 @@ module.exports = function (app) {
                                 type: row.type || 'Book',
                                 pages: pagesDisplay,
                                 doi: row.doi,
+                                primaryUrl: htmlUnescape(row.primary_url || ''),
                                 keywords,
                                 excerpt: '',
                                 rating: { average: ratingAvg, count: ratingCount, criteria: [], avgDifficulty: row.avg_technical_difficulty || 0 },
@@ -295,8 +276,7 @@ module.exports = function (app) {
                                 stats: { views: (typeof row.total_reads !== 'undefined' && row.total_reads !== null && row.total_reads > 0) ? row.total_reads : 'N/A', bookmarks: 'N/A' },
                                 uploadDate: row.created_at || null,
                                 uploader: uploader,
-                                score: item.score,
-                                citationFormats: citationFormats
+                                score: item.score
                             });
                         }
 
@@ -723,13 +703,6 @@ module.exports = function (app) {
 
             const relatedSources = [];
 
-            // citation formats minimal (can be expanded)
-            const citationFormats = {
-                apa: `${post.authors.join(', ')} (${post.year}). ${post.title}.`,
-                chicago: `${post.authors.join(', ')}. ${post.year}. ${post.title}.`,
-                bibtex: `@book{source${post.id}, title={${post.title}}, author={${post.authors.join(' and ')}}, year={${post.year}} }`
-            };
-
             // Compute basic stats: lecturas (from user_readings), reseñas (ratings count), descargas (appearances in lists)
             try {
                 const readsRow = db.prepare('SELECT COUNT(1) as c FROM user_readings WHERE source_id = ? AND status = ?').get(postId, 'read');
@@ -767,7 +740,6 @@ module.exports = function (app) {
                 post,
                 comments,
                 relatedSources,
-                citationFormats,
                 currentUserId: req.session && req.session.userId ? req.session.userId : (res.locals.user && res.locals.user.id ? res.locals.user.id : null),
                 isReadByUser,
                 isInReadingList

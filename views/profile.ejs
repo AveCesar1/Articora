@@ -36,11 +36,14 @@
                     
                     <h2 class="profile-name mb-2"><%= user.fullName %></h2>
                     <p class="text-muted mb-2">@<%= user.username %></p>
-                    
-                    <span class="status-badge validated mb-3">
-                        <i class="fas fa-check-circle me-1"></i> <%= user.academicStatus %>
-                    </span>
-                    
+
+                    <% if (user.academicStatus) { %>
+                        <span class="status-badge <%= user.academicStatus === 'Validado' ? 'validated' : 'unverified' %> mb-3">
+                            <i class="fas <%= user.academicStatus === 'Validado' ? 'fa-check-circle' : 'fa-times-circle' %> me-1"></i>
+                            <%= user.academicStatus %>
+                        </span>
+                    <% } %>
+
                     <div class="mt-3">
                         <% if (isOwnProfile) { %>
                             <a href="/profile/config" class="btn btn-primary" style="margin-bottom: 1em;">
@@ -541,14 +544,17 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('submitReportUserBtn').addEventListener('click', async () => {
         const reportedUserId = document.getElementById('reportUser_reported_user_id').value || null;
         const reason = document.getElementById('reportUserReason').value || '';
-        const description = document.getElementById('reportUserDetails').value || '';
+        const description = (document.getElementById('reportUserDetails').value || '').trim();
+
+        const payload = { type: 'user', source_id: null, comment_id: null, reported_user_id: reportedUserId ? Number(reportedUserId) : null, reason };
+        if (description) payload.description = description;
 
         try {
             const resp = await fetch('/api/reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ type: 'user', source_id: null, comment_id: null, reported_user_id: reportedUserId ? Number(reportedUserId) : null, reason, description })
+                body: JSON.stringify(payload)
             });
             const data = await resp.json();
             if (resp.ok && data && data.success) {
