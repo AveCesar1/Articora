@@ -131,6 +131,7 @@ module.exports = function (app) {
                 // No query: return recent sources optionally filtered by type/category/subcategory/year/rating
                 const whereParts = [];
                 const params = [];
+                whereParts.push('s.is_active = 1');
                 if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
                 if (selectedCategories.length) { whereParts.push(`s.category_id IN (${selectedCategories.map(() => '?').join(',')})`); params.push(...selectedCategories); }
                 if (selectedSubcategories.length) { whereParts.push(`s.subcategory_id IN (${selectedSubcategories.map(() => '?').join(',')})`); params.push(...selectedSubcategories); }
@@ -216,7 +217,7 @@ module.exports = function (app) {
                     const ids = pyResults.map(r => r.source_id).filter(Boolean);
                     if (ids.length > 0) {
                         const placeholders = ids.map(() => '?').join(',');
-                        const whereParts = [`s.id IN (${placeholders})`];
+                        const whereParts = [`s.id IN (${placeholders})`, 's.is_active = 1'];
                         const params = [...ids];
                         if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
                         if (selectedCategories.length) { whereParts.push(`s.category_id IN (${selectedCategories.map(() => '?').join(',')})`); params.push(...selectedCategories); }
@@ -467,6 +468,7 @@ module.exports = function (app) {
                 if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
                 if (selectedCategory) { whereParts.push('s.category_id = ?'); params.push(selectedCategory); }
                 if (selectedSubcategory) { whereParts.push('s.subcategory_id = ?'); params.push(selectedSubcategory); }
+                whereParts.push('s.is_active = 1');
                 if (excludeListId) { whereParts.push(`s.id NOT IN (SELECT source_id FROM list_sources WHERE list_id = ?)`); params.push(excludeListId); }
 
                 const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
@@ -511,7 +513,7 @@ module.exports = function (app) {
                     const ids = pyResults.map(r => r.source_id).filter(Boolean);
                     if (ids.length > 0) {
                         const placeholders = ids.map(() => '?').join(',');
-                        const whereParts = [`s.id IN (${placeholders})`];
+                        const whereParts = [`s.id IN (${placeholders})`, 's.is_active = 1'];
                         const params = [...ids];
                         if (sourceTypeId) { whereParts.push('s.source_type_id = ?'); params.push(sourceTypeId); }
                         if (selectedCategory) { whereParts.push('s.category_id = ?'); params.push(selectedCategory); }
@@ -579,9 +581,9 @@ module.exports = function (app) {
         if (Number.isNaN(postId)) return res.status(400).send('Invalid id');
 
         try {
-            const row = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.journal_publisher AS publisher, s.pages, s.doi, s.keywords, st.name AS type, s.primary_url AS url, s.cover_image_url AS coverImage, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at, s.volume, s.edition FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id WHERE s.id = ? LIMIT 1`).get(postId);
+            const row = db.prepare(`SELECT s.id, s.title, s.publication_year AS year, s.journal_publisher AS publisher, s.pages, s.doi, s.keywords, st.name AS type, s.primary_url AS url, s.cover_image_url AS coverImage, s.category_id, s.subcategory_id, s.uploaded_by, s.created_at, s.volume, s.edition, s.is_active FROM sources s LEFT JOIN source_types st ON s.source_type_id = st.id WHERE s.id = ? LIMIT 1`).get(postId);
 
-            if (!row) {
+            if (!row || !row.is_active) {
                 return res.status(404).render('404', { title: 'Fuente no encontrada - Artícora', currentPage: 'post' });
             }
 

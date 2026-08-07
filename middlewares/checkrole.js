@@ -61,19 +61,23 @@ const checkRole = (rolesPermitidos) => {
                 if (debugging) console.log(`checkRole: User role '${userRole}' is NOT permitted. Sending 403.`);
 
                 if (req.method === 'GET' && req.path === '/upload') {
-                    return res.status(403).render('upload', {
-                        title: 'Subir fuente - Artícora',
-                        currentPage: 'upload',
-                        cssFile: 'upload.css',
-                        uploadBlockedMessage: 'Tu cuenta todavía no está validada. Un administrador debe aprobarla antes de que puedas subir fuentes.',
-                        categories: [],
-                        sourceTypes: []
+                    return res.status(403).render('404', {
+                        title: 'Acceso denegado - Artícora',
+                        currentPage: '404',
+                        cssFile: '404.css',
+                        errorTitle: 'Error 403: Acceso denegado',
+                        errorMessage: 'No tienes acceso a abrir este recurso. Primero verifica tu cuenta antes de subir fuentes.',
+                        errorType: 'upload'
                     });
                 }
 
-                return res.status(403).render('404', { 
-                    title: 'Acceso Denegado', 
-                    message: 'No tienes permisos para ver esta sección.' 
+                return res.status(403).render('404', {
+                    title: 'Acceso Denegado',
+                    currentPage: '404',
+                    cssFile: '404.css',
+                    errorTitle: 'Acceso denegado',
+                    errorMessage: 'No tienes permisos para ver esta sección.',
+                    errorType: 'access'
                 });
             }
         } catch (error) {

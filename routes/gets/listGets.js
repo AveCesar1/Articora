@@ -145,7 +145,7 @@ module.exports = function (app) {
             `).all(userId, userId, userId);
 
             const myLists = myListsRows.map(list => {
-                const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(list.id).c || 0;
+                const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources ls JOIN sources s ON ls.source_id = s.id WHERE ls.list_id = ? AND s.is_active = 1').get(list.id).c || 0;
 
                 const cats = req.db.prepare(`
                     SELECT coalesce(c.name, 'Desconocida') as name, COUNT(*) as cnt
@@ -244,7 +244,7 @@ module.exports = function (app) {
             // Public lists
             const publicRows = req.db.prepare('SELECT cl.*, u.full_name as creatorName FROM curatorial_lists cl JOIN users u ON cl.user_id = u.id WHERE cl.is_public = 1 ORDER BY cl.created_at DESC LIMIT 30').all();
             const publicLists = publicRows.map(list => {
-                const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(list.id).c || 0;
+                const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources ls JOIN sources s ON ls.source_id = s.id WHERE ls.list_id = ? AND s.is_active = 1').get(list.id).c || 0;
                 let coverImage = null;
                 if (list.cover_image) {
                     const catMatch = knowledgeCategories.find(c => String(c.name) === String(list.cover_image));
@@ -340,14 +340,14 @@ module.exports = function (app) {
             recordListView(req.db, listId, viewerId, listRow.user_id);
 
             // Build the same view model as the protected route, but allow req.user to be undefined
-            const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
+            const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources ls JOIN sources s ON ls.source_id = s.id WHERE ls.list_id = ? AND s.is_active = 1').get(listId).c || 0;
 
             const sourcesRows = db.prepare(`
                 SELECT s.id, s.title, s.publication_year as year, s.cover_image_url as cover, s.overall_rating as rating, s.is_active, s.uploaded_by, c.name as category, ls.added_at as addedDate, ls.sort_order as sort_order
                 FROM list_sources ls
                 JOIN sources s ON ls.source_id = s.id
                 LEFT JOIN categories c ON s.category_id = c.id
-                WHERE ls.list_id = ?
+                WHERE ls.list_id = ? AND s.is_active = 1
                 ORDER BY COALESCE(ls.sort_order, ls.added_at) ASC
             `).all(listId);
 
@@ -376,7 +376,7 @@ module.exports = function (app) {
                 FROM list_sources ls
                 JOIN sources s ON ls.source_id = s.id
                 LEFT JOIN categories c ON s.category_id = c.id
-                WHERE ls.list_id = ?
+                WHERE ls.list_id = ? AND s.is_active = 1
                 GROUP BY c.name
             `).all(listId);
             const categoriesDistribution = {};
@@ -520,7 +520,7 @@ module.exports = function (app) {
 
             const protectedViewRecorded = recordListView(req.db, listId, userId, listRow.user_id);
 
-            const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
+            const totalSources = req.db.prepare('SELECT COUNT(*) as c FROM list_sources ls JOIN sources s ON ls.source_id = s.id WHERE ls.list_id = ? AND s.is_active = 1').get(listId).c || 0;
 
             const sourcesRows = req.db.prepare(`
                 SELECT s.id, s.title, s.publication_year as year, s.cover_image_url as cover, s.overall_rating as rating, s.is_active, s.uploaded_by, c.name as category, ls.added_at as addedDate, ls.sort_order as sort_order
@@ -860,14 +860,14 @@ module.exports = function (app) {
                 }
             }
 
-            const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources WHERE list_id = ?').get(listId).c || 0;
+            const totalSources = db.prepare('SELECT COUNT(*) as c FROM list_sources ls JOIN sources s ON ls.source_id = s.id WHERE ls.list_id = ? AND s.is_active = 1').get(listId).c || 0;
 
             const sourcesRows = db.prepare(`
                 SELECT s.id, s.title, s.publication_year as year, s.cover_image_url as cover, s.overall_rating as rating, s.is_active, s.uploaded_by, c.name as category, ls.added_at as addedDate, ls.sort_order as sort_order
                 FROM list_sources ls
                 JOIN sources s ON ls.source_id = s.id
                 LEFT JOIN categories c ON s.category_id = c.id
-                WHERE ls.list_id = ?
+                WHERE ls.list_id = ? AND s.is_active = 1
                 ORDER BY COALESCE(ls.sort_order, ls.added_at) ASC
             `).all(listId);
 
@@ -895,7 +895,7 @@ module.exports = function (app) {
                 FROM list_sources ls
                 JOIN sources s ON ls.source_id = s.id
                 LEFT JOIN categories c ON s.category_id = c.id
-                WHERE ls.list_id = ?
+                WHERE ls.list_id = ? AND s.is_active = 1
                 GROUP BY c.name
             `).all(listId);
             const categoriesDistribution = {};

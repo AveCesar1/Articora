@@ -543,7 +543,18 @@ module.exports = function (app) {
                     SELECT public_key, encrypted_private_key, private_key_iv, private_key_salt, private_key_tag
                     FROM user_keys WHERE user_id = ?
                 `).get(user.id) || null;
-                if (debugging) console.log('Login: retrieved key row for user', user.id, { hasPublic: !!(keys && keys.public_key), hasEncryptedPrivate: !!(keys && keys.encrypted_private_key) });
+                // if (debugging) console.log('Login: retrieved key row for user', user.id, { hasPublic: !!(keys && keys.public_key), hasEncryptedPrivate: !!(keys && keys.encrypted_private_key) });
+                // Only for debugging: you shouldn't log the actual private key or sensitive data in production logs.
+                // It's most common to log the presence of keys, not their contents.
+                if (debugging && keys) {
+                    console.log('Login: retrieved keys for user', user.id, {
+                        hasPublicKey: !!keys.public_key, // This will only print true/false, not the actual key
+                        hasEncryptedPrivateKey: !!keys.encrypted_private_key,
+                        hasIv: !!keys.private_key_iv,
+                        hasSalt: !!keys.private_key_salt,
+                        hasTag: !!keys.private_key_tag
+                    });
+                }
             } catch (e) {
                 console.error('Error retrieving user keys for login response:', e && e.message);
                 keys = null;
@@ -621,6 +632,7 @@ module.exports = function (app) {
             // Always respond with success to avoid account enumeration. If user exists, send email with code.
             if (user) {
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
+                // Only log the code in debugging mode
                 if (debugging) console.log(`Códig de verificación para el usuario ${user.id}: ${code}`)
                 const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
                 req.session.passwordReset = {

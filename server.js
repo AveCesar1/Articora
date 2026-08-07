@@ -1,4 +1,34 @@
-// server.js
+/*
+ * ============================================================================
+ *     Artícora v7.5.2 - A privacy-focused collaborative research platform.
+ *
+ *  Authors:
+ *      - Joaquín Gutiérrez (AveCesar1 on GitHub)
+ *      - Leonardo Sánchez (Leoelpre2 on GitHub)
+ *  Only framework: Express.js (https://expressjs.com/)
+ *
+ *  This Spanish project exists primarily to teach a Node.js and Express.js
+ *  implementation of a collaborative research platform in a simple, clear, 
+ *  and maintainable way. The implementation prioritizes maintainability and
+ *  code quality, allowing for a more robust and scalable application.
+ *
+ *  This software is provided "as is", without warranty of any kind.
+ *  Use it at your own risk, and please respect the privacy of others.
+ * 
+ *  You can see technical documentation and guides in the Markdown files in the 
+ *  root directory, plus diagrams under the docs/ folder.
+ * 
+ *  Make sure to create the enviroment variables in a .env file in the root directory, 
+ *  as described in the README.md.
+ * 
+ *  This project is licensed under the PSVL license (read LICENSE for details).
+ *  "Use it for personal, non-commercial, educational, or research purposes only."
+ * 
+ *  With love,
+ *  The Artícora Team
+ * ============================================================================
+ */
+
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
@@ -7,6 +37,7 @@ const { spawn } = require('child_process');
 require('dotenv').config();
 const session = require('express-session');
 const multer = require('multer');
+
 // Import database module
 const dbModule = require('./lib/database');
 const { Session } = require('inspector');

@@ -80,6 +80,18 @@ module.exports = function(app) {
 			const result = insert.run(userId, title, description || null, coverImageValue, isPublic, isCollaborative);
 			const listId = result.lastInsertRowid;
 
+			const collaborators = Array.isArray(body.collaborators) ? Array.from(new Set(body.collaborators.map(id => Number(id)).filter(id => !Number.isNaN(id) && id !== userId))) : [];
+			if (isCollaborative && collaborators.length > 0) {
+				const validCollaborators = db.prepare('SELECT id FROM users WHERE id IN (' + collaborators.map(() => '?').join(',') + ') AND is_validated = 1').all(...collaborators).map(row => row.id);
+				if (validCollaborators.length > 0) {
+					const insertCollaborator = db.prepare("INSERT OR IGNORE INTO list_collaborators (list_id, user_id, invited_at, status) VALUES (?, ?, datetime('now'), 'pending')");
+					const tx = db.transaction((ids) => {
+						for (const collaboratorId of ids) insertCollaborator.run(listId, collaboratorId);
+					});
+					tx(validCollaborators);
+				}
+			}
+
 			const list = db.prepare('SELECT id, user_id as userId, title, description, cover_image as coverImage, is_public as isPublic, is_collaborative as isCollaborative, total_sources as totalSources, total_views as totalViews, created_at as createdAt, updated_at as updatedAt FROM curatorial_lists WHERE id = ?').get(listId);
 
 			return res.json({ success: true, list });
